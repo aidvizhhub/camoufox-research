@@ -24,19 +24,37 @@ REQUESTS = [
 
 payload = "".join(json.dumps(r) + "\n" for r in REQUESTS)
 
-proc = subprocess.Popen(
-    CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-    stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
+def run_once(cmd):
+    proc = subprocess.Popen(
+        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+    try:
+        proc.stdin.write(payload)
+        proc.stdin.flush()
+        time.sleep(1.5)
+        proc.stdin.close()
+        out, err = proc.communicate(timeout=60)
+    except (BrokenPipeError, ValueError, OSError) as e:
+        out, err = (proc.stdout or ""), ""
+        try:
+            err = proc.stderr.read()
+        except Exception:
+            pass
+        proc.kill()
+        raise RuntimeError(f"server died early: {e}; stderr: {err[:500]}")
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise SystemExit("smoke FAILED: server timeout")
+    return out, err
 
-try:
-    proc.stdin.write(payload)
-    proc.stdin.flush()
-    time.sleep(1.5)  # дать серверу обработать очередь до EOF (race на старых Python)
-    proc.stdin.close()
-    out, _ = proc.communicate(timeout=60)
-except subprocess.TimeoutExpired:
-    proc.kill()
-    raise SystemExit("smoke FAILED: server timeout")
+
+for attempt in (1, 2, 3):
+    try:
+        out, _ = run_once(CMD)
+        break
+    except RuntimeError as e:
+        if attempt == 3:
+            raise SystemExit(f"smoke FAILED after 3 attempts: {e}")
 
 seen = set()
 for line in out.splitlines():
