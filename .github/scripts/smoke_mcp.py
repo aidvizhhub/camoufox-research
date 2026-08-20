@@ -29,10 +29,9 @@ def run_once(cmd):
         cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     try:
-        time.sleep(3.0)  # дать серверу время на импорт (медленные диски CI)
         proc.stdin.write(payload)
         proc.stdin.flush()
-        time.sleep(1.5)
+        time.sleep(2.0)  # дать серверу обработать очередь до EOF (race)
         proc.stdin.close()
         out, err = proc.communicate(timeout=60)
     except (BrokenPipeError, ValueError, OSError) as e:
