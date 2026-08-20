@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 CMD = sys.argv[1:] or [os.environ.get("MCP_CMD", "camoufox-research")]
 
@@ -23,12 +24,22 @@ REQUESTS = [
 
 payload = "".join(json.dumps(r) + "\n" for r in REQUESTS)
 
-proc = subprocess.run(
-    CMD, input=payload, capture_output=True, text=True, timeout=60,
-    encoding="utf-8", errors="replace")
+proc = subprocess.Popen(
+    CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
+
+try:
+    proc.stdin.write(payload)
+    proc.stdin.flush()
+    time.sleep(1.5)  # дать серверу обработать очередь до EOF (race на старых Python)
+    proc.stdin.close()
+    out, _ = proc.communicate(timeout=60)
+except subprocess.TimeoutExpired:
+    proc.kill()
+    raise SystemExit("smoke FAILED: server timeout")
 
 seen = set()
-for line in proc.stdout.splitlines():
+for line in out.splitlines():
     try:
         d = json.loads(line)
     except Exception:
