@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "camoufox-research": {
+      "command": "/АБСОЛЮТНЫЙ/путь/до/venv/bin/camoufox-research",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+
+# Если пакет не установлен (запуск из исходников):
+#   "command": "/АБСОЛЮТНЫЙ/путь/до/venv/bin/python",
+#   "args": ["/АБСОЛЮТНЫЙ/путь/до/camoufox-reasearch/mcp/server.py"]

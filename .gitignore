@@ -1,0 +1,41 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# --- Секреты (НИКОГДА не коммитить) ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# --- Локальные данные браузера/кэша (не в репозиторий) ---
+*.sqlite
+*.sqlite3
+*.db
+cookies.json
+storage_state*.json
+*.log
+research/screenshots/
+research/*.md
+!research/README.md
+
+# --- ОС/редакторы ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Локальные конфиги ---
+configs/.env
+configs/local.*

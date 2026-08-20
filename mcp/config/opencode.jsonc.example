@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "camoufox": {
+      "type": "local",
+      "command": ["/АБСОЛЮТНЫЙ/путь/до/venv/bin/camoufox-research"],
+      "enabled": true
+    }
+  }
+}
+
+# Если пакет не установлен (запуск из исходников):
+#   "command": ["/АБСОЛЮТНЫЙ/путь/до/venv/bin/python",
+#               "/АБСОЛЮТНЫЙ/путь/до/camoufox-reasearch/mcp/server.py"]

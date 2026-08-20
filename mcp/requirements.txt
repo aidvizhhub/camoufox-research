@@ -1,0 +1,10 @@
+# Зависимости MCP-сервера веб-ресёрча Camoufox.
+# Установка:  pip install -r mcp/requirements.txt
+# Браузер (один раз): python -m camoufox fetch
+#
+# Версии запинены по реально работающему venv (проверено 08.2026) —
+# без пинов pip дрейфует к новым версиям и ломает совместимость.
+mcp==1.29.0
+camoufox==0.5.4
+# опционально: чистый текст статьи (article_only) — без неё fallback на body
+trafilatura==2.2.0

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "camoufox-research"
+version = "0.1.0"
+description = "MCP server for browser research on the anti-detect Camoufox browser: search, page reading (incl. JS/SPA), batch fetch, clicks, typing, sessions, cache"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["mcp", "camoufox", "browser", "research", "scraping"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+]
+
+# Версии запинены по реально работающему окружению (проверено 08.2026) —
+# без пинов pip дрейфует к новым версиям и ломает совместимость.
+dependencies = [
+    "mcp==1.29.0",
+    "camoufox==0.5.4",
+    "trafilatura>=2.0",
+]
+
+[project.scripts]
+camoufox-research = "camoufox_research.camoufox_research:main"
+
+[tool.setuptools]
+packages = ["camoufox_research"]
