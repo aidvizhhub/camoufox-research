@@ -29,6 +29,7 @@ def run_once(cmd):
         cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     try:
+        time.sleep(3.0)  # дать серверу время на импорт (медленные диски CI)
         proc.stdin.write(payload)
         proc.stdin.flush()
         time.sleep(1.5)
@@ -41,7 +42,8 @@ def run_once(cmd):
         except Exception:
             pass
         proc.kill()
-        raise RuntimeError(f"server died early: {e}; stderr: {err[:500]}")
+        rc = proc.poll()
+        raise RuntimeError(f"server died early (exit={rc}): {e}; stderr: {err[:500]}")
     except subprocess.TimeoutExpired:
         proc.kill()
         raise SystemExit("smoke FAILED: server timeout")
