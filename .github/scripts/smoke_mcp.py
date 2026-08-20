@@ -39,7 +39,7 @@ def check(out):
         if rid == 2 and "tools" in d.get("result", {}):
             names = [t["name"] for t in d["result"]["tools"]]
             assert "web_search" in names and "session_start" in names, names
-            assert len(names) >= 20, names
+            assert len(names) >= 18, names
             seen.add("tools:" + str(len(names)))
         if rid == 3:
             txt = "".join(c.get("text", "") for c in d["result"]["content"])
@@ -55,7 +55,7 @@ for attempt in range(1, 6):
             CMD, input=payload, capture_output=True, text=True, timeout=60,
             encoding="utf-8", errors="replace")
         seen = check(proc.stdout)
-        if seen == {"init", "tools:21"} or (seen == {"init", "ping", "tools:21"}):
+        if seen == {"init", "tools:19"} or (seen == {"init", "ping", "tools:19"}):
             print(f"smoke OK (attempt {attempt}) -> {seen}")
             sys.exit(0)
         last_err = f"incomplete responses: {seen}; stderr: {proc.stderr[:300]}"

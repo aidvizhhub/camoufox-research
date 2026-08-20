@@ -75,7 +75,7 @@ Claude Desktop и другие — готовые примеры в `mcp/config/
 
 Проверка: `opencode mcp list` → `camoufox: connected`.
 
-## Инструменты (21)
+## Инструменты (19)
 
 | Группа | Инструменты |
 |---|---|
@@ -83,7 +83,6 @@ Claude Desktop и другие — готовые примеры в `mcp/config/
 | Чтение | `fetch_page`, `batch_fetch`, `extract_links` |
 | Браузер | `browser_navigate`, `browser_click`, `browser_type` |
 | Живая сессия | `session_start/navigate/click/type/scroll/links/text/back/status/end` |
-| Скиллы | `skills_search`, `skill_read` |
 | Сервис | `ping` |
 
 ## Поведение
