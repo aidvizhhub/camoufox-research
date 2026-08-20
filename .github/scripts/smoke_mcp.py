@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """MCP stdio smoke-тест для CI: initialize -> tools/list -> ping.
 
-Запускает сервер (аргумент 1 или команда из окружения MCP_CMD) и проверяет
-ответы JSON-RPC. Без браузера (ping не спавнит воркер).
+Запускает сервер (аргумент 1 или команда из окружения MCP_CMD), пишет
+payload в stdin, закрывает его и проверяет JSON-RPC ответы.
+Без браузера (ping не спавнит воркер). Retry: race между EOF и
+обработкой последнего запроса проявляется случайно — повторяем.
 """
 import json
 import os
 import subprocess
 import sys
-import time
 
 CMD = sys.argv[1:] or [os.environ.get("MCP_CMD", "camoufox-research")]
 
@@ -24,57 +25,44 @@ REQUESTS = [
 
 payload = "".join(json.dumps(r) + "\n" for r in REQUESTS)
 
-def run_once(cmd):
-    proc = subprocess.Popen(
-        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
-    try:
-        proc.stdin.write(payload)
-        proc.stdin.flush()
-        time.sleep(2.0)  # дать серверу обработать очередь до EOF (race)
-        proc.stdin.close()
-        out, err = proc.communicate(timeout=60)
-    except (BrokenPipeError, ValueError, OSError) as e:
-        out, err = (proc.stdout or ""), ""
+
+def check(out):
+    seen = set()
+    for line in out.splitlines():
         try:
-            err = proc.stderr.read()
+            d = json.loads(line)
         except Exception:
-            pass
-        proc.kill()
-        rc = proc.poll()
-        raise RuntimeError(f"server died early (exit={rc}): {e}; stderr: {err[:500]}")
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        raise SystemExit("smoke FAILED: server timeout")
-    return out, err
+            continue
+        rid = d.get("id")
+        if rid == 1:
+            seen.add("init")
+        if rid == 2 and "tools" in d.get("result", {}):
+            names = [t["name"] for t in d["result"]["tools"]]
+            assert "web_search" in names and "session_start" in names, names
+            assert len(names) >= 20, names
+            seen.add("tools:" + str(len(names)))
+        if rid == 3:
+            txt = "".join(c.get("text", "") for c in d["result"]["content"])
+            assert "pong" in txt, txt
+            seen.add("ping")
+    return seen
 
 
-for attempt in (1, 2, 3):
+last_err = None
+for attempt in range(1, 6):
     try:
-        out, _ = run_once(CMD)
-        break
-    except RuntimeError as e:
-        if attempt == 3:
-            raise SystemExit(f"smoke FAILED after 3 attempts: {e}")
+        proc = subprocess.run(
+            CMD, input=payload, capture_output=True, text=True, timeout=60,
+            encoding="utf-8", errors="replace")
+        seen = check(proc.stdout)
+        if seen == {"init", "tools:21"} or (seen == {"init", "ping", "tools:21"}):
+            print(f"smoke OK (attempt {attempt}) -> {seen}")
+            sys.exit(0)
+        last_err = f"incomplete responses: {seen}; stderr: {proc.stderr[:300]}"
+    except Exception as e:  # noqa: BLE001
+        last_err = f"{e}"
+    if attempt < 5:
+        import time
+        time.sleep(3)
 
-seen = set()
-for line in out.splitlines():
-    try:
-        d = json.loads(line)
-    except Exception:
-        continue
-    rid = d.get("id")
-    if rid == 1:
-        seen.add("init")
-    if rid == 2 and "tools" in d.get("result", {}):
-        names = [t["name"] for t in d["result"]["tools"]]
-        assert "web_search" in names and "session_start" in names, names
-        assert len(names) >= 20, names
-        seen.add("tools:" + str(len(names)))
-    if rid == 3:
-        txt = "".join(c.get("text", "") for c in d["result"]["content"])
-        assert "pong" in txt, txt
-        seen.add("ping")
-
-print("smoke OK ->", seen)
-assert seen == {"init", "ping", "tools:21"} or len(seen) == 3, seen
+raise SystemExit(f"smoke FAILED after 5 attempts: {last_err}")

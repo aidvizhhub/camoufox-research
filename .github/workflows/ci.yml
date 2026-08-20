@@ -32,11 +32,5 @@ jobs:
           python -m py_compile camoufox_research/*.py mcp/server.py
           python -c "import camoufox_research.camoufox_research as s; print('import OK, tools registered:', len(s.mcp._tool_manager._tools))"
 
-      - name: Debug — server stdin behavior
-        run: |
-          printf '%s\n' \
-            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
-            | timeout 15 camoufox-research; echo "EXIT=$?"
-
       - name: MCP stdio smoke (initialize + tools/list + ping)
         run: python .github/scripts/smoke_mcp.py
