@@ -1,63 +1,147 @@
 # Camoufox Research
 
-MCP-сервер веб-ресёрча на анти-детект браузере [Camoufox](https://github.com/daijro/camoufox):
-поиск, чтение страниц (включая JS/SPA), батч-чтение, клики, ввод текста,
-живые сессии, кэш и retry. Устанавливается как обычный Python-пакет
-и подключается к любому MCP-харнессу (opencode, Claude Desktop, Cursor…).
+**Browser research toolkit for AI agents, exposed through MCP.**
 
-> 📓 **Журнал опыта и граблей:** [EXPERIENCE.md](EXPERIENCE.md) — что проверено,
-> на что не наступать, ритуал smoke-тестов.
+Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monitor changes.
+**Give your AI agent a real browser.**
 
-## Структура
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)
+![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
+![MCP](https://img.shields.io/badge/MCP-ready-black)
+![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
+![Version](https://img.shields.io/badge/version-0.2.0-green)
 
 ```
-camoufox-reasearch/
-├── camoufox_research/     # Python-пакет (движок + MCP-интерфейс)
-│   ├── __init__.py
-│   ├── camoufox_browser.py    # обёртка Camoufox (launch, настройки)
-│   ├── camoufox_session.py    # живая сессия: навигация, клики, ввод, скролл
-│   ├── camoufox_fetch.py      # чтение страниц + batch_fetch + извлечение текста
-│   ├── camoufox_research.py   # MCP-сервер (FastMCP, stdio), entry point
-│   ├── camoufox_rpc.py        # протокол сервер ↔ воркер
-│   ├── camoufox_worker.py     # процесс-воркер (sync Camoufox, headless)
-│   ├── camoufox_cache.py      # sqlite-кэш страниц, TTL сутки
-│   └── session_tools.py       # общие хелперы сервера
-├── mcp/
-│   ├── server.py              # запуск из исходников без установки
-│   ├── requirements.txt       # зависимости (запинены)
-│   └── config/                # примеры подключения к харнессам
-├── scripts/
-│   ├── update_camoufox.py     # установка/обновление браузера (все ОС)
-│   └── _compat.py             # кроссплатформенные хелперы (UTF-8, venv)
-├── configs/example.env        # переменные окружения (опционально)
-├── research/                  # результаты ресёрча (не коммитится)
-├── .github/workflows/ci.yml   # CI: py 3.10-3.12, установка, stdio smoke
-├── pyproject.toml             # пакет + entry point `camoufox-research`
-├── README.md
-└── POSTING_RULES.md           # pre-release checklist
+    AI Agent
+       │  (tools, resources, prompts)
+       ▼
+      MCP
+       │
+       ▼
+Camoufox Research   ← this server (48 tools)
+       │
+       ▼
+   Camoufox          ← anti-detect Firefox
+       │
+       ▼
+      Web
 ```
 
-## Установка
+Most MCP servers can *read* the web. This one can **live in it**: open pages,
+click, type, fill forms, upload files, watch network traffic, take labeled
+screenshots, crawl whole sites, extract tables, monitor changes — and hand
+all of it to your agent through MCP (stdio, HTTP, or SSE).
+
+---
+
+## What it does (real scenarios)
+
+> 🔎 **Research** — *"Find information about this project, check 10 sources and summarize."*
+> `research` → `fetch_page` → `export`
+
+> 🕷 **Crawl** — *"Walk the whole site and find every documentation page."*
+> `sitemap` → `crawl` / `map_site`
+
+> 📊 **Extract** — *"Collect prices from the table and save as CSV."*
+> `extract` / `table_extract` → `export`
+
+> 👁 **Vision** — *"Look at the page, find the Download button and press it."*
+> `screenshot(som=True)` → `snapshot` → `session_click(ref="4")`
+
+> 📡 **Monitor** — *"Check this page and tell me if it changed."*
+> `fetch_page` → `page_diff` (delta-read saves tokens)
+
+## One full scenario (killer demo)
 
 ```bash
-git clone <ваш-репозиторий> camoufox-reasearch && cd camoufox-reasearch
+git clone https://github.com/aidvizhhub/camoufox-research.git && cd camoufox-research
+python3 -m venv ~/.venvs/camoufox-research
+~/.venvs/camoufox-research/bin/pip install .
+~/.venvs/camoufox-research/bin/python -m camoufox fetch   # download browser (once)
+```
 
-# 1. venv + пакет
+Then ask your agent:
+
+> *"Find the latest articles about Camoufox, compare them and save the result to Markdown."*
+
+```
+Agent
+ ├─ web_search        "camoufox browser"
+ ├─ research          10+ sources, dedup
+ ├─ fetch_page        read the best articles
+ ├─ extract           title / date / key points per source
+ ├─ page_diff         skip unchanged pages
+ └─ export            format=md  →  report.md
+```
+
+That's the whole point: **your agent drives a real browser**, you just describe the goal.
+
+## Need a tool? Start here
+
+| What you need | Tool |
+|---|---|
+| Find information | `web_search` |
+| Read a page (even JS/SPA) | `fetch_page` |
+| Read many pages at once | `batch_fetch` |
+| Walk an entire site | `crawl` / `sitemap` |
+| Get specific fields (CSS or XPath) | `extract` |
+| Tables → CSV | `table_extract` |
+| Click / type / press keys | `browser_click`, `session_click`, `session_type`, `session_key_press` |
+| Understand the interface | `screenshot(som=True)`, `snapshot` (refs) |
+| Fill a form in one call | `session_form_fill` |
+| Upload a file | `session_upload` |
+| Download a file | `session_download` |
+| Watch network / JS console | `session_network`, `session_console` |
+| Track changes | `page_diff`, `fetch_page(delta=True)` |
+| Read PDF / DOCX / XLSX | `read_document` |
+| RSS / sitemap feeds | `rss` |
+| Check broken links | `check_links` |
+| Save results to disk | `export` (json / csv / md) |
+| Keep logins | `profile_save` / `profile_load` |
+| Change proxy on the fly | `set_proxy` |
+| See what the server did | `stats` (audit, secrets masked) |
+
+## Vision — pages with numbers
+
+```
+┌─────────────────────────────┐
+│  header                    │
+│  ┌─────────┐  ┌─────────┐  │
+│  │[1] Docs │  │[2] Repo │  │   ← screenshot(som=True)
+│  └─────────┘  └─────────┘  │      red boxes + numbers
+│        [3] Download        │
+└─────────────────────────────┘
+
+snapshot  →  - ref: 3
+               tag: a
+               text: "Download"
+session_click(ref="3")  →  done
+```
+
+`snapshot` returns a compact YAML tree of interactive elements (~2–5 KB instead
+of 100 KB+ of HTML) with a `ref` on each. Click by `ref`, no fragile selectors.
+
+## Install
+
+```bash
+git clone https://github.com/aidvizhhub/camoufox-research.git
+cd camoufox-research
+
+# 1. venv + package
 python3 -m venv ~/.venvs/camoufox-research
 ~/.venvs/camoufox-research/bin/pip install .
 
-# 2. скачать браузер (один раз)
+# 2. download the browser (once)
 ~/.venvs/camoufox-research/bin/python -m camoufox fetch
 
-# 3. проверить
-~/.venvs/camoufox-research/bin/camoufox-research   # ждёт stdin (stdio)
+# 3. smoke check (stdio server, waits on stdin)
+~/.venvs/camoufox-research/bin/camoufox-research
 ```
 
 Windows: `venv\Scripts\pip.exe install .`, `venv\Scripts\python.exe -m camoufox fetch`;
-нужен Python не из MS Store и VC++ Redistributable (детали — в docstring
-`scripts/update_camoufox.py`).
+needs Python from python.org (not MS Store) and VC++ Redistributable.
 
-## Подключение MCP
+## Connect to MCP
 
 opencode (`~/.config/opencode/opencode.json`):
 
@@ -66,69 +150,78 @@ opencode (`~/.config/opencode/opencode.json`):
   "mcp": {
     "camoufox": {
       "type": "local",
-      "command": ["/путь/до/venv/bin/camoufox-research"],
+      "command": ["/path/to/venv/bin/camoufox-research"],
       "enabled": true
     }
   }
 }
 ```
 
-Claude Desktop и другие — готовые примеры в `mcp/config/`.
-Без установки пакета можно запускать `python mcp/server.py` (shim).
+Claude Desktop, Cursor and others — ready-made examples in `mcp/config/`.
+No install needed: `python mcp/server.py` works from sources.
 
-Проверка: `opencode mcp list` → `camoufox: connected`.
+Check: `opencode mcp list` → `camoufox: connected`.
 
-## Инструменты (48)
+## Tools (48)
 
-| Группа | Инструменты |
+| Group | Tools |
 |---|---|
-| Ресёрч | `research` (глубокий поиск с чтением), `web_search` |
-| Чтение | `fetch_page` (+ `delta` — не перечитывать неизменное), `batch_fetch`, `extract_links`, `read_document` (PDF/DOCX/XLSX: URL или путь) |
-| Структура | `extract` (поля по схеме: CSS **и XPath**), `crawl` (обход сайта BFS), `map_site` (карта ссылок домена), `sitemap` (URL'ы из sitemap.xml + .gz + вложенные), `table_extract` (HTML-таблицы → CSV) |
-| Данные | `export` (результат → JSON/CSV/Markdown-файл), `rss` (посты из RSS/Atom-фида), `check_links` (битые ссылки: статусы) |
-| Vision | `screenshot` (+ `som=True` — Set-of-Mark рамки с номерами), `snapshot` (дерево интерактивных элементов с ref, клики по `ref="N"`) |
-| Браузер | `browser_navigate`, `browser_click`, `browser_type` |
-| Живая сессия | `session_start/navigate/click/type/scroll/links/text/back/status/end`, `session_tabs` (list/new/switch/close), `session_wait_for`, `session_eval`, `session_key_press` (Enter/Esc/...), `session_select_option`, `session_resize`, `session_form_fill` (форма разом + submit), `session_upload` (файл в форму) |
-| Сеть и консоль | `session_network` (AJAX-запросы), `session_console` (ошибки JS), `session_block`/`session_unblock` (перехват запросов) |
-| Файлы | `session_download` (прямая ссылка или клик по кнопке), `page_diff` (дифф с прошлым чтением — мониторинг изменений) |
-| Наблюдаемость | `stats` (счётчики вызовов, время, ошибки, audit с маскировкой секретов), `cache_info` (состояние кэша) |
-| Сеть-конфиг | `set_proxy` (прокси на лету), `profile_save`/`profile_load` (куки + localStorage: логины не терять) |
-| Сервис | `ping` |
+| Research | `research` (deep search + reading), `web_search` |
+| Reading | `fetch_page` (+ `delta`), `batch_fetch`, `extract_links`, `read_document` (PDF/DOCX/XLSX) |
+| Structure | `extract` (CSS + XPath), `crawl` (BFS), `map_site`, `sitemap` (+.gz, nested), `table_extract` |
+| Data | `export` (json/csv/md), `rss`, `check_links` |
+| Vision | `screenshot` (+ `som=True` — Set-of-Mark), `snapshot` (refs) |
+| Browser | `browser_navigate`, `browser_click` (+ref), `browser_type` |
+| Live session | `session_start/navigate/click/type/scroll/links/text/back/status/end`, `session_tabs`, `session_wait_for`, `session_eval`, `session_key_press`, `session_select_option`, `session_resize`, `session_form_fill`, `session_upload` |
+| Network | `session_network`, `session_console`, `session_block`/`session_unblock` |
+| Files | `session_download`, `page_diff` |
+| Observability | `stats` (audit, masked), `cache_info` |
+| Network config | `set_proxy`, `profile_save`/`profile_load` |
+| Service | `ping` |
 
-## MCP Resources и Prompts (4-й примитив протокола)
+## MCP Resources & Prompts
 
-**Resources** (данные «как файлы», читаются клиентом):
-`camoufox://stats` (аудит вызовов), `camoufox://cache` (состояние кэша),
-`camoufox://session` (живая вкладка), `camoufox://info` (список тулов).
+- **Resources** (data readable "as files"): `camoufox://stats`, `camoufox://cache`,
+  `camoufox://session`, `camoufox://info`
+- **Prompts** (ready-made recipes): `research_plan`, `extract_schema`, `monitor_page`
 
-**Prompts** (готовые рецепты): `research_plan` (ресёрч 10+ источников),
-`extract_schema` (поля → схема → extract), `monitor_page` (delta + page_diff).
+## Transports
 
-Транспорты: `stdio` (по умолчанию), `http`, `sse` —
-`camoufox-research --transport http --port 8833` (или env `CAMOUFOX_PORT`).
+`stdio` (default), `http`, `sse`:
 
-## Поведение
+```bash
+camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
+```
 
-- Браузер живёт в отдельном процессе-воркере (sync, headless=True) —
-  сервер stdio не блокируется.
-- JS-страницы (SPA/React/Next) читаются без подготовки: поллинг контента +
-  скролл + стабильность; пусто — повторный вызов.
-- Кэш: sqlite `~/.cache/camoufox-research/cache.db`, TTL сутки,
-  retry с backoff, лимит по памяти/сети (macOS vm_stat).
-- Конфигурация — только через окружение (см. `configs/example.env`):
-  `CAMOUFOX_VENV`, `CAMOUFOX_CACHE_DIR`, таймауты, прокси.
+## Behavior
+
+- Browser lives in a separate worker process (sync, headless) — the MCP stdio
+  server never blocks.
+- JS/SPA pages are read without preparation: content polling + scroll +
+  stability detection; empty → retry.
+- Cache: sqlite `~/.cache/camoufox-research/cache.db`, TTL 24h, retry with
+  backoff; `delta=True` skips re-reading unchanged pages.
+- Config via environment only (see `configs/example.env`): `CAMOUFOX_VENV`,
+  `CAMOUFOX_CACHE_DIR`, timeouts, proxy.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): layout, adding a new tool, smoke-test ritual.
 
 ## CI
 
-При каждом push GitHub Actions проверяет: установка пакета на Python
-3.10/3.11/3.12, компиляция импортов, MCP stdio smoke
-(initialize → tools/list → ping). Полный тест с браузером —
-локально (`update_camoufox.py` + ручной smoke).
+GitHub Actions on every push: install on Python 3.10/3.11/3.12, import check,
+MCP stdio smoke (initialize → tools/list → ping). Full browser tests run
+locally (`scripts/update_camoufox.py` + manual smoke).
 
-## Лицензии зависимостей
+## Experience journal
 
-- [camoufox](https://github.com/daijro/camoufox) — его лицензия в репозитории проекта
+[EXPERIENCE.md](EXPERIENCE.md) — verified lessons and landmines ("what not to
+step on"): asyncio/serve pitfalls, 403-vs-urllib, non-thread-safe Playwright,
+ElementTree XPath limits, and more.
+
+## Dependency licenses
+
+- [camoufox](https://github.com/daijro/camoufox) — see its repo
 - [mcp](https://github.com/modelcontextprotocol/python-sdk) — MIT
-- [trafilatura](https://trafilatura.readthedocs.io/) — Apache-2.0 / GPL-3.0
-
-Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub
+- [trafilatura](https://trafilatura.readthedocs.io/) — GPL-3.0 (optional: text extraction)
