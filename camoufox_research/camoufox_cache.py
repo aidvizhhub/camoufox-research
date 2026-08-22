@@ -25,6 +25,9 @@ def _cache_init():
         con.execute(
             "CREATE TABLE IF NOT EXISTS searches "
             "(q_hash TEXT PRIMARY KEY, query TEXT, result TEXT, ts REAL)")
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS deltas "
+            "(url_hash TEXT PRIMARY KEY, content_hash TEXT, ts REAL)")
 
 
 def _search_cache_get(query, max_results=10, pages=1):
@@ -75,6 +78,35 @@ def _cache_set(url, text, suffix=""):
                 "INSERT OR REPLACE INTO pages (url_hash, url, text, ts) "
                 "VALUES (?,?,?,?)",
                 (key, url, text, time.time()))
+    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+        pass
+
+
+def _delta_get(url, suffix=""):
+    """Хэш последнего прочитанного контента страницы (delta-чтение:
+    не перечитывать, если не изменилось). Возвращает (content_hash, ts)
+    или (None, None)."""
+    key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
+    try:
+        with sqlite3.connect(_CACHE_DB) as con:
+            row = con.execute(
+                "SELECT content_hash, ts FROM deltas WHERE url_hash=?",
+                (key,)).fetchone()
+        if row:
+            return row[0], row[1]
+    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+        pass
+    return None, None
+
+
+def _delta_set(url, content_hash, suffix=""):
+    key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
+    try:
+        with sqlite3.connect(_CACHE_DB) as con:
+            con.execute(
+                "INSERT OR REPLACE INTO deltas (url_hash, content_hash, ts) "
+                "VALUES (?,?,?)",
+                (key, content_hash, time.time()))
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
         pass
 

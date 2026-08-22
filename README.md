@@ -5,6 +5,9 @@ MCP-сервер веб-ресёрча на анти-детект браузер
 живые сессии, кэш и retry. Устанавливается как обычный Python-пакет
 и подключается к любому MCP-харнессу (opencode, Claude Desktop, Cursor…).
 
+> 📓 **Журнал опыта и граблей:** [EXPERIENCE.md](EXPERIENCE.md) — что проверено,
+> на что не наступать, ритуал smoke-тестов.
+
 ## Структура
 
 ```
@@ -75,15 +78,34 @@ Claude Desktop и другие — готовые примеры в `mcp/config/
 
 Проверка: `opencode mcp list` → `camoufox: connected`.
 
-## Инструменты (19)
+## Инструменты (48)
 
 | Группа | Инструменты |
 |---|---|
 | Ресёрч | `research` (глубокий поиск с чтением), `web_search` |
-| Чтение | `fetch_page`, `batch_fetch`, `extract_links` |
+| Чтение | `fetch_page` (+ `delta` — не перечитывать неизменное), `batch_fetch`, `extract_links`, `read_document` (PDF/DOCX/XLSX: URL или путь) |
+| Структура | `extract` (поля по схеме: CSS **и XPath**), `crawl` (обход сайта BFS), `map_site` (карта ссылок домена), `sitemap` (URL'ы из sitemap.xml + .gz + вложенные), `table_extract` (HTML-таблицы → CSV) |
+| Данные | `export` (результат → JSON/CSV/Markdown-файл), `rss` (посты из RSS/Atom-фида), `check_links` (битые ссылки: статусы) |
+| Vision | `screenshot` (+ `som=True` — Set-of-Mark рамки с номерами), `snapshot` (дерево интерактивных элементов с ref, клики по `ref="N"`) |
 | Браузер | `browser_navigate`, `browser_click`, `browser_type` |
-| Живая сессия | `session_start/navigate/click/type/scroll/links/text/back/status/end` |
+| Живая сессия | `session_start/navigate/click/type/scroll/links/text/back/status/end`, `session_tabs` (list/new/switch/close), `session_wait_for`, `session_eval`, `session_key_press` (Enter/Esc/...), `session_select_option`, `session_resize`, `session_form_fill` (форма разом + submit), `session_upload` (файл в форму) |
+| Сеть и консоль | `session_network` (AJAX-запросы), `session_console` (ошибки JS), `session_block`/`session_unblock` (перехват запросов) |
+| Файлы | `session_download` (прямая ссылка или клик по кнопке), `page_diff` (дифф с прошлым чтением — мониторинг изменений) |
+| Наблюдаемость | `stats` (счётчики вызовов, время, ошибки, audit с маскировкой секретов), `cache_info` (состояние кэша) |
+| Сеть-конфиг | `set_proxy` (прокси на лету), `profile_save`/`profile_load` (куки + localStorage: логины не терять) |
 | Сервис | `ping` |
+
+## MCP Resources и Prompts (4-й примитив протокола)
+
+**Resources** (данные «как файлы», читаются клиентом):
+`camoufox://stats` (аудит вызовов), `camoufox://cache` (состояние кэша),
+`camoufox://session` (живая вкладка), `camoufox://info` (список тулов).
+
+**Prompts** (готовые рецепты): `research_plan` (ресёрч 10+ источников),
+`extract_schema` (поля → схема → extract), `monitor_page` (delta + page_diff).
+
+Транспорты: `stdio` (по умолчанию), `http`, `sse` —
+`camoufox-research --transport http --port 8833` (или env `CAMOUFOX_PORT`).
 
 ## Поведение
 

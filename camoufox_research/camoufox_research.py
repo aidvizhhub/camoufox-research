@@ -172,12 +172,14 @@ def research(queries: list[str], max_results_per_query: int = 5,
 
 @mcp.tool()
 def fetch_page(url: str, max_chars: int = 6000,
-               article_only: bool = False) -> str:
+               article_only: bool = False, delta: bool = False) -> str:
     """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на
     сутки. article_only=True — текст статьи (Trafilatura), fallback —
-    весь body."""
+    весь body. delta=True — delta-чтение: если контент не изменился
+    с прошлого раза, вернёт маркер '[delta: ...]' вместо текста
+    (не тратим токены на повтор)."""
     return _call("fetch_page", url=url, max_chars=max_chars,
-                 article_only=article_only)
+                 article_only=article_only, delta=delta)
 
 
 @mcp.tool()
@@ -215,12 +217,13 @@ def browser_navigate(url: str, max_links: int = 10) -> str:
 
 @mcp.tool()
 def browser_click(url: str, selector: str = "", target_text: str = "",
-                  max_links: int = 10) -> str:
-    """Открывает URL и кликает по элементу: CSS-селектор (selector) или
-    текст ссылки/кнопки (target_text). Возвращает страницу после клика.
+                  ref: str = "", max_links: int = 10) -> str:
+    """Открывает URL и кликает по элементу: CSS-селектор (selector),
+    текст ссылки/кнопки (target_text) или ref из snapshot (ref="3").
+    Возвращает страницу после клика.
     Пример: browser_click(url, target_text="Продолжить")"""
     return _call("browser_click", url=url, selector=selector,
-                 target_text=target_text, max_links=max_links)
+                 target_text=target_text, ref=ref, max_links=max_links)
 
 
 @mcp.tool()
@@ -235,9 +238,86 @@ from camoufox_research.session_tools import register  # noqa: E402
 
 register(mcp, _call)
 
+
+# --- MCP Resources: данные для чтения «как файлы» (4-й примитив
+# протокола, MCP-канон 2026: tools + resources + prompts) ---
+
+@mcp.resource("camoufox://stats")
+def _res_stats() -> str:
+    """Статистика вызовов тулов (audit, секреты замаскированы)."""
+    return _call("stats", limit=50)
+
+
+@mcp.resource("camoufox://cache")
+def _res_cache() -> str:
+    """Инфо о кэше: размер БД, записи (pages/searches/deltas), TTL."""
+    return _call("cache_info")
+
+
+@mcp.resource("camoufox://session")
+def _res_session() -> str:
+    """Состояние живой сессии: URL, заголовок, жива ли вкладка."""
+    return _call("session_status")
+
+
+@mcp.resource("camoufox://info")
+def _res_info() -> str:
+    """Инфо о сервере: имя, число тулов, список."""
+    tools = sorted(mcp._tool_manager._tools.keys())
+    return f"camoufox-research MCP-сервер\nтулов: {len(tools)}\n" + " ".join(tools)
+
+
+# --- MCP Prompts: готовые рецепты для агента (шаблоны рабочих циклов) ---
+
+@mcp.prompt()
+def research_plan(topic: str) -> str:
+    """Глубокий ресёрч темы: план «10+ источников»."""
+    return (f"Тема: {topic}\n\n"
+            "1. Разбей тему на 3-5 подзапросов (разные формулировки).\n"
+            "2. Вызови research(queries=[...], max_results_per_query=5, "
+            "fetch_top=10) — норматив 10+ источников.\n"
+            "3. Сопоставь источники: общее, противоречия, пробелы.\n"
+            "4. Итог с цитатами источников.")
+
+
+@mcp.prompt()
+def extract_schema(url: str, fields: str) -> str:
+    """Извлечение полей со страницы: поля → JSON-схема → extract."""
+    return (f"URL: {url}\nНужные поля: {fields}\n\n"
+            "1. Составь JSON-схему: {\"поле\": \"css:.селектор\"} "
+            "(или xpath=//...).\n"
+            "2. extract(url=..., schema=...).\n"
+            "3. Если нужно сохранить: export(data=..., format='csv').")
+
+
+@mcp.prompt()
+def monitor_page(url: str) -> str:
+    """Мониторинг изменений страницы (delta + page_diff)."""
+    return (f"URL: {url}\n\n"
+            "1. fetch_page(url) — первое чтение (создаст кэш).\n"
+            "2. Следующая проверка: page_diff(url) — покажет изменения.\n"
+            "3. delta=True — не тратить токены на неизменный контент.")
+
 def main():
-    """Точка входа MCP-сервера (entry point: `camoufox-research`)."""
-    mcp.run()
+    """Точка входа MCP-сервера (entry point: `camoufox-research`).
+    Транспорты: stdio (по умолчанию), http (streamable), sse.
+    Пример: camoufox-research --transport http --port 8833"""
+    import argparse
+    ap = argparse.ArgumentParser(description="camoufox-research MCP-сервер")
+    ap.add_argument("--transport", choices=["stdio", "http", "sse"],
+                    default="stdio", help="транспорт MCP (по умолчанию stdio)")
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="адрес для http/sse (по умолчанию 127.0.0.1)")
+    ap.add_argument("--port", type=int,
+                    default=int(os.environ.get("CAMOUFOX_PORT", "8833")),
+                    help="порт для http/sse (или env CAMOUFOX_PORT)")
+    args = ap.parse_args()
+    if args.transport == "stdio":
+        mcp.run()
+    elif args.transport == "http":
+        mcp.run(transport="http", host=args.host, port=args.port)
+    else:
+        mcp.run(transport="sse", host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
