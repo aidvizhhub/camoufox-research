@@ -34,6 +34,31 @@ all of it to your agent through MCP (stdio, HTTP, or SSE).
 
 ---
 
+## Why Camoufox Research?
+
+Most MCP browser tools give an agent isolated actions. Here the goal is
+different: **a complete toolkit for web research** — one server your agent
+can use end to end.
+
+- 🔎 **Search** — find sources (DuckDuckGo via anti-detect browser, deep `research` with 10+ sources)
+- 🌐 **Browse** — read JS/SPA pages, live sessions with tabs, clicks, forms, uploads
+- 👁️ **Understand pages** — labeled screenshots (Set-of-Mark), snapshot trees with refs
+- 📊 **Extract & export** — fields by CSS/XPath, tables → CSV, PDF/DOCX/XLSX, JSON/Markdown files
+
+## ⚡ 30-second demo
+
+> *"Find all pricing pages on this website, extract the prices and save them to CSV."*
+
+```
+Agent
+ ├─ map_site     discover every /pricing page
+ ├─ crawl        read them (cached)
+ ├─ extract      {"plan": "css:.plan", "price": "css:.price"}
+ └─ export       format=csv  →  prices.csv
+```
+
+No browser automation code. Just a sentence to your agent.
+
 ## What it does (real scenarios)
 
 > 🔎 **Research** — *"Find information about this project, check 10 sources and summarize."*
@@ -103,23 +128,38 @@ That's the whole point: **your agent drives a real browser**, you just describe 
 
 ## Vision — pages with numbers
 
-```
-┌─────────────────────────────┐
-│  header                    │
-│  ┌─────────┐  ┌─────────┐  │
-│  │[1] Docs │  │[2] Repo │  │   ← screenshot(som=True)
-│  └─────────┘  └─────────┘  │      red boxes + numbers
-│        [3] Download        │
-└─────────────────────────────┘
+![Vision demo: page → Set-of-Mark numbered overlay](images/demo.gif)
 
-snapshot  →  - ref: 3
-               tag: a
-               text: "Download"
-session_click(ref="3")  →  done
+```
+Screenshot        snapshot          agent
+   │                  │               │
+   ▼                  ▼               ▼
+┌──────────┐    - ref: 3       session_click(ref="3")
+│ [1][2][3]│    - tag: a   ───► browser clicks exact element
+│ [4] [5]  │    - text: "Download"
+└──────────┘
 ```
 
 `snapshot` returns a compact YAML tree of interactive elements (~2–5 KB instead
 of 100 KB+ of HTML) with a `ref` on each. Click by `ref`, no fragile selectors.
+
+## Quick Start
+
+```bash
+# 1. Install
+git clone https://github.com/aidvizhhub/camoufox-research.git && cd camoufox-research
+python3 -m venv ~/.venvs/camoufox-research
+~/.venvs/camoufox-research/bin/pip install .
+
+# 2. Download the browser (once)
+~/.venvs/camoufox-research/bin/python -m camoufox fetch
+```
+
+3. Connect to your MCP client (OpenCode / Claude Desktop / Cursor) — see
+   [Connect to MCP](#connect-to-mcp).
+4. Ask your agent to research a website:
+
+> *"Find the latest articles about Camoufox, compare them and save the result to Markdown."*
 
 ## Install
 
