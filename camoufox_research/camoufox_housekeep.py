@@ -96,6 +96,8 @@ def post_pack(camp_id, log_path, done_path):
     строка памяти; поля дописываются в тот же done-маркер. Ошибки не
     роняют охоту (упаковка бонус)."""
     try:
+        from camoufox_research.camoufox_digest import post_hunt
+    except ImportError:
         from camoufox_digest import post_hunt
 
         extra = post_hunt(camp_id, lambda m: _log_line(log_path, m))
