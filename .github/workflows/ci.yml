@@ -32,5 +32,8 @@ jobs:
           python -m py_compile camoufox_research/*.py mcp/server.py
           python -c "import camoufox_research.camoufox_research as s; print('import OK, tools registered:', len(s.mcp._tool_manager._tools))"
 
+      - name: Unit tests (housekeep cleanup TTL)
+        run: python -m unittest discover -s tests -v
+
       - name: MCP stdio smoke (initialize + tools/list + ping)
         run: python .github/scripts/smoke_mcp.py
