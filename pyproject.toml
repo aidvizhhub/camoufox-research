@@ -51,3 +51,16 @@ Changelog = "https://github.com/aidvizhhub/camoufox-research/releases"
 
 [tool.setuptools]
 packages = ["camoufox_research"]
+
+[tool.setuptools.package-data]
+camoufox_research = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+ignore_missing_imports = true
+no_error_summary = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]

@@ -9,3 +9,8 @@ except ImportError:
     import camoufox_campaign_ext as _ext
 globals().update(_core.__dict__)
 globals().update(_ext.__dict__)
+__all__ = [
+    "start", "status", "report", "hunt", "research_start",
+    "research_status", "research_report", "research_index",
+    "research_resume", "resume",
+]
