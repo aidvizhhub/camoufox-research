@@ -4,7 +4,12 @@
 #
 # Версии запинены по реально работающему venv (проверено 08.2026) —
 # без пинов pip дрейфует к новым версиям и ломает совместимость.
+# ПОЛНЫЙ список = pyproject.toml [dependencies] (одна правда);
+# здесь — то же самое для запуска mcp/server.py из исходников.
 mcp==1.29.0
 camoufox==0.5.4
 # опционально: чистый текст статьи (article_only) — без неё fallback на body
-trafilatura==2.2.0
+trafilatura>=2.0
+pypdf>=4.0
+python-docx>=1.1
+openpyxl>=3.1

@@ -258,7 +258,26 @@ needs Python from python.org (not MS Store) and VC++ Redistributable.
 
 ## Connect to MCP
 
-opencode (`~/.config/opencode/opencode.json`):
+Готовый чипсет — **одной командой** (ставит с git: clone/venv/pip → браузер →
+прописывает MCP → проверка 57 тулов):
+
+```bash
+python scripts/install_mcp.py            # установка с нуля
+python scripts/install_mcp.py --reinstall  # переустановить (force)
+bash scripts/update_mcp.sh               # обновление: pull → pip → reconnect
+```
+
+Вручную (если хочешь сам смотреть каждый шаг — схема «с гита», 28.08):
+
+```bash
+git clone https://github.com/aidvizhhub/camoufox-research.git
+cd camoufox-research
+python3 -m venv ~/.venvs/camoufox-research
+~/.venvs/camoufox-research/bin/pip install "git+https://github.com/aidvizhhub/camoufox-research.git@main"
+~/.venvs/camoufox-research/bin/python -m camoufox fetch   # браузер, один раз
+```
+
+Затем в `~/.config/opencode/opencode.json`:
 
 ```json
 {

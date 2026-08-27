@@ -8,8 +8,35 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "bump версии перед релизом (patch/minor/major/пусто=нет)"
+        required: false
+        default: ""
+        type: string
 
 jobs:
+  bump-version:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Bump и закоммитить
+        run: |
+          python scripts/bump_version.py --part "${{ github.event.inputs.bump }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml camoufox_research/camoufox_research.py README.md
+          git commit -m "chore: bump $(grep -oP '^version = \"\K[^\"]+' pyproject.toml)"
+          git push
+
   build:
     runs-on: ubuntu-latest
     steps:
