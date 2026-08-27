@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.7.0-green)
+![Version](https://img.shields.io/badge/version-0.8.0-green)
 
 ```
     AI Agent
@@ -275,6 +275,16 @@ camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
 ```
 
 ## Behavior
+
+- Кампании (research_start) помнят прогресс в sqlite: счётчик РАЗНЫХ
+  сайтов, доборка волнами, честный partial; research_resume добирает
+  с места. Отчёт автоархивируется (CAMOUFOX_REPORT_DIR → research/
+  репы, по умолчанию exports кэша).
+- Вторая нога охоты — фиды: research_start(feeds=[RSS/sitemap...])
+  собирает источники БЕЗ поисковика (queries можно опустить).
+- Сторож поиска (scripts/watchdog_search.py + cron) проверяет DDG
+  реальным путём: провал → watchdog_ALERT; research_start проверяет
+  пульс крона и предупреждает, если тот молчит.
 
 - Browser lives in a separate worker process (sync, headless) — the MCP stdio
   server never blocks.

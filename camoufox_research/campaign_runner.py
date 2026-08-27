@@ -34,22 +34,24 @@ def main():
     args = ap.parse_args()
     with cc._db() as con:
         row = con.execute(
-            "SELECT topic, queries, target_sources, domains_limit "
+            "SELECT topic, queries, target_sources, domains_limit, feeds "
             "FROM campaigns WHERE id=?", (args.id,)).fetchone()
     if not row:
         print(f"ошибка: нет кампании {args.id}")
         sys.exit(1)
     topic, queries, target, dl = (row[0], json.loads(row[1]),
                                   int(row[2]), int(row[3]))
+    feeds = json.loads(row[4] or "[]")
     log_path, done_path = cc._paths(args.id)
     t0 = time.monotonic()
     if args.resume:
         cc._log(log_path, "раннер-ресьюм стартовал")
         cc._resume_hunt(args.id, topic, queries, target, dl,
-                        log_path, done_path)
+                        log_path, done_path, feeds=feeds)
     else:
         cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
-        cc.hunt(args.id, topic, queries, target, dl, log_path, done_path)
+        cc.hunt(args.id, topic, queries, target, dl, log_path, done_path,
+                feeds=feeds)
     with cc._db() as con:
         st = con.execute("SELECT status FROM campaigns WHERE id=?",
                          (args.id,)).fetchone()

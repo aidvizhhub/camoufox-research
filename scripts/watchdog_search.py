@@ -25,7 +25,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "camoufox_research"))
 
 _MIN = int(os.environ.get("WATCHDOG_MIN", "5"))  # порог для FAIL-симуляции
-_HOME_CACHE = os.path.expanduser("~/.cache/camoufox-research")
+_HOME_CACHE = os.environ.get(
+    "CAMOUFOX_WATCHDOG_LOG_DIR",
+    os.path.expanduser("~/.cache/camoufox-research"))
 _LOG = os.path.join(_HOME_CACHE, "watchdog.log")
 _ALERT = os.path.join(_HOME_CACHE, "watchdog_ALERT")
 

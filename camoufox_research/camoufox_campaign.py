@@ -55,6 +55,7 @@ _SCHEMA = (
         queries TEXT NOT NULL,
         target_sources INTEGER NOT NULL,
         domains_limit INTEGER DEFAULT 2,
+        feeds TEXT DEFAULT '[]',
         status TEXT DEFAULT 'running',
         error TEXT DEFAULT '',
         created_ts REAL, updated_ts REAL);
@@ -73,11 +74,16 @@ _DDL_DONE = False
 
 
 def _db():
-    """Соединение к базе кампаний (однократная DDL — таблицы кэша не трогаем)."""
+    """Соединение к базе кампаний. Миграция старых баз: у живого кэша
+    таблица без колонки feeds — ALTER мягко достраивает (повтор безопасен)."""
     global _DDL_DONE
     con = sqlite3.connect(_DB_PATH)
     if not _DDL_DONE:
         con.executescript(_SCHEMA)
+        cols = {r[1] for r in con.execute("PRAGMA table_info(campaigns)")}
+        if "feeds" not in cols:
+            con.execute("ALTER TABLE campaigns ADD COLUMN feeds TEXT "
+                        "DEFAULT '[]'")
         _DDL_DONE = True
     return con
 
@@ -135,23 +141,73 @@ def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
               "done_ts": time.strftime("%d.%m %H:%M:%S")}
     Path(done_path).write_text(
         json.dumps(marker, ensure_ascii=False, indent=1), encoding="utf-8")
+    # автоархив отчёта + путь в маркер (housekeep: хоз-функции кампании)
+    from camoufox_housekeep import marker_update, save_report
+    saved = save_report(camp_id, topic, status, notes, report(camp_id))
+    if saved:
+        marker_update(done_path, "report", saved)
 
 
-def hunt(camp_id, topic, queries, target, dl, log_path, done_path):
-    """Механическая охота кампании: волны research() до цели по доменам.
+def _feed_leg(camp_id, feeds, notes):
+    """Первая нога охоты — ФИДЫ (RSS/sitemap): источники БЕЗ поисковика.
+    Работает даже при мёртвом DDG (синергия со сторожем). Форматы вывода
+    rss()/sitemap() детерминированы — парсим их, не пишем свой парсер."""
+    if not feeds:
+        return
+    from camoufox_crawl import rss, sitemap
+    from camoufox_sources import domain_tier, _reg_domain
+    rows = []
+    for f in feeds:
+        try:
+            if "sitemap" in f.lower() or f.lower().endswith(".xml"):
+                for u in (sitemap(f) or "").splitlines():
+                    u = u.strip()
+                    if u.startswith("http"):
+                        rows.append({"title": "", "url": u})
+            else:
+                lines = (rss(f) or "").splitlines()
+                for i in range(len(lines) - 1):
+                    if lines[i].startswith("[") and "] " in lines[i]:
+                        title = lines[i].split("] ", 1)[1].strip()
+                        link = lines[i + 1].strip()
+                        if link.startswith("http"):
+                            rows.append({"title": title, "url": link})
+        except Exception:  # noqa: BLE001 — битый фид не роняет охоту
+            continue
+    if not rows:
+        notes.append("фиды: пусто/не прочитались")
+        return
+    for r in rows:
+        r["domain"] = _reg_domain(r["url"])
+        r["tier"], r["tier_label"] = domain_tier(r["url"])
+        r.setdefault("snippet", "")
+    fresh, total, uniq, skipped = _ingest(camp_id, {"sources": rows})
+    notes.append(f"фиды:+{fresh} новых ({uniq} доменов)")
+    if skipped:
+        notes[-1] += f", реклама отсеяна: {skipped}"
+
+
+def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
+         feeds=None):
+    """Механическая охота кампании: фиды → волны research() до цели.
 
     Вызывается В ОТДЕЛЬНОМ процессе (фон) или синхронно для малых целей.
-    Полный цикл: search → выучили термы → новые запросы (внутри research,
-    terms_wave=True) → если коротко — угловая волна (лучшие практики/
-    грабли/альтернативы). Честный статус partial, если цель недостижима
-    за отведённые волны — БЛЕФОВАТЬ «готово» ЗАПРЕЩЕНО.
+    Две ноги: фиды (без поисковика) → поисковые волны search → термы →
+    угловая (лучшие практики/грабли/альтернативы). Честный статус
+    partial, если цель недостижима — БЛЕФОВАТЬ «готово» ЗАПРЕЩЕНО.
     """
     from camoufox_fetch import research  # поздний импорт: тянет браузер
     notes = []
     waves = [[*queries]]
     waves.append([q + s for q in queries for s in _ANGLE_SUFFIXES])
     try:
+        if feeds:
+            _log(log_path, f"нога-фиды: {len(feeds)} фидов")
+            _feed_leg(camp_id, feeds, notes)
+            _log(log_path, notes[-1])
         for i, wq in enumerate(waves, 1):
+            if not wq:  # кормились фидами — поисковая нога не нужна
+                continue
             with _db() as con:
                 total, uniq = con.execute(
                     "SELECT COUNT(*), COUNT(DISTINCT domain) FROM "
@@ -204,16 +260,21 @@ def _paths(camp_id):
             str(_EXPORT_DIR / f"{camp_id}.json"))
 
 
-def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path):
+def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
+                 feeds=None):
     """Доборка раненой кампании (partial/failed) с места, не с нуля
     (паттерн LangGraph resume). Отличия от hunt(): своя очередь углов
     (_RESUME_ROUNDS), кап спирали — нулевая волна = стоп (собирать те же
     домены бессмысленно), база существующих источников уже в sqlite и
-    UNIQUE-дедуп сам отсекает старьё."""
+    UNIQUE-дедуп сам отсекает старьё. Фиды едим заново — в фиде могли
+    появиться новые посты."""
     from camoufox_fetch import research
     notes = []
     try:
         uniq = _counts(camp_id)[1]
+        if feeds:
+            _feed_leg(camp_id, feeds, notes)
+            uniq = _counts(camp_id)[1]
         for i, suffixes in enumerate(_RESUME_ROUNDS, 1):
             if uniq >= target:
                 break
@@ -247,12 +308,13 @@ def resume(camp_id, background=False):
     браузер). Статус ставится running ДО охоты — второй resume виден."""
     with _db() as con:
         row = con.execute(
-            "SELECT topic, queries, target_sources, domains_limit, status "
-            "FROM campaigns WHERE id=?", (camp_id,)).fetchone()
+            "SELECT topic, queries, target_sources, domains_limit, status, "
+            "feeds FROM campaigns WHERE id=?", (camp_id,)).fetchone()
         if not row:
             return f"ошибка: нет кампании {camp_id}"
         topic, queries, target, dl, st = (row[0], json.loads(row[1]),
                                           int(row[2]), int(row[3]), row[4])
+        fd = json.loads(row[5] or "[]")
         if st == "running":
             return (f"ошибка: кампания {camp_id} уже бежит — двойной "
                     "запуск запрещён (закон одного инстанса)")
@@ -272,7 +334,8 @@ def resume(camp_id, background=False):
                 start_new_session=True)
         return (f"доборка {camp_id} ушла в ФОН: ждём маркер {done_path}"
                 f"\nсостояние: research_status('{camp_id}')")
-    _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path)
+    _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
+                 feeds=fd)
     notes_out = ""
     try:  # заметки волн в ответ — агент видит «почему стоп» сразу
         mk = json.load(open(done_path, encoding="utf-8"))
@@ -285,38 +348,53 @@ def resume(camp_id, background=False):
 
 
 def start(topic, queries=None, target_sources=20, domains_limit=2,
-          background=True):
-    """Запуск кампании. Фон=True — отдельный процесс (лог + маркер done);
-    фон=False — блокирующий прогон (малые цели, пилот). Строку-подтверждение
-    вернуть АГЕНТУ ДО охоты — чтоб он знал id и где ждать маркер."""
-    qs = [str(q).strip() for q in (queries or []) if str(q).strip()] \
-        or [topic.strip()]
+          feeds=None, background=True):
+    """Запуск кампании. feeds (RSS/sitemap URL) — первая нога охоты БЕЗ
+    поисковика; queries можно опустить, если фиды заданы. Перед стартом —
+    пульс сторожа: мёртвый крон предупредит, а не промолчит."""
+    if not str(topic or "").strip() and not (feeds or []):
+        return "ошибка: пустая тема и без фидов — нечего охотить"
+    qs = [str(q).strip() for q in (queries or []) if str(q).strip()]
+    if not qs and not (feeds or []):
+        qs = [topic.strip()]
+    fd = [str(f).strip() for f in (feeds or []) if str(f).strip()]
     camp_id = f"cmp_{int(time.time())}_{uuid.uuid4().hex[:4]}"
     log_path, done_path = _paths(camp_id)
     with _db() as con:
         con.execute(
-            "INSERT INTO campaigns VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO campaigns (id, topic, queries, target_sources, "
+            "domains_limit, feeds, status, error, created_ts, updated_ts) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
             (camp_id, topic, json.dumps(qs, ensure_ascii=False),
-             int(target_sources), int(domains_limit), "running", "",
+             int(target_sources), int(domains_limit),
+             json.dumps(fd, ensure_ascii=False), "running", "",
              time.time(), time.time()))
+    from camoufox_housekeep import watchdog_note
+    note = watchdog_note()
     if background:
-        # Свой процесс: свой браузер (холодный старт сам легитимен вне serve),
-        # живёт после ответа MCP; за прогрессом — по done_file.
         with open(log_path, "wb") as lf:
             subprocess.Popen(
                 [sys.executable, str(_RUNNER), "--id", camp_id],
                 stdout=lf, stderr=subprocess.STDOUT,
                 cwd=str(Path(__file__).resolve().parent.parent),
                 start_new_session=True)
+        msg = (f"кампания {camp_id} запущена В ФОНЕ: цель {target_sources} "
+               f"разных сайтов\nлог: {log_path}\nмаркер готовности (ждать "
+               f"его): {done_path}\nсостояние: research_status('{camp_id}')")
     else:
         hunt(camp_id, topic, qs, int(target_sources), int(domains_limit),
-             log_path, done_path)
-        return (f"кампания {camp_id} завершена (синхронно, цель "
-                f"{target_sources} разных сайтов):\n{report(camp_id)}\n"
-                f"лог: {log_path}\ndone: {done_path}")
-    return (f"кампания {camp_id} запущена В ФОНЕ: цель {target_sources} "
-            f"разных сайтов\nлог: {log_path}\nмаркер готовности (ждать его): "
-            f"{done_path}\nсостояние: research_status('{camp_id}')")
+             log_path, done_path, feeds=fd)
+        notes_out = ""
+        try:  # симметрично ресьюму: агент видит «почему так» сразу
+            mk = json.load(open(done_path, encoding="utf-8"))
+            if mk.get("notes"):
+                notes_out = "\nзаметки: " + "; ".join(mk["notes"])
+        except Exception:  # noqa: BLE001 — маркер мог не родиться
+            pass
+        msg = (f"кампания {camp_id} завершена (синхронно, цель "
+               f"{target_sources} разных сайтов):\n{report(camp_id)}"
+               f"{notes_out}\nлог: {log_path}\ndone: {done_path}")
+    return (note + "\n" + msg) if note else msg
 
 
 def status(camp_id, limit=6):
@@ -377,9 +455,10 @@ def report(camp_id, fmt="md"):
 
 
 def research_start(topic, queries=None, target_sources=20, domains_limit=2,
-                   background=True):
+                   feeds=None, background=True):
     """ACTION для воркера: см. start()."""
-    return start(topic, queries, target_sources, domains_limit, background)
+    return start(topic, queries, target_sources, domains_limit, feeds,
+                 background)
 
 
 def research_status(camp_id, limit=6):

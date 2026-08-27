@@ -199,6 +199,7 @@ def research(queries: list[str], max_results_per_query: int = 5,
 @mcp.tool()
 def research_start(topic: str, queries: list[str] | None = None,
                    target_sources: int = 20, domains_limit: int = 2,
+                   feeds: list[str] | None = None,
                    background: bool = True) -> str:
     """КАМПАНИЯ ресёрча: цель «N РАЗНЫХ сайтов» с счётчиком прогресса.
     Фон=True — охота уходит в отдельный процесс: лог + маркер done
@@ -207,10 +208,16 @@ def research_start(topic: str, queries: list[str] | None = None,
     реально собрано; угловые волны (лучшие практики/грабли/
     альтернативы) добирают сами. Уникальных сайтов меньше цели →
     честный статус partial. Синтез: research_report(id) → список
-    источников → batch_fetch по тем, что нужны текстом."""
+    источников → batch_fetch по тем, что нужны текстом.
+    feeds — RSS/sitemap URL: первая нога охоты БЕЗ поисковика
+    (работает даже при мёртвом DDG); queries можно опустить.
+    Перед стартом проверяет пульс крона сторожа — мёртвый крон
+    предупредит, а не промолчит. Финальный отчёт автоархивируется
+    (CAMOUFOX_REPORT_DIR, по умолчанию exports)."""
     return _call("research_start", timeout=600, topic=topic,
                  queries=queries, target_sources=target_sources,
-                 domains_limit=domains_limit, background=background)
+                 domains_limit=domains_limit, feeds=feeds,
+                 background=background)
 
 
 @mcp.tool()
