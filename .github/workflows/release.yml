@@ -31,6 +31,8 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
+    env:
+      HAS_TOKEN: ${{ secrets.API_TOKEN_PYPI != '' }}
     steps:
       - uses: actions/download-artifact@v5
         with:
@@ -46,7 +48,7 @@ jobs:
         continue-on-error: true
         uses: pypa/gh-action-pypi-publish@release/v1
       - name: publish (token fallback)
-        if: steps.oidc.outcome == 'failure' && secrets.API_TOKEN_PYPI != ''
+        if: steps.oidc.outcome != 'success' && env.HAS_TOKEN == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.API_TOKEN_PYPI }}
