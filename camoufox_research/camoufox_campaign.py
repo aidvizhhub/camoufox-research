@@ -323,6 +323,13 @@ def resume(camp_id, background=False):
         topic, queries, target, dl, st = (row[0], json.loads(row[1]),
                                           int(row[2]), int(row[3]), row[4])
         fd = json.loads(row[5] or "[]")
+        busy = con.execute(
+            "SELECT id FROM campaigns WHERE status='running' AND id<>? "
+            "LIMIT 1", (camp_id,)).fetchone()
+        if busy:
+            return (f"ошибка: уже бежит кампания {busy[0]} — закон одного "
+                    "инстанса (1 кампания = 1 браузер). Доборка "
+                    f"{camp_id} подождёт её финала.")
         if st == "running":
             return (f"ошибка: кампания {camp_id} уже бежит — двойной "
                     "запуск запрещён (закон одного инстанса)")
@@ -368,15 +375,27 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
     fd = [str(f).strip() for f in (feeds or []) if str(f).strip()]
     camp_id = f"cmp_{int(time.time())}_{uuid.uuid4().hex[:4]}"
     log_path, done_path = _paths(camp_id)
+    # Страж одного инстанса: атомарно (INSERT...SELECT) — новая кампания
+    # встаёт ТОЛЬКО если ни одна другая не бежит (running). Гонка двух
+    # стартов невозможна: sqlite сериализует запись, rowcount решает.
+    # Урок: 2 кампании = 2 браузера = EPIPE Playwright (батч 7, 27.08).
     with _db() as con:
-        con.execute(
+        cur = con.execute(
             "INSERT INTO campaigns (id, topic, queries, target_sources, "
             "domains_limit, feeds, status, error, created_ts, updated_ts) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "SELECT ?,?,?,?,?,?,'running','',?,? "
+            "WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE status='running')",
             (camp_id, topic, json.dumps(qs, ensure_ascii=False),
              int(target_sources), int(domains_limit),
-             json.dumps(fd, ensure_ascii=False), "running", "",
-             time.time(), time.time()))
+             json.dumps(fd, ensure_ascii=False), time.time(), time.time()))
+        if cur.rowcount == 0:
+            running = con.execute(
+                "SELECT id, topic FROM campaigns WHERE status='running' "
+                "ORDER BY created_ts DESC LIMIT 1").fetchone()
+            return (f"ошибка: уже бежит кампания {running[0]} "
+                    f"(«{(running[1] or '')[:40]}») — закон одного инстанса: "
+                    "1 кампания = 1 воркер = 1 браузер. Жди её маркер "
+                    "research_status, потом запускай новую.")
     from camoufox_housekeep import watchdog_note
     note = watchdog_note()
     if background:
