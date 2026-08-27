@@ -71,7 +71,7 @@ def run_once():
                     raise RuntimeError(f"EOF до ответа «{want}»")
                 try:
                     d = json.loads(line)
-                except Exception:  # noqa: BLE001 — мусорный лог пропускаем
+                except Exception:
                     continue
                 if d.get("id") != req.get("id"):
                     continue
@@ -108,7 +108,7 @@ for attempt in range(1, 4):
             print(f"smoke OK (attempt {attempt}) -> {seen}, tools={n}")
             sys.exit(0)
         last_err = f"incomplete: {seen}"
-    except Exception as e:  # noqa: BLE001 — ретрай на рантайм-шум
+    except Exception as e:
         last_err = f"{type(e).__name__}: {e}"
     if attempt < 3:
         time.sleep(2)

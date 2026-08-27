@@ -64,7 +64,7 @@ class CleanupTest(unittest.TestCase):
                 con.close()
                 self.assertTrue(os.path.exists(os.path.join(ex, "old.md")))
             finally:
-                os.environ = old
+                os.environ = old  # noqa: B003 — восстановление тестового env
                 hk._WLOG = old2
 
     def test_real_cleanup_old_deleted_survives(self):
@@ -88,7 +88,8 @@ class CleanupTest(unittest.TestCase):
                 self.assertFalse(os.path.exists(os.path.join(ex, "old.md")))
                 self.assertTrue(os.path.exists(os.path.join(ex, "fresh.md")))
                 self.assertTrue(os.path.exists(wlog))
-                self.assertIn("cleanup:", open(wlog).read())
+                with open(wlog, encoding="utf-8") as fh:
+                    self.assertIn("cleanup:", fh.read())
             finally:
                 hk._WLOG = old2
 

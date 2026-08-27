@@ -1,0 +1,49 @@
+name: campaign-smoke
+
+# Живой смоук КАМПАНИИ (браузерный, тяжёлый — отдельный джоб, не блокирует
+# инструменты разработки). Цель: поймать регрессию полного цикла
+# «старт → охота → выжимки → verified → отчёт» через ВСЕ 6 шагов
+# research_start/status/report/index/digest/citation_pack — ровно то,
+# что агент видит после охоты. Быстрый гейт (без браузера) — ci.yml.
+
+on:
+  workflow_dispatch:      # руками
+  schedule:
+    - cron: "0 6 * * *"   # ночной сторож 1 раз/день (не жрём CI в проде)
+
+jobs:
+  campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true   # смоук-джоб: красный = сигнал, не блокер
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          python -m camoufox fetch   # браузер (один раз)
+
+      - name: Live campaign smoke (6 шагов)
+        env:
+          CAMOUFOX_CAMPAIGN_DB: /tmp/camoufox-ci/campaigns.db
+        run: |
+          mkdir -p /tmp/camoufox-ci
+          python .github/scripts/campaign_smoke.py
+
+      - name: Upload artifacts (отчёт кампании)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-smoke-report
+          path: |
+            /tmp/camoufox-ci/exports/*.md
+            /tmp/camoufox-ci/exports/*.cit.md
+          if-no-files-found: ignore
