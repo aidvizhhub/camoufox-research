@@ -378,6 +378,7 @@ from camoufox_campaign import (  # noqa: E402
     research_start,
     research_status,
     research_report,
+    research_resume,
 )
 
 ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
@@ -385,6 +386,7 @@ ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
            "research_start": research_start,
            "research_status": research_status,
            "research_report": research_report,
+           "research_resume": research_resume,
            "extract_links": extract_links, "browser_navigate": browser_navigate,
            "browser_click": browser_click, "browser_type": browser_type,
            "session_start": session_start, "session_navigate": session_navigate,

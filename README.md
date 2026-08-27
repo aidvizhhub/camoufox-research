@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.6.0-green)
+![Version](https://img.shields.io/badge/version-0.7.0-green)
 
 ```
     AI Agent
@@ -247,7 +247,7 @@ Check: `opencode mcp list` → `camoufox: connected`.
 
 | Group | Tools |
 |---|---|
-| Research | `research` (deep search + reading), `web_search`, кампании: `research_start` (цель «N разных сайтов», фон + счётчик), `research_status`, `research_report` |
+| Research | `research` (deep search + reading), `web_search`, кампании: `research_start` (цель «N разных сайтов», фон + счётчик), `research_status`, `research_report`, `research_resume` (доборка partial/failed с места) |
 | Reading | `fetch_page` (+ `delta`), `batch_fetch`, `extract_links`, `read_document` (PDF/DOCX/XLSX) |
 | Structure | `extract` (CSS + XPath), `crawl` (BFS), `map_site`, `sitemap` (+.gz, nested), `table_extract` |
 | Data | `export` (json/csv/md), `rss`, `check_links` |

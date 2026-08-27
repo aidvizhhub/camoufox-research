@@ -228,6 +228,18 @@ def research_report(camp_id: str, fmt: str = "md") -> str:
 
 
 @mcp.tool()
+def research_resume(camp_id: str, background: bool = False) -> str:
+    """ДОБОРКА кампании с места (паттерн LangGraph resume): берёт
+    partial/failed и добирает недостающие РАЗНЫЕ сайты свежими углами
+    (tutorial/comparison/case study). done — откажет («нечего добирать»),
+    running — откажет (двойной запуск = гонка). Нулевая волна (те же
+    домены по кругу) = честный стоп. Синхронно по умолчанию; большую
+    доборку — background=True (ждать маркер <id>.json)."""
+    return _call("research_resume", timeout=600, camp_id=camp_id,
+                 background=background)
+
+
+@mcp.tool()
 def fetch_page(url: str, max_chars: int = 6000,
                article_only: bool = False, delta: bool = False) -> str:
     """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на

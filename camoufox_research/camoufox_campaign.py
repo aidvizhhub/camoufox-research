@@ -39,6 +39,15 @@ _EXPORT_DIR = Path.home() / ".cache" / "camoufox-research" / "exports"
 _ANGLE_SUFFIXES = (" best practices", " how it works", " problems",
                    " alternatives")
 
+# Очередь углов РЕСЬЮМА: каждый заход доборки берёт СВОЙ набор —
+# повторять уже сработавшие суффиксы = собирать те же домены (нулевая
+# волна). Очередь кончилась → честный partial, не блеф.
+_RESUME_ROUNDS = (
+    (" tutorial", " example"),
+    (" comparison 2026", " vs"),
+    (" case study", " release notes"),
+)
+
 _SCHEMA = (
     """CREATE TABLE IF NOT EXISTS campaigns (
         id TEXT PRIMARY KEY,
@@ -189,6 +198,92 @@ def _target_of(camp_id):
     return row[0] if row else 0
 
 
+def _paths(camp_id):
+    """Пути (лог, done-маркер) — единые для start/resume/раннера."""
+    return (str(_EXPORT_DIR / f"{camp_id}.log"),
+            str(_EXPORT_DIR / f"{camp_id}.json"))
+
+
+def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path):
+    """Доборка раненой кампании (partial/failed) с места, не с нуля
+    (паттерн LangGraph resume). Отличия от hunt(): своя очередь углов
+    (_RESUME_ROUNDS), кап спирали — нулевая волна = стоп (собирать те же
+    домены бессмысленно), база существующих источников уже в sqlite и
+    UNIQUE-дедуп сам отсекает старьё."""
+    from camoufox_fetch import research
+    notes = []
+    try:
+        uniq = _counts(camp_id)[1]
+        for i, suffixes in enumerate(_RESUME_ROUNDS, 1):
+            if uniq >= target:
+                break
+            wq = [q + s for q in queries for s in suffixes]
+            _log(log_path, f"добор{i}: {len(wq)} запросов (есть {uniq}/{target})")
+            raw = research(queries=wq, max_results_per_query=10,
+                           target_domains=target, domains_limit=dl,
+                           terms_wave=True, quality_first=True,
+                           fetch_all=False, as_json=True)
+            payload = json.loads(raw) if isinstance(raw, str) else {}
+            fresh, total, uniq, skipped = _ingest(camp_id, payload)
+            notes.append(f"добор{i}:+{fresh} ({uniq}/{target} доменов)")
+            _log(log_path, notes[-1])
+            if fresh == 0:  # спираль-кап: те же домены по кругу не множим
+                notes.append("нулевая волна — стоп")
+                break
+        total, uniq = _counts(camp_id)
+        status = "done" if uniq >= target else "partial"
+        _finish(camp_id, topic, status, total, uniq, target, notes, done_path)
+        _log(log_path, f"ресьюм-финал: {status}, {uniq}/{target} доменов")
+    except Exception as e:  # noqa: BLE001 — честный failed с маркером
+        _log(log_path, f"падение доборки: {type(e).__name__}: {e}")
+        total, uniq = _counts(camp_id)
+        _finish(camp_id, topic, "failed", total, uniq, target,
+                notes + [f"{type(e).__name__}: {e}"], done_path)
+
+
+def resume(camp_id, background=False):
+    """Продолжить partial/failed кампанию с места. done — отказ (нечего
+    добирать), running — отказ (двойной запуск = гонка за sqlite и
+    браузер). Статус ставится running ДО охоты — второй resume виден."""
+    with _db() as con:
+        row = con.execute(
+            "SELECT topic, queries, target_sources, domains_limit, status "
+            "FROM campaigns WHERE id=?", (camp_id,)).fetchone()
+        if not row:
+            return f"ошибка: нет кампании {camp_id}"
+        topic, queries, target, dl, st = (row[0], json.loads(row[1]),
+                                          int(row[2]), int(row[3]), row[4])
+        if st == "running":
+            return (f"ошибка: кампания {camp_id} уже бежит — двойной "
+                    "запуск запрещён (закон одного инстанса)")
+        if st == "done":
+            return (f"кампания {camp_id} уже done: {_counts(camp_id)[1]} "
+                    f"доменов — доборка не нужна")
+        con.execute("UPDATE campaigns SET status='running', updated_ts=? "
+                    "WHERE id=?", (time.time(), camp_id))
+    log_path, done_path = _paths(camp_id)
+    _log(log_path, f"РЕСЬЮМ: было «{st}», цель {target}")
+    if background:
+        with open(log_path, "ab") as lf:
+            subprocess.Popen(
+                [sys.executable, str(_RUNNER), "--resume", camp_id],
+                stdout=lf, stderr=subprocess.STDOUT,
+                cwd=str(Path(__file__).resolve().parent.parent),
+                start_new_session=True)
+        return (f"доборка {camp_id} ушла в ФОН: ждём маркер {done_path}"
+                f"\nсостояние: research_status('{camp_id}')")
+    _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path)
+    notes_out = ""
+    try:  # заметки волн в ответ — агент видит «почему стоп» сразу
+        mk = json.load(open(done_path, encoding="utf-8"))
+        if mk.get("notes"):
+            notes_out = "\nзаметки: " + "; ".join(mk["notes"])
+    except Exception:  # noqa: BLE001 — маркер мог не родиться, отчёт важнее
+        pass
+    return (f"доборка {camp_id} завершена:\n{report(camp_id)}"
+            f"{notes_out}\nлог: {log_path}")
+
+
 def start(topic, queries=None, target_sources=20, domains_limit=2,
           background=True):
     """Запуск кампании. Фон=True — отдельный процесс (лог + маркер done);
@@ -197,8 +292,7 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
     qs = [str(q).strip() for q in (queries or []) if str(q).strip()] \
         or [topic.strip()]
     camp_id = f"cmp_{int(time.time())}_{uuid.uuid4().hex[:4]}"
-    log_path = str(_EXPORT_DIR / f"{camp_id}.log")
-    done_path = str(_EXPORT_DIR / f"{camp_id}.json")
+    log_path, done_path = _paths(camp_id)
     with _db() as con:
         con.execute(
             "INSERT INTO campaigns VALUES (?,?,?,?,?,?,?,?,?)",
@@ -294,3 +388,8 @@ def research_status(camp_id, limit=6):
 
 def research_report(camp_id, fmt="md"):
     return report(camp_id, fmt)
+
+
+def research_resume(camp_id, background=False):
+    """ACTION для воркера: доборка partial/failed кампании с места."""
+    return resume(camp_id, background)

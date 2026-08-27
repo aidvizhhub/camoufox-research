@@ -28,6 +28,9 @@ import camoufox_campaign as cc  # noqa: E402 — тот же каталог, fla
 def main():
     ap = argparse.ArgumentParser(description="фон-охота кампании ресёрча")
     ap.add_argument("--id", required=True)
+    ap.add_argument("--resume", action="store_true",
+                    help="доборка существующей кампании (partial/failed), "
+                         "не новая охота — статус running ставит вызывающий")
     args = ap.parse_args()
     with cc._db() as con:
         row = con.execute(
@@ -38,11 +41,15 @@ def main():
         sys.exit(1)
     topic, queries, target, dl = (row[0], json.loads(row[1]),
                                   int(row[2]), int(row[3]))
-    log_path = str(cc._EXPORT_DIR / f"{args.id}.log")
-    done_path = str(cc._EXPORT_DIR / f"{args.id}.json")
-    cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
+    log_path, done_path = cc._paths(args.id)
     t0 = time.monotonic()
-    cc.hunt(args.id, topic, queries, target, dl, log_path, done_path)
+    if args.resume:
+        cc._log(log_path, "раннер-ресьюм стартовал")
+        cc._resume_hunt(args.id, topic, queries, target, dl,
+                        log_path, done_path)
+    else:
+        cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
+        cc.hunt(args.id, topic, queries, target, dl, log_path, done_path)
     with cc._db() as con:
         st = con.execute("SELECT status FROM campaigns WHERE id=?",
                          (args.id,)).fetchone()
