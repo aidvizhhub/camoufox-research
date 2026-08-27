@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.15.0-green)
+![Version](https://img.shields.io/badge/version-0.16.0-green)
 
 ```
     AI Agent
@@ -144,6 +144,8 @@ Digests are menu-cleaned (`_digest_clean`: GitHub/SPA navigation junk is
 stripped; `research_digest(camp_id, refresh)` rebuilds old packs).
 **`citation_report(camp_id)`** saves the whole pack as a ready MD document
 (`exports/{camp_id}.cit.md`): verified digests numbered [1..N] + References.
+After a background campaign it's generated **automatically** (post_hunt) —
+the done-marker carries `cit_report` with the file path.
 
 For automation, `as_json=True` returns a JSON payload instead of a text dump:
 

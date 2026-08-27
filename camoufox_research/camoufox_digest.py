@@ -244,11 +244,19 @@ def research_digest(camp_id, refresh=True):
 
 
 def post_hunt(camp_id, log):
-    """После финала охоты: выжимки + верификация (всё в том же фоне).
-    Маркер done.json дополняется полями digests/verified — агент ждёт
-    ЕГО же, новых маркеров не плодим."""
+    """После финала охоты: выжимки + верификация + ОТЧЁТ НА ДИСК (всё в
+    том же фоне). Маркер done.json дополняется полями digests/verified/
+    cit_report — агент ждёт ЕГО же, новых маркеров не плодим."""
     digests, total = make_digest(camp_id, log)
     verified, broken = verify_sources(camp_id)
     log(f"verified: {verified}/{total}" + (f", битых: {len(broken)}"
                                            if broken else ""))
-    return {"digests": digests, "verified": verified, "broken": len(broken)}
+    cit_report = ""
+    try:
+        cit_report = citation_report(camp_id)
+    except Exception:  # noqa: BLE001 — документ бонус, не охота
+        cit_report = ""
+    if not cit_report:
+        log("cit-отчёт пропущен (пустые выжимки/verified)")
+    return {"digests": digests, "verified": verified,
+            "broken": len(broken), "cit_report": cit_report}
