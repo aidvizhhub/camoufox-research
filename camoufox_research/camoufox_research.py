@@ -234,6 +234,15 @@ def citation_pack(camp_id: str) -> str:
 
 
 @mcp.tool()
+def citation_report(camp_id: str, path: str = "") -> str:
+    """Цитированный отчёт НА ДИСК: готовый MD-документ с выжимками
+    verified ✅ источников (нумерация [1..N] + раздел «Ссылки»).
+    Без path — exports/{camp_id}.cit.md. Отдаёт путь и размер —
+    документ можно сразу отправить/приложить."""
+    return _call("citation_report", camp_id=camp_id, path=path)
+
+
+@mcp.tool()
 def research_start(topic: str, queries: list[str] | None = None,
                    target_sources: int = 20, domains_limit: int = 2,
                    feeds: list[str] | None = None,

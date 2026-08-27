@@ -63,6 +63,7 @@ from camoufox_fetch import (  # noqa: E402
 from camoufox_academic import paper_search  # noqa: E402
 from camoufox_digest import (  # noqa: E402
     citation_pack,
+    citation_report,
     research_digest,
 )
 from camoufox_session import (  # noqa: E402
@@ -394,6 +395,7 @@ ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
            "research_status": research_status,
            "research_report": research_report,
            "research_digest": research_digest, "citation_pack": citation_pack,
+           "citation_report": citation_report,
            "research_resume": research_resume,
            "research_index": research_index,
            "extract_links": extract_links, "browser_navigate": browser_navigate,

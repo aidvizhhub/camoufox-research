@@ -20,7 +20,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 from camoufox_cache import _cache_get
-from camoufox_campaign import _DB_PATH, _db
+from camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
 
 _UA = {"User-Agent": "camoufox-research/0.14 (+https://github.com/aidvizhhub/camoufox-research)"}
 _MAX_VERIFY = 30
@@ -201,6 +201,38 @@ def citation_pack(camp_id, autofix=True):
     for i, (url, title, digest, _) in enumerate(picked, 1):
         body.append(f"[{i}] {title}\n    {url}\n    {digest[:220]}")
     return head + "\n" + "\n".join(body)
+
+
+def citation_report(camp_id, path=None):
+    """Цитированный отчёт НА ДИСК: готовый MD-документ (выжимки verified
+    ✅ источников с нумерацией [1..N] + раздел «Ссылки»). Возвращает путь
+    и превью; без path — кладёт в exports/{camp_id}.cit.md."""
+    pack = citation_pack(camp_id, autofix=False)
+    if pack.startswith("ошибка") or "CIT-ПАКЕТ пуст" in pack:
+        return pack
+    lines = pack.split("\n")
+    head = lines[:2]
+    blocks, refs = [], []
+    i = 0
+    while i < len(lines):
+        m = re.match(r"^\[(\d+)\] (.*)$", lines[i])
+        if not m:
+            i += 1
+            continue
+        num, title = m.group(1), m.group(2)
+        url = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        body = lines[i + 2].strip() if i + 2 < len(lines) else ""
+        blocks.append(f"## [{num}] {title}\n- {url}\n\n{body}")
+        refs.append(f"{num}. {url}")
+        i += 3
+    md = (f"# Цитированный отчёт\n{head[0]}\n\n"
+          + "\n\n".join(blocks)
+          + f"\n\n## Ссылки\n" + "\n".join(refs) + "\n")
+    path = (path or str(_EXPORT_DIR / f"{camp_id}.cit.md"))
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(md)
+    return (f"отчёт сохранён: {path}\n"
+            f"источников с цитатами: {len(blocks)} · символов: {len(md)}")
 
 
 def research_digest(camp_id, refresh=True):
