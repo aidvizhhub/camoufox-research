@@ -52,3 +52,12 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.API_TOKEN_PYPI }}
+      # Честный гейт: если ни OIDC, ни токен не опубликовали — релиз
+      # КРАСНЫЙ (раньше continue-on-error рисовал «✓» без пакета на PyPI,
+      # урок 27.08.2026: v0.18.1 «успешен» на бумаге, пакета нет).
+      - name: fail if not published
+        if: steps.oidc.outcome != 'success' && env.HAS_TOKEN != 'true'
+        run: |
+          echo "::error::Обе публикации не удались: OIDC invalid-publisher + секрет API_TOKEN_PYPI отсутствует."
+          echo "Фикс: 1) привязать publisher на pypi.org (owner aidvizhhub · repo camoufox-research · workflow release.yml · environment pypi · project camoufox-research) или 2) вернуть секрет API_TOKEN_PYPI. Потом: gh run rerun <run-id> или workflow_dispatch."
+          exit 1
