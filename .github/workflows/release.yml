@@ -36,8 +36,17 @@ jobs:
         with:
           name: dist
           path: dist/
-      # Trusted Publishing (OIDC): БЕЗ токенов — pypi.org ↔ GitHub
-      # узнают друг друга по отпечатку. Привязка (5 полей):
-      # owner aidvizhhub · repo camoufox-research · workflow release.yml ·
-      # environment pypi · project name camoufox-research.
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # Публикация в два эшелона: главный — Trusted Publishing (OIDC,
+      # БЕЗ токенов); привязка на pypi.org (5 полей): owner aidvizhhub ·
+      # repo camoufox-research · workflow release.yml · environment pypi ·
+      # project name camoufox-research. Пока форма не совпала —
+      # страховочный токен API_TOKEN_PYPI публикует сам (если секрет жив).
+      - name: publish (OIDC)
+        id: oidc
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: publish (token fallback)
+        if: steps.oidc.outcome == 'failure' && secrets.API_TOKEN_PYPI != ''
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.API_TOKEN_PYPI }}
