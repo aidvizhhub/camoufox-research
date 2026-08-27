@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Расширение браузерных хелперов: клики с пред-проверкой, snapshot/SOM,
 профили кук. Вырезано из camoufox_browser.py (487→ core+ext, canon
@@ -181,7 +181,7 @@ def _click_ref(page, ref, timeout_ms=15000):
 
 def profile_save(name="default"):
     """Сохранить куки + localStorage живого браузера в профиль <name>.json."""
-    from camoufox_research.camoufox_browser_core import _LIVE_PROVIDER  # noqa: E402
+    from camoufox_research.camoufox_browser_core import _LIVE_PROVIDER
 
     live = _LIVE_PROVIDER() if _LIVE_PROVIDER else None
     if live is None:
@@ -189,10 +189,8 @@ def profile_save(name="default"):
     browser = live[1]
     data = {"cookies": [], "local_storage": {}}
     for ctx in getattr(browser, "contexts", []) or []:
-        try:
+        with suppress(Exception):
             data["cookies"].extend(ctx.cookies())
-        except Exception:  # noqa: S110,BLE001 — контекст мог упасть
-            pass
         for page in ctx.pages:
             try:
                 ls = page.evaluate(
@@ -201,7 +199,7 @@ def profile_save(name="default"):
                     " return o; }"
                 )
                 data["local_storage"][page.url] = ls
-            except Exception:  # noqa: S110,BLE001 — страница могла упасть
+            except Exception:
                 pass
     os.makedirs(_PROFILES_DIR, exist_ok=True)
     path = os.path.join(_PROFILES_DIR, name + ".json")
@@ -215,7 +213,7 @@ def profile_save(name="default"):
 
 def profile_load(name="default"):
     """Загрузить куки + localStorage профиля в живой браузер."""
-    from camoufox_research.camoufox_browser_core import _LIVE_PROVIDER  # noqa: E402
+    from camoufox_research.camoufox_browser_core import _LIVE_PROVIDER
 
     live = _LIVE_PROVIDER() if _LIVE_PROVIDER else None
     if live is None:
@@ -230,7 +228,7 @@ def profile_load(name="default"):
     if ctx is None:
         try:
             ctx = browser.new_context()  # после перезапуска браузера контекст ещё не создан
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return f"ошибка: нет контекста браузера: {type(e).__name__}: {e}"
     added = 0
     try:
@@ -242,7 +240,7 @@ def profile_load(name="default"):
         if cookies:
             ctx.add_cookies(cookies)
             added = len(cookies)
-    except Exception:  # noqa: S110,BLE001 — часть куки может не примениться
+    except Exception:
         pass
     loaded_origins = 0
     for origin, ls in (data.get("local_storage") or {}).items():
@@ -254,6 +252,6 @@ def profile_load(name="default"):
             )
             p.close()
             loaded_origins += 1
-        except Exception:  # noqa: S110,BLE001 — один origin не критичен
+        except Exception:
             pass
     return f"профиль загружен: {path} (куки: {added}, origins: {loaded_origins})"

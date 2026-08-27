@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Session-режим: действия (вырезано из camoufox_session_core.py, canon
 FILE-SIZE.md): session_* тулы + вкладки + wait/eval. Инфраструктура —
@@ -132,7 +132,7 @@ def session_status():
         return json.dumps(
             {"url": page.url, "title": page.title(), "closed": page.is_closed()}, ensure_ascii=False
         )
-    except Exception as e:  # noqa: BLE001 — страница умерла
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"
 
 
@@ -175,7 +175,7 @@ def session_tabs(op="list", url="", tab_id=""):
         for tid, page in _core._TABS.items():
             try:
                 rows.append(f"  [{tid}] {page.title()}\n      {page.url}")
-            except Exception:  # noqa: S110,BLE001 — вкладка могла упасть
+            except Exception:
                 rows.append(f"  [{tid}] (упала)")
         return "\n".join(rows) if rows else "вкладок нет"
     if op == "new":
@@ -195,7 +195,7 @@ def session_tabs(op="list", url="", tab_id=""):
         _core._SESSION = _core._TABS[tab_id]
         try:
             _core._SESSION_URL = _core._SESSION.url
-        except Exception:  # noqa: S110,BLE001
+        except Exception:
             _core._SESSION_URL = None
         return f"активна вкладка {tab_id}: {_core._SESSION.url}"
     if op == "close":
@@ -222,10 +222,9 @@ def session_wait_for(text="", selector="", timeout=15):
         try:
             if selector and page.locator(selector).count() > 0:
                 return f"дождался: селектор '{selector}' появился (URL: {page.url})"
-            if text:
-                if text in page.inner_text("body"):
-                    return f"дождался: текст '{text}' появился (URL: {page.url})"
-        except Exception:  # noqa: S110,BLE001 — страница могла перезагружаться
+            if text and text in page.inner_text("body"):
+                return f"дождался: текст '{text}' появился (URL: {page.url})"
+        except Exception:
             pass
         page.wait_for_timeout(700)
     return f"не дождался за {timeout}с: '{text or selector}' (URL: {page.url})"
@@ -238,5 +237,5 @@ def session_eval(expression):
     try:
         result = page.evaluate(expression)
         return json.dumps(result, ensure_ascii=False, default=str)[:12000]
-    except Exception as e:  # noqa: BLE001 — ошибка JS — это результат
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Стоп-слова для extract_terms (вынесено из camouflage_sources_ext.py,
 canon FILE-SIZE.md): данные, не логика — отдельный модуль."""
@@ -77,7 +77,6 @@ _STOP = {
     "once",
     "again",
     "here",
-    "there",
     "these",
     "those",
     "such",
@@ -93,9 +92,7 @@ _STOP = {
     "neither",
     "own",
     "same",
-    "than",
     "too",
-    "also",
     "off",
     "out",
     "up",
@@ -314,11 +311,8 @@ _STOP = {
     "pricing",
     "cost",
     "costs",
-    "free",
     "trial",
     "demo",
-    "feature",
-    "features",
     "type",
     "types",
     "part",
@@ -338,7 +332,6 @@ _STOP = {
     "sets",
     "group",
     "groups",
-    "list",
     "lists",
     "item",
     "items",
@@ -360,8 +353,6 @@ _STOP = {
     "pdf",
     "paper",
     "papers",
-    "article",
-    "articles",
     "journal",
     "journals",
     "conference",
@@ -535,8 +526,6 @@ _STOP = {
     "terminals",
     "ticket",
     "tickets",
-    "price",
-    "prices",
     "booking",
     "bookings",
     "reservation",

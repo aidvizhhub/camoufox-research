@@ -118,7 +118,7 @@ def session_form_fill(fields, submit="", max_chars=6000):
     page = _core._session_page()
     try:
         spec = json.loads(fields) if isinstance(fields, str) else fields
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 'ошибка: fields не JSON — нужен объект {"селектор": "значение"}'
     if not isinstance(spec, dict) or not spec:
         return "ошибка: fields должна быть непустым объектом"
@@ -131,14 +131,14 @@ def session_form_fill(fields, submit="", max_chars=6000):
                 continue
             loc.fill(str(val), timeout=8000)
             report.append(f"  {sel}: ok")
-        except Exception as e:  # noqa: BLE001 — одно поле не роняет всё
+        except Exception as e:
             report.append(f"  {sel}: [ошибка: {type(e).__name__}: {e}]")
     if submit:
         try:
             page.click(submit, timeout=10000)
             page.wait_for_timeout(2500)
             _wait_content(page)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return (
                 "заполнено, но submit не сработал:\n"
                 + "\n".join(report)
@@ -158,7 +158,7 @@ def session_upload(selector, path, max_chars=6000):
         page.wait_for_timeout(1500)
         _wait_content(page)
         return "файл загружен: " + path + "\n\n" + _text(page, max_chars)
-    except Exception as e:  # noqa: BLE001 — нет input[type=file] по селектору
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e} (нужен input[type=file])"
 
 
@@ -227,7 +227,7 @@ def session_download(url="", selector="", timeout=30):
             )
             d.save_as(path)
             return f"скачано: {path} ({os.path.getsize(path) // 1024} KB)"
-        except Exception as e:  # noqa: BLE001 — скачивания не было
+        except Exception as e:
             return f"ошибка: {type(e).__name__}: {e} (скачивание не началось)"
     if url:
         try:
@@ -248,6 +248,6 @@ def session_download(url="", selector="", timeout=30):
             with open(path, "wb") as fh:
                 fh.write(body)
             return f"скачано: {path} ({len(body) // 1024} KB)"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return f"ошибка: {type(e).__name__}: {e}"
     return "ошибка: нужен url или selector"

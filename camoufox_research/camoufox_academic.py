@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Академический канал: arXiv API + Semantic Scholar API (бесплатные, без ключей).
 
@@ -49,11 +49,11 @@ def _arxiv_rows(query, max_results):
     if cached:
         try:
             return json.loads(cached)
-        except Exception:  # noqa: BLE001 — кривой кэш: пере-поиск
+        except Exception:
             pass
     try:
         root = ET.fromstring(_http_get(url))
-    except Exception:  # noqa: BLE001 — arXiv упал/лежит: честно пусто
+    except Exception:
         return []
     rows = []
     for ent in root.findall("a:entry", _NS):
@@ -92,14 +92,14 @@ def _s2_rows(query, max_results):
     if cached:
         try:
             return json.loads(cached)
-        except Exception:  # noqa: BLE001 — кривой кэш: пере-поиск
+        except Exception:
             pass
     data = None
     for attempt in (1, 2, 3):
         try:
             data = json.loads(_http_get(url))
             break
-        except Exception:  # noqa: BLE001 — 429/сеть: до 3 попыток с паузой
+        except Exception:
             if attempt < 3:
                 time.sleep(4)
             data = None

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Ядро браузерных хелперов: ланчер, ожидание контента, текст, ссылки,
 DDG-поиск. Вырезано из camoufox_browser.py (487→ core+ext, canon
@@ -46,7 +46,7 @@ def _proxy_conf():
             conf["username"] = unquote(u.username)
             conf["password"] = unquote(u.password or "")
         return conf
-    except Exception:  # noqa: S110,BLE001 — кривой формат: без прокси
+    except Exception:
         return None
 
 
@@ -140,7 +140,7 @@ def _goto(page, url, tries=2, wait_ms=700):
             _wait_content(page)
             page.wait_for_timeout(wait_ms)
             return
-        except Exception as e:  # noqa: BLE001 — любая ошибка сети/таймаута
+        except Exception as e:
             last = e
             if attempt < tries - 1:
                 time.sleep(2 * (attempt + 1))  # экспоненциальный backoff
@@ -227,14 +227,14 @@ def _article_text(page, max_chars):
     """Текст статьи через Trafilatura (без меню/баннеров). Fallback —
     весь body, если trafilatura не дала результат."""
     try:
-        import trafilatura  # noqa: E402 — опциональная GPL-зависимость
-    except ImportError:  # noqa: S110 — fallback на inner_text
+        import trafilatura
+    except ImportError:
         trafilatura = None
     if trafilatura is not None:
         try:
             text = trafilatura.extract(page.content())
             if text and len(text) > 100:
                 return text[:max_chars]
-        except Exception:  # noqa: S110,BLE001 — падение extract не критично
+        except Exception:
             pass
     return _text(page, max_chars)

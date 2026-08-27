@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Домашнее хозяйство кампаний: автоархив отчётов + пульс крона сторожа.
 
@@ -15,6 +15,7 @@ import os
 import re
 import time
 from pathlib import Path
+import contextlib
 
 # Отчёты кампаний: по умолчанию — exports кэша; для записи в research/
 # репы задай CAMOUFOX_REPORT_DIR (конвенция research/README:
@@ -47,7 +48,7 @@ def save_report(camp_id, topic, status, notes, report_md):
         body = head + report_md + "\n\nзаметки волн: " + "; ".join(notes) + "\n"
         path.write_text(body, encoding="utf-8")
         return str(path)
-    except Exception:  # noqa: BLE001 — архив важнее, но не дороже охоты
+    except Exception:
         return None
 
 
@@ -86,7 +87,7 @@ def watchdog_note():
                 f"⚠ сторож молчит {age_h:.0f} ч (порог {_STALE_H} ч) — "
                 "крон умер? Проверь `crontab -l` и хвост watchdog.log."
             )
-    except Exception:  # noqa: BLE001 — пульс не роняет старт охоты
+    except Exception:
         return ""
     return ""
 
@@ -107,7 +108,7 @@ def post_pack(camp_id, log_path, done_path):
             json.dumps(marker, ensure_ascii=False, indent=1), encoding="utf-8"
         )
         return extra
-    except Exception as e:  # noqa: BLE001 — упаковка бонус, не охота
+    except Exception as e:
         _log_line(log_path, f"выжимки пропущены: {type(e).__name__}")
         return {}
 
@@ -117,7 +118,7 @@ def _log_line(log_path, msg):
     try:
         with open(log_path, "a", encoding="utf-8") as fh:
             fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 
@@ -127,7 +128,7 @@ def marker_update(done_path, key, value):
         mk = json.loads(Path(done_path).read_text(encoding="utf-8"))
         mk[key] = value
         Path(done_path).write_text(json.dumps(mk, ensure_ascii=False, indent=1), encoding="utf-8")
-    except Exception:  # noqa: BLE001 — маркер не критичен
+    except Exception:
         pass
 
 
@@ -178,12 +179,10 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
             pass
         con.commit()
         if not dry_run and any(":" in s and not s.endswith(":0") for s in summary):
-            try:
+            with contextlib.suppress(Exception):
                 con.execute("VACUUM")
-            except Exception:
-                pass
         con.close()
-    except Exception as e:  # noqa: BLE001 — уборка не роняет старт сервера
+    except Exception as e:
         summary.append(f"db:err:{type(e).__name__}")
     d = Path(_REPORT_DIR) if _REPORT_DIR else Path(_WLOG).parent / "exports"
     n_files = 0

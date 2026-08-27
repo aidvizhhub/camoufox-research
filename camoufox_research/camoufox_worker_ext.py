@@ -28,20 +28,20 @@ globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('_
 # Поздний импорт кампаний: модуль тянет fetch-слой (браузер), но
 # сам браузер не стартует — безопасно и в serve, и в разовом вызове.
 try:
-    from camoufox_research.camoufox_campaign import (  # noqa: E402
-        research_start,
-        research_status,
+    from camoufox_research.camoufox_campaign import (
+        research_index,
         research_report,
         research_resume,
-        research_index,
+        research_start,
+        research_status,
     )
 except ImportError:
-    from camoufox_campaign import (  # noqa: E402
-        research_start,
-        research_status,
+    from camoufox_campaign import (
+        research_index,
         research_report,
         research_resume,
-        research_index,
+        research_start,
+        research_status,
     )
 
 ACTIONS = {
@@ -144,10 +144,10 @@ def _serve():
                     result = ACTIONS[action](**args)
                     _record(action, args, True, time.monotonic() - t0, result)
                     print(json.dumps({"result": result}), flush=True)
-                except Exception as e:  # noqa: BLE001 — одна команда не роняет сервер
+                except Exception as e:
                     _record(action, args, False, time.monotonic() - t0, str(e))
                     print(json.dumps({"error": f"{type(e).__name__}: {e}"}), flush=True)
-            except Exception as e:  # noqa: BLE001 — битая строка/не-JSON
+            except Exception as e:
                 print(json.dumps({"error": f"битая команда: {e}"}), flush=True)
             finally:
                 _close_pages(_LIVE[1])
@@ -170,7 +170,7 @@ def main():
     try:
         result = ACTIONS[action](**args)
         print(json.dumps({"result": result}))
-    except Exception as e:  # noqa: BLE001 — CLI-обёртка: любая ошибка → JSON на stdout
+    except Exception as e:
         print(json.dumps({"error": f"{type(e).__name__}: {e}"}))
         sys.exit(1)
 
@@ -179,7 +179,8 @@ if __name__ == "__main__":
     main()
 
 
-# Разработано для https://t.me/aidvizhenie · https://t.me/hilartem. Каждая версия уникальна, дальше — ещё лучше.
+# Разработано для https://t.me/aidvizhenie · https://t.me/hilartem.
+# Каждая версия уникальна, дальше — ещё лучше.
 
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501

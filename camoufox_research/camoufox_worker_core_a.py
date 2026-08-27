@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Принадлежит каналу https://t.me/aidvizhenie · админ h-i-l-artem · гиг t,me/aidvizh_hub
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Воркер браузера для MCP-сервера: выполняется в ОТДЕЛЬНОМ процессе,
 чтобы не конфликтовать с event loop FastMCP.
@@ -11,18 +11,19 @@
 
 import sys
 import time
+import contextlib
 
 # Windows-консоль по умолчанию cp1251 — русский вывод падает с
 # UnicodeEncodeError. Переключаем на UTF-8 (Python 3.7+).
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except Exception:  # noqa: S110,BLE001 — reconfigure опционален, без него живём
+except Exception:
     pass
 
 # Модули, вынесенные из этого файла (резка god-файла, canon/FILE-SIZE.md):
 try:
-    from camoufox_research.camoufox_browser import (  # noqa: E402
+    from camoufox_research.camoufox_browser import (
         _article_text,
         _browser_ctx,
         _click_checked,
@@ -37,12 +38,14 @@ try:
         init_browser,
         profile_load,
         profile_save,
+    )
+    from camoufox_research.camoufox_browser import (
         set_proxy as _set_proxy_browser,
     )
 except ImportError:
     pass
-try:
-    from camoufox_research.camoufox_cache import (  # noqa: E402
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_cache import (
         _FETCH_LIMIT,
         _cache_get,
         _cache_set,
@@ -52,18 +55,18 @@ try:
         _search_cache_get,
         _search_cache_set,
     )
-except ImportError:
-    pass
-try:
-    from camoufox_research.camoufox_crawl import check_links, crawl, map_site, rss, sitemap  # noqa: E402
-except ImportError:
-    pass  # noqa: E402
-try:
-    from camoufox_research.camoufox_docs import read_document  # noqa: E402
-except ImportError:
-    pass  # noqa: E402
-try:
-    from camoufox_research.camoufox_fetch import (  # noqa: E402
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_crawl import (
+        check_links,
+        crawl,
+        map_site,
+        rss,
+        sitemap,
+    )
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_docs import read_document
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_fetch import (
         _save_to_internet,
         batch_fetch,
         export,
@@ -71,22 +74,16 @@ try:
         research,
         table_extract,
     )
-except ImportError:
-    pass
-try:
-    from camoufox_research.camoufox_academic import paper_search  # noqa: E402
-except ImportError:
-    pass  # noqa: E402
-try:
-    from camoufox_research.camoufox_digest import (  # noqa: E402
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_academic import paper_search
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_digest import (
         citation_pack,
         citation_report,
         research_digest,
     )
-except ImportError:
-    pass
-try:
-    from camoufox_research.camoufox_session import (  # noqa: E402
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_session import (
         get_session_page,
         get_session_pages,
         init_session,
@@ -116,15 +113,13 @@ try:
         session_upload,
         session_wait_for,
     )
-except ImportError:
-    pass
 
 # Trafilatura — извлечение текста статьи (без меню/баннеров). Опциональна:
 # если не установлена, работаем как раньше (весь body).
 try:
     import trafilatura
 except ImportError:  # graceful fallback на inner_text
-    trafilatura = None
+    trafilatura = None  # type: ignore[assignment]
 
 # --- Живой браузер (serve-режим): держится между командами ---
 _LIVE = None  # (cam, browser) в serve-режиме; None — разовый запуск
@@ -214,6 +209,6 @@ def cache_info():
             mx = con.execute(f"SELECT MAX(ts) FROM {t}").fetchone()[0]
             age = time.strftime("%d.%m %H:%M", time.localtime(mx)) if mx else "—"
             out.append(f"  {t}: {n} записей (последняя {age})")
-    except Exception as e:  # noqa: S110,BLE001 — БД могла быть занята
+    except Exception as e:
         out.append(f"  ошибка чтения БД: {e}")
     return "\n".join(out)

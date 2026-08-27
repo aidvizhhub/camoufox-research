@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Чтение документов (PDF/DOCX/XLSX) — паттерн Firecrawl formats
 (pdf/document). Чистый Python, без браузера. Библиотеки опциональны:
@@ -13,9 +13,10 @@ import os
 import re
 import tempfile
 import urllib.request
+import contextlib
 
 try:
-    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
+    import camoufox_research.camoufox_browser_core as _cb
 except ImportError:
     import camoufox_browser_core as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
 
@@ -24,7 +25,7 @@ _SUPPORTED = {".pdf", ".docx", ".xlsx"}
 
 def _download_temp(source, ext):
     """URL → временный файл. Возвращает путь (удалять вызывающему)."""
-    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)  # noqa: SIM115 — файл переиспользуется
     tmp.close()
     live = _cb._LIVE_PROVIDER() if _cb._LIVE_PROVIDER else None
     if live is not None:
@@ -45,9 +46,8 @@ def _download_temp(source, ext):
             )
         },
     )
-    with urllib.request.urlopen(req, timeout=45) as resp:
-        with open(tmp.name, "wb") as fh:
-            fh.write(resp.read())
+    with urllib.request.urlopen(req, timeout=45) as resp, open(tmp.name, "wb") as fh:
+        fh.write(resp.read())
     return tmp.name
 
 
@@ -59,7 +59,7 @@ def _extract_pdf(path):
     for p in reader.pages:
         try:
             pages.append(p.extract_text() or "")
-        except Exception:  # noqa: S110,BLE001 — битая страница не роняет всё
+        except Exception:
             pages.append("")
     return "\n".join(pages)
 
@@ -107,7 +107,7 @@ def read_document(source, max_chars=6000):
         try:
             tmp = _download_temp(source, ext)
             path = tmp
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return f"ошибка скачивания: {type(e).__name__}: {e}"
     try:
         if ext == ".pdf":
@@ -120,14 +120,12 @@ def read_document(source, max_chars=6000):
         return (
             f"ошибка: не установлена библиотека '{e.name}' — pip install pypdf python-docx openpyxl"
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"ошибка чтения: {type(e).__name__}: {e}"
     finally:
         if tmp:
-            try:
+            with contextlib.suppress(Exception):
                 os.unlink(tmp)
-            except Exception:  # noqa: S110,BLE001 — временный файл
-                pass
     text = re.sub(r"\n{3,}", "\n\n", text or "")
     if not text.strip():
         return "текст не извлечён — возможно, сканированный PDF без текстового слоя (нужен OCR)"

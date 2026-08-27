@@ -58,7 +58,42 @@ camoufox_research = ["py.typed"]
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint]
+# Канон: ловить РЕАЛЬНЫЕ ошибки, не наводить тень. RUF001-003
+# (ambiguous unicode) выключены: русские докстринги — норма проекта.
+# E501 оставлен (line-length 100 в [tool.ruff]), легаси-долг чистим
+# постепенно.
+select = ["E", "W", "F", "B", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# Фасадная схема проекта (канон FILE-SIZE.md): core+ext+facade.
+# Фасады и ext-модули получают имена через globals().update(_core.__dict__)
+# ИЛИ импортируют для re-export — статический анализ (ruff/mypy их не видит.
+# F401 (импорт для re-export), F821/F822 (имена из globals-обновления) —
+# легитимны по архитектуре, НЕ по небрежности: игноры документированы.
+"camoufox_research/camoufox_worker.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_worker_core.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_worker_core_a.py" = ["F401"]
+"camoufox_research/camoufox_worker_ext.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_worker_core_b.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_fetch.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_fetch_ext.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_fetch_core.py" = ["F401"]
+"camoufox_research/camoufox_campaign.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_campaign_ext.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_session.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_session_core.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_session_core_a.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_browser.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_crawl.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_sources.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_digest.py" = ["F401", "F821", "F822"]
+"camoufox_research/camoufox_digest_core.py" = ["F401"]
+
 [tool.mypy]
+# Полная конфигурация mypy — в mypy.ini (pyproject [tool.mypy] в mypy
+# 2.3.1 не поддерживает disable_error_code для фасадной схемы).
 ignore_missing_imports = true
 no_error_summary = true
 

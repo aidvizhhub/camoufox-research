@@ -65,7 +65,11 @@ def _call_deepseek(prompt: str, system: str = "") -> str:
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": system or "You are a research query planner. Generate diverse search queries."},
+            {
+                "role": "system",
+                "content": system
+                or "You are a research query planner. Generate diverse search queries.",
+            },
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.7,
@@ -128,24 +132,31 @@ def llm_plan_queries(queries: list[str], target_domains: int = 20) -> list[str]:
         "Каждый запрос — 3-6 слов, без дублирования исходных. Верни только список, "
         "по одному запросу в строке, без нумерации и комментариев."
     )
-    system = "You are a research planner. Generate diverse, non-overlapping search queries for web research covering 20+ distinct domains."
+    system = (
+        "You are a research planner. Generate diverse, non-overlapping "
+        "search queries for web research covering 20+ distinct domains."
+    )
     try:
         if avail == "deepseek":
             raw = _call_deepseek(prompt, system)
         else:
             raw = _call_ollama(prompt, system)
         # парсим строки
-        lines = [l.strip().strip("-•1234567890. ").strip() for l in raw.splitlines() if l.strip()]
+        lines = [
+            ln.strip().strip("-•1234567890. ").strip()
+            for ln in raw.splitlines()
+            if ln.strip()
+        ]
         # фильтруем пустые, дубли, слишком длинные
-        seen = set(q.lower() for q in queries)
+        seen = {q.lower() for q in queries}
         out = []
-        for l in lines:
-            if not l or len(l) < 5 or len(l) > 80:
+        for ln in lines:
+            if not ln or len(ln) < 5 or len(ln) > 80:
                 continue
-            ll = l.lower()
+            ll = ln.lower()
             if ll in seen or ll in (x.lower() for x in out):
                 continue
-            out.append(l)
+            out.append(ln)
             seen.add(ll)
             if len(out) >= 10:
                 break

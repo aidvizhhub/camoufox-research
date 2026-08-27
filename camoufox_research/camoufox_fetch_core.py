@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Батч-фетч и research (вынесено из camoufox_worker.py, canon/FILE-SIZE.md):
 параллельный пул по ресурсам машины, rate-limit, deep-поиск одним вызовом."""
-import hashlib
 import json
 import os
 import re
-import sqlite3
 import subprocess
 import sys
 import threading
@@ -18,9 +16,16 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 try:
-    from camoufox_research.camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _search_results, _text
+    from camoufox_research.camoufox_browser import (
+        _article_text,
+        _browser_ctx,
+        _goto,
+        _launch,
+        _search_results,
+        _text,
+    )
 except ImportError:
-    from camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _search_results, _text
+    from camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _text
 try:
     from camoufox_research.camoufox_cache import (
         _CACHE_DB,
@@ -32,8 +37,6 @@ try:
     )
 except ImportError:
     from camoufox_cache import (
-        _CACHE_DB,
-        _CACHE_TTL,
         _FETCH_LIMIT,
         _cache_get,
         _cache_set,
@@ -55,7 +58,7 @@ def _save_to_internet(url, text):
             sys.path.insert(0, str(skills_dir))
         from skills_search import save_to_internet
         save_to_internet(url, url, text, "")
-    except Exception:  # noqa: BLE001 — context persistence is best effort
+    except Exception:
         pass
 
 def _auto_workers():
@@ -93,7 +96,7 @@ def _auto_workers():
                 inactive = vals.get("pages inactive", 0)
                 spec = vals.get("pages speculative", 0)
                 mem_bytes = free + inactive + spec or None
-            except Exception:  # noqa: S110,BLE001 — fallback ниже
+            except Exception:
                 mem_bytes = None
             if not mem_bytes:
                 # Fallback: SC_PHYS_PAGES — вся физическая память
@@ -119,12 +122,12 @@ def _auto_workers():
                 if ctypes.windll.kernel32.GlobalMemoryStatusEx(
                         ctypes.byref(ms)):
                     mem_bytes = ms.ullAvailPhys
-            except Exception:  # noqa: S110,BLE001 — fallback ниже
+            except Exception:
                 pass
         mem_w = (max(1, int((mem_bytes - 1.5 * 1024 ** 3) // (1024 ** 3)))
                  if mem_bytes else 4)
         return min(cpu_w, mem_w, 8)
-    except Exception:  # noqa: S110,BLE001 — не определилось: консервативно
+    except Exception:
         return 2
 
 def _fetch_one(url, max_chars, article_only):
@@ -145,7 +148,7 @@ def _fetch_one(url, max_chars, article_only):
                  else _text(page, _FETCH_LIMIT))
         _cache_set(url, t, suffix)
         return url, t
-    except Exception as e:  # noqa: BLE001 — один битый URL не роняет пул
+    except Exception as e:
         return url, f"[ошибка: {type(e).__name__}: {e}]"
 
 def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
@@ -208,7 +211,7 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
                         _cache_set(u, t, suffix)
                         texts[u] = t
                         _save_to_internet(u, t)
-                    except Exception as e:  # noqa: BLE001 — один битый URL не роняет батч
+                    except Exception as e:
                         texts[u] = f"[ошибка: {type(e).__name__}: {e}]"
                     if i < len(todo) - 1:
                         time.sleep(0.4)  # rate limit между переходами
@@ -225,7 +228,7 @@ def extract(url, schema):
     Возвращает JSON: поле → значение/список (до 5 совпадений)."""
     try:
         spec = json.loads(schema) if isinstance(schema, str) else schema
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "ошибка: schema не JSON — нужен объект {\"поле\": \"селектор\"}"
     if not isinstance(spec, dict) or not spec:
         return "ошибка: schema должна быть непустым JSON-объектом"
@@ -242,8 +245,7 @@ def extract(url, schema):
             if not sel:
                 out[field] = "ошибка: пустой селектор"
                 continue
-            if sel.startswith("css:"):
-                sel = sel[4:]  # Firecrawl-стиль "css:.price" → Playwright
+            sel = sel.removeprefix("css:")  # Firecrawl-стиль "css:.price" → Playwright
             if sel.startswith("//"):
                 sel = "xpath=" + sel  # XPath: "//div[@class='x']" (Crawl4AI/Playwright)
             try:
@@ -259,7 +261,7 @@ def extract(url, schema):
                     else:
                         vals.append(loc.get_attribute(attr))
                 out[field] = vals[0] if len(vals) == 1 else vals
-            except Exception as e:  # noqa: BLE001 — одно поле не роняет всё
+            except Exception as e:
                 out[field] = f"[ошибка: {type(e).__name__}: {e}]"
     return json.dumps(out, ensure_ascii=False, indent=2)
 

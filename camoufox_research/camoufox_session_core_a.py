@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Session-режим: инфраструктура (вырезано из camoufox_session_core.py,
 canon FILE-SIZE.md): регистрация живого браузера, вкладки, наблюдение
@@ -22,12 +22,7 @@ try:
     )
 except ImportError:
     from camoufox_browser import (
-        _click_checked,
-        _click_ref,
         _goto,
-        _page_links,
-        _text,
-        _wait_content,
     )
 
 _LIVE_PROVIDER = None

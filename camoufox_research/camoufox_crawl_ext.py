@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Проверка битых ссылок (вырезано из camoufox_crawl.py, canon
 FILE-SIZE.md); BFS/фиды сайта — в _core."""
@@ -8,13 +8,13 @@ FILE-SIZE.md); BFS/фиды сайта — в _core."""
 from urllib.parse import urlparse  # noqa: F401 — совместимость с core
 
 try:
-    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+    import camoufox_research.camoufox_browser_core as _cb
 except ImportError:
     import camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
 try:
-    from camoufox_research.camoufox_crawl_core import _page_hrefs, _same_domain, _UA
+    from camoufox_research.camoufox_crawl_core import _UA, _page_hrefs, _same_domain
 except ImportError:
-    from camoufox_crawl_core import _page_hrefs, _same_domain, _UA
+    from camoufox_crawl_core import _UA, _page_hrefs, _same_domain
 
 
 def check_links(url, max_links=50, internal_only=True, timeout=15):
@@ -23,7 +23,7 @@ def check_links(url, max_links=50, internal_only=True, timeout=15):
     «[404] URL». internal_only — только свой домен."""
     try:
         hrefs = _page_hrefs(url)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"
     seen, targets = set(), []
     for h in hrefs:
@@ -57,11 +57,11 @@ def check_links(url, max_links=50, internal_only=True, timeout=15):
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     return h, r.status
-            except Exception:  # noqa: S110 — HEAD не дали, пробуем GET
+            except Exception:
                 req = urllib.request.Request(h, method="GET", headers={"User-Agent": _UA})
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     return h, r.status
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return h, f"{type(e).__name__}"
 
     # ПОСЛЕДОВАТЕЛЬНО, не в потоках: Playwright sync API не потокобезопасен

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Фасад camoufox_browser — реэкспорт из core+ext (487→ 232+255, канон
 FILE-SIZE.md): from camoufox_browser import X работает как раньше."""
@@ -17,8 +17,8 @@ globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith("_
 globals().update({k: v for k, v in _ext.__dict__.items() if not k.startswith("__")})
 
 __all__ = [
-    "set_proxy",
     "init_browser",
-    "profile_save",
     "profile_load",
+    "profile_save",
+    "set_proxy",
 ]

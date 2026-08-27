@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Crawl + Map сайта (паттерн Firecrawl crawl/map): BFS по внутренним
 ссылкам одного домена с лимитами depth/pages. Map — только ссылки
@@ -14,7 +14,8 @@ import time
 from urllib.parse import urlparse
 
 try:
-    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER
+    # меняется в serve
 except ImportError:
     import camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
 
@@ -123,7 +124,7 @@ def map_site(url, max_links=50, pattern=""):
             if pattern and pattern.lower() not in h.lower():
                 continue
             links.add(_norm_url(h))
-    except Exception as e:  # noqa: BLE001 — одна страница не роняет map
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"
     links.add(_norm_url(url))
     out = sorted(links)
@@ -148,7 +149,7 @@ def crawl(url, max_pages=10, max_depth=2, pattern="", article_only=True, max_cha
         try:
             t = _crawl_fetch(cur, max_chars, article_only)
             out.append(t[:max_chars])
-        except Exception as e:  # noqa: BLE001 — один битый URL не роняет обход
+        except Exception as e:
             out.append(f"[ошибка: {type(e).__name__}: {e}]")
             continue
         if depth >= max_depth or len(visited) >= max_pages:
@@ -162,7 +163,7 @@ def crawl(url, max_pages=10, max_depth=2, pattern="", article_only=True, max_cha
                 n = _norm_url(h)
                 if n not in visited and n != cur:
                     queue.append((n, depth + 1))
-        except Exception:  # noqa: S110,BLE001 — сбор ссылок не критичен
+        except Exception:
             pass
         time.sleep(0.4)  # rate limit — защита от капчи
     return "\n\n".join(out) if out else "ничего не обошли"
@@ -186,7 +187,7 @@ def sitemap(url, max_links=200):
             if body[:2] == b"\x1f\x8b":  # .xml.gz
                 body = gzip.decompress(body)
             return ET.fromstring(body)
-        except Exception:  # noqa: S110,BLE001 — битый sitemap пропускаем
+        except Exception:
             return None
 
     while queue and len(urls) < max_links:
@@ -221,11 +222,11 @@ def rss(url, limit=20):
 
     try:
         body = _fetch_bytes(url)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"
     try:
         root = ET.fromstring(body)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"ошибка: не XML ({type(e).__name__}) — проверь URL фида"
     items = []
 

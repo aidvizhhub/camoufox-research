@@ -19,7 +19,8 @@ except ImportError:
 
 # Без dunder-ключей: __name__/__file__/__loader__/__spec__ остаются СВОИ
 # (канон фасадов), иначе модуль «прикидывается» core_a/ext.
-_keep = lambda _m: {k: v for k, v in _m.__dict__.items() if not k.startswith("__")}
+def _keep(_m):
+    return {k: v for k, v in _m.__dict__.items() if not k.startswith("__")}
 globals().update(_keep(_core))
 globals().update(_keep(_ext))
 

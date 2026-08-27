@@ -11,13 +11,13 @@ except ImportError:
 globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
 globals().update({k: v for k, v in _ext.__dict__.items() if not k.startswith('__')})
 __all__ = [
-    "batch_fetch",
-    "extract",
-    "research",
-    "export",
-    "table_extract",
-    "_save_to_internet",
+    "_EXPAND_SUFFIXES",
     "_auto_workers",
     "_fetch_one",
-    "_EXPAND_SUFFIXES",
+    "_save_to_internet",
+    "batch_fetch",
+    "export",
+    "extract",
+    "research",
+    "table_extract",
 ]

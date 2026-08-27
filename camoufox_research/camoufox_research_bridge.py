@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Мост сервер→воркер (вынесено из camoufox_research.py, canon/FILE-SIZE.md):
 production-гейты (auth/rate-limit) + живой воркер-процесс + _call.
@@ -35,7 +35,10 @@ def _check_auth(kwargs: dict) -> str | None:
         return None
     provided = str(kwargs.get("api_key", "")).strip() or str(kwargs.get("auth", "")).strip()
     if provided != _AUTH_KEY:
-        return "ошибка: 401 Unauthorized — неверный api_key (задай CAMOUFOX_API_KEY env и передай api_key в вызов)"
+        return (
+            "ошибка: 401 Unauthorized — неверный api_key "
+            "(задай CAMOUFOX_API_KEY env и передай api_key в вызов)"
+        )
     return None
 
 
@@ -52,7 +55,13 @@ def _check_rate_limit(action: str) -> str | None:
     # глобальный + per-action
     total = sum(len(v) for v in _RATE_LIMIT.values())
     if total >= _RATE_LIMIT_MAX:
-        return f"ошибка: 429 Too Many Requests — лимит {_RATE_LIMIT_MAX}/мин, подожди {int(_RATE_LIMIT_WINDOW - (now - min(min(v) for v in _RATE_LIMIT.values())))}с"
+        wait = int(
+            _RATE_LIMIT_WINDOW - (now - min(min(v) for v in _RATE_LIMIT.values()))
+        )
+        return (
+            f"ошибка: 429 Too Many Requests — лимит {_RATE_LIMIT_MAX}/мин, "
+            f"подожди {wait}с"
+        )
     lst = _RATE_LIMIT.setdefault(action, [])
     if len(lst) >= _RATE_LIMIT_MAX // 2:  # per-action половина глобального
         return f"ошибка: 429 Too Many Requests — лимит для {action} {_RATE_LIMIT_MAX // 2}/мин"
@@ -74,7 +83,8 @@ def _read_loop(proc, q):
 def _worker_proc():
     global _worker_state
     if _worker_state is None or _worker_state["proc"].poll() is not None:
-        proc = subprocess.Popen(  # nosemgrep: python.lang.compatibility.python36.python36-compatibility-Popen1, python.lang.compatibility.python36.python36-compatibility-Popen2
+        # nosemgrep: python36-compatibility-Popen — версии 3.10+ (семгреп придирается)
+        proc = subprocess.Popen(
             [sys.executable, WORKER, "--serve"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -152,7 +162,7 @@ def _call(action, timeout=120, **kwargs):
     with _worker_lock:
         try:
             return _call_live(req, timeout)
-        except Exception as e:  # noqa: BLE001 — любой сбой живого воркера → фолбэк на разовый
+        except Exception as e:
             # фолбэк: разовый запуск воркера (как раньше)
             proc = subprocess.run(
                 [sys.executable, WORKER, req],

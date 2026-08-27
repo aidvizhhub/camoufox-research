@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Выжимки источников кампании + счётчик verified (жив/в кэше).
 
@@ -12,12 +12,9 @@ citations per report», DEER (arXiv 2512.17776) — верификация ци�
 проставляет статус жив/кэш/битый. Факты копятся в той же sqlite.
 """
 
-import os
 import re
-import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 try:
     from camoufox_research.camoufox_cache import _cache_get
@@ -26,7 +23,7 @@ except ImportError:
 try:
     from camoufox_research.camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
 except ImportError:
-    from camoufox_campaign import _EXPORT_DIR, _db
+    from camoufox_campaign import _db
 
 _UA = {"User-Agent": "camoufox-research/0.14 (+https://github.com/aidvizhhub/camoufox-research)"}
 _MAX_VERIFY = 30
@@ -96,8 +93,8 @@ def _digest_clean(body):
     """Срезать меню из выжимки: короткие junk-строки (len<=40) вон +
     меню-фразы из любой строки (GitHub склеивает меню в длинную строку —
     проверено 27.08). Остальное склеить, схлопнуть пробелы, до 700."""
-    lines = [l.strip() for l in body.splitlines() if l.strip()]
-    kept = [l for l in lines if not (len(l) <= 40 and any(j in l.lower() for j in _MENU_JUNK))]
+    lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+    kept = [ln for ln in lines if not (len(ln) <= 40 and any(j in ln.lower() for j in _MENU_JUNK))]
     text = " ".join(kept)
     for phrase in _MENU_PHRASES:
         text = re.sub(re.escape(phrase), "", text, flags=re.IGNORECASE)
@@ -135,7 +132,7 @@ def make_digest(camp_id, log=None, force=False):
         raw = batch_fetch(urls, max_chars=_DIGEST_CHARS + 600, article_only=True)
         for item in _batch_texts(raw):
             texts[item["url"]] = item["text"]
-    except Exception:  # noqa: BLE001 — сеть/браузер: выжимки не критичны
+    except Exception:
         texts = {}
     done = 0
     with _db() as con:
@@ -162,12 +159,12 @@ def _url_alive(url):
         req = urllib.request.Request(url, headers=_UA, method="HEAD")
         with urllib.request.urlopen(req, timeout=8):
             return 1
-    except Exception:  # noqa: BLE001 — HEAD не поддерживают: пробуем GET
+    except Exception:
         try:
             req = urllib.request.Request(url, headers=_UA)
             with urllib.request.urlopen(req, timeout=8) as resp:
                 return 1 if 200 <= resp.status < 400 else 0
-        except Exception:  # noqa: BLE001
+        except Exception:
             return 0
 
 

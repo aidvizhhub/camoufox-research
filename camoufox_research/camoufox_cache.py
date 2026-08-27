@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Кэш страниц/поиска (вынесено из camoufox_worker.py, canon/FILE-SIZE.md):
 sqlite-кэш ~/.cache/camoufox-research, TTL сутки."""
@@ -42,7 +42,7 @@ def _search_cache_get(query, max_results=10, pages=1):
             row = con.execute("SELECT result, ts FROM searches WHERE q_hash=?", (key,)).fetchone()
         if row and time.time() - row[1] < _CACHE_TTL:
             return row[0]
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
     return None
 
@@ -55,7 +55,7 @@ def _search_cache_set(query, result, max_results=10, pages=1):
                 "INSERT OR REPLACE INTO searches (q_hash, query, result, ts) VALUES (?,?,?,?)",
                 (key, query, result, time.time()),
             )
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
 
 
@@ -66,7 +66,7 @@ def _cache_get(url, suffix=""):
             row = con.execute("SELECT text, ts FROM pages WHERE url_hash=?", (key,)).fetchone()
         if row and time.time() - row[1] < _CACHE_TTL:
             return row[0]
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
     return None
 
@@ -79,7 +79,7 @@ def _cache_set(url, text, suffix=""):
                 "INSERT OR REPLACE INTO pages (url_hash, url, text, ts) VALUES (?,?,?,?)",
                 (key, url, text, time.time()),
             )
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
 
 
@@ -95,7 +95,7 @@ def _delta_get(url, suffix=""):
             ).fetchone()
         if row:
             return row[0], row[1]
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
     return None, None
 
@@ -108,7 +108,7 @@ def _delta_set(url, content_hash, suffix=""):
                 "INSERT OR REPLACE INTO deltas (url_hash, content_hash, ts) VALUES (?,?,?)",
                 (key, content_hash, time.time()),
             )
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
 
 
@@ -134,12 +134,7 @@ def _github_api_text(url, timeout=25):
         return None
     owner, repo, ref = parts[0], parts[1], parts[2]
     path = "/".join(parts[3:])
-    api_url = "https://api.github.com/repos/%s/%s/contents/%s?ref=%s" % (
-        owner,
-        repo,
-        quote(path),
-        quote(ref),
-    )
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{quote(path)}?ref={quote(ref)}"
     if not api_url.startswith("https://api.github.com/"):
         return None
     req = urllib.request.Request(
@@ -156,7 +151,8 @@ def _github_api_text(url, timeout=25):
     try:
         with (
             urllib.request.urlopen(req, timeout=timeout) as resp
-        ):  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected — URL is constructed from the fixed api.github.com origin above
+        ):  # nosemgrep: dynamic-urllib-use-detected — URL собран из
+            # фиксированного api.github.com origin (выше по коду)
             body = resp.read()
             if len(body) > 2_000_000:
                 return None
@@ -164,7 +160,7 @@ def _github_api_text(url, timeout=25):
             if resp.status in (429, 403) or "Too Many Requests" in text[:200]:
                 return None
             return text
-    except Exception:  # noqa: S110,BLE001 — fallback не критичен
+    except Exception:
         return None
 
 

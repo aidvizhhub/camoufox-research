@@ -2,7 +2,6 @@
 # camoufox_campaign_ext — вторая половина кампаний (262 строк, канон FILE-SIZE.md)
 """Вторая половина кампаний: resume, start, status, report — зависит от core."""
 import json
-import os
 import subprocess
 import sys
 import time
@@ -49,7 +48,7 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                            academic=True, fetch_all=False, as_json=True,
                            llm_planner=use_llm)
             payload = json.loads(raw) if isinstance(raw, str) else {}
-            fresh, total, uniq, skipped = _ingest(camp_id, payload)
+            fresh, total, uniq, _skipped = _ingest(camp_id, payload)
             notes.append(f"добор{i}:+{fresh} ({uniq}/{target} доменов)")
             _log(log_path, notes[-1])
             if fresh == 0:  # спираль-кап: те же домены по кругу не множим
@@ -61,11 +60,11 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         _log(log_path, f"ресьюм-финал: {status}, {uniq}/{target} доменов")
         from camoufox_housekeep import post_pack
         post_pack(camp_id, log_path, done_path)
-    except Exception as e:  # noqa: BLE001 — честный failed с маркером
+    except Exception as e:
         _log(log_path, f"падение доборки: {type(e).__name__}: {e}")
         total, uniq = _counts(camp_id)
         _finish(camp_id, topic, "failed", total, uniq, target,
-                notes + [f"{type(e).__name__}: {e}"], done_path)
+                [*notes, f"{type(e).__name__}: {e}"], done_path)
 
 
 def resume(camp_id, background=False, llm_planner=False):
@@ -110,10 +109,11 @@ def resume(camp_id, background=False, llm_planner=False):
                  feeds=fd, llm_planner=llm_planner)
     notes_out = ""
     try:  # заметки волн в ответ — агент видит «почему стоп» сразу
-        mk = json.load(open(done_path, encoding="utf-8"))
+        with open(done_path, encoding="utf-8") as _fh:
+            mk = json.load(_fh)
         if mk.get("notes"):
             notes_out = "\nзаметки: " + "; ".join(mk["notes"])
-    except Exception:  # noqa: BLE001 — маркер мог не родиться, отчёт важнее
+    except Exception:
         pass
     return (f"доборка {camp_id} завершена:\n{report(camp_id)}"
             f"{notes_out}\nлог: {log_path}")
@@ -172,10 +172,11 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
              log_path, done_path, feeds=fd, llm_planner=llm_planner)
         notes_out = ""
         try:  # симметрично ресьюму: агент видит «почему так» сразу
-            mk = json.load(open(done_path, encoding="utf-8"))
+            with open(done_path, encoding="utf-8") as _fh:
+                mk = json.load(_fh)
             if mk.get("notes"):
                 notes_out = "\nзаметки: " + "; ".join(mk["notes"])
-        except Exception:  # noqa: BLE001 — маркер мог не родиться
+        except Exception:
             pass
         msg = (f"кампания {camp_id} завершена (синхронно, цель "
                f"{target_sources} разных сайтов):\n{report(camp_id)}"
@@ -234,8 +235,8 @@ def report(camp_id, fmt="md"):
             ensure_ascii=False, indent=1)
     head = ([f"# Кампания: {topic_row[0]}",
              f"- id: {camp_id} · статус: {topic_row[2]}",
-             f"- источников: {total}, разных сайтов: {uniq}/"
-             f"{topic_row[1]} · verified: {verified}",
+             (f"- источников: {total}, разных сайтов: {uniq}/"
+             f"{topic_row[1]} · verified: {verified}"),
              "", "| # | источник | домен | класс | статус |",
              "|---|---|---|---|---|"])
     body = "\n".join(

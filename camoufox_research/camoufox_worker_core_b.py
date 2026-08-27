@@ -4,6 +4,7 @@
 
 import hashlib
 import time
+import contextlib
 
 try:
     import camoufox_research.camoufox_worker_core_a as _core
@@ -144,8 +145,8 @@ def page_diff(url, max_chars=6000):
     if new == old:
         return "без изменений"
     lines = list(difflib.unified_diff(old.splitlines(), new.splitlines(), lineterm="", n=1))
-    plus = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
-    minus = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
+    plus = sum(1 for ln in lines if ln.startswith("+") and not ln.startswith("+++"))
+    minus = sum(1 for ln in lines if ln.startswith("-") and not ln.startswith("---"))
     diff = "\n".join(lines[:60])
     return f"изменения: +{plus}/-{minus} строк\n{diff}"
 
@@ -175,10 +176,8 @@ def set_proxy(proxy=""):
     global _LIVE
     msg = _set_proxy_browser(proxy)
     if _LIVE is not None:
-        try:
+        with contextlib.suppress(Exception):
             _LIVE[0].__exit__(None, None, None)
-        except Exception:  # noqa: S110,BLE001 — браузер мог уже упасть
-            pass
         cam = _launch()
         cam.start()
         _LIVE = (cam, cam.browser)

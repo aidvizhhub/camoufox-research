@@ -3,10 +3,9 @@
 """Вторая половина fetch: research, export, table_extract — зависит от core."""
 import hashlib
 import json
-import os
 import sqlite3
 import time
-from pathlib import Path
+import contextlib
 
 # Базовые утилиты — из core (один источник, включая приватные _CACHE_DB etc.)
 try:
@@ -17,7 +16,7 @@ globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('_
 
 
 try:
-    from camoufox_research.camoufox_sources import (  # noqa: E402
+    from camoufox_research.camoufox_sources import (
         _batch_texts,
         _reg_domain,
         domain_tier,
@@ -25,7 +24,7 @@ try:
         rank_and_select,
     )
 except ImportError:
-    from camoufox_sources import (  # noqa: E402
+    from camoufox_sources import (
         _batch_texts,
         _reg_domain,
         domain_tier,
@@ -33,17 +32,20 @@ except ImportError:
         rank_and_select,
     )
 try:
-    from camoufox_research.camoufox_academic import paper_rows  # noqa: E402
+    from camoufox_research.camoufox_academic import paper_rows
 except ImportError:
-    from camoufox_academic import paper_rows  # noqa: E402
+    from camoufox_academic import paper_rows
 try:
-    from camoufox_research.camoufox_llm import llm_available, llm_plan_queries  # noqa: E402
+    from camoufox_research.camoufox_llm import llm_available, llm_plan_queries
 except ImportError:
     try:
-        from camoufox_llm import llm_available, llm_plan_queries  # noqa: E402
-    except ImportError:
-        llm_available = lambda: ""  # type: ignore
-        llm_plan_queries = lambda q, target_domains=20: []  # type: ignore
+        from camoufox_llm import llm_available, llm_plan_queries
+    except ImportError:  # fallback без LLM-модуля (обычно не срабатывает)
+        def llm_available() -> str:  # type: ignore[misc]
+            return ""  # type: ignore[name-defined]
+
+        def llm_plan_queries(queries: list[str], target_domains: int = 20) -> list[str]:  # type: ignore[misc]
+            return []  # type: ignore[name-defined]
 
 def research(queries, max_results_per_query=5, fetch_top=0,
              article_only=True, max_chars=4000, max_parallel=None,
@@ -63,7 +65,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     if not queries:
         return "ошибка: пустой список запросов"
     deep = (target_domains or domains_limit or expand or fetch_all
-            or terms_wave or quality_first or academic or llm_planner)  # noqa: PLR0913
+            or terms_wave or quality_first or academic or llm_planner)
     cache_key = "r:" + hashlib.sha256(json.dumps(
         [queries, max_results_per_query, fetch_top, article_only,
          target_domains, domains_limit, expand, fetch_all,
@@ -76,7 +78,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 (cache_key,)).fetchone()
         if row and time.time() - row[1] < _CACHE_TTL:
             return row[0]
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         row = None
     qs = list(queries)
     if expand:
@@ -104,7 +106,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 for url, title, snippet in _search_results(
                         q, max_results_per_query * pages, pages=pages):
                     _add(title, url, snippet)
-            except Exception:  # noqa: BLE001 — битый запрос не роняет всё
+            except Exception:
                 log.append(f"[пропущен запрос: {q}]")
 
     _wave(qs, 1)
@@ -114,10 +116,10 @@ def research(queries, max_results_per_query=5, fetch_top=0,
             if _have_goal():
                 break
             try:
-                for title, url, snippet, meta in paper_rows(q, 4):
+                for title, url, snippet, _meta in paper_rows(q, 4):
                     _add(title, url, snippet)
                     acad += 1
-            except Exception:  # noqa: BLE001 — академия упала: веб добьёт
+            except Exception:
                 log.append(f"[пропущен академический: {q}]")
     followup = []
     if terms_wave and target_domains and not _have_goal() and raw:
@@ -138,7 +140,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                     _wave(llm_followup, 1)
             else:
                 log.append("LLM planner: нет ключей (DEEPSEEK_API_KEY/OLLAMA_HOST) — пропуск")
-        except Exception as e:  # noqa: BLE001 — LLM упал, не роняем research
+        except Exception as e:
             log.append(f"[LLM planner упал: {type(e).__name__}]")
     if target_domains and not _have_goal():
         _wave(qs, 2)
@@ -198,7 +200,15 @@ def research(queries, max_results_per_query=5, fetch_top=0,
             if academic:
                 out.append(f"академических (arXiv/S2): {acad}")
             if llm_planner:
-                out.append(f"LLM planner ({llm_available() or 'нет ключей'}): {len(llm_followup)} запросов" if llm_available() else "LLM planner: нет ключей (DEEPSEEK_API_KEY/OLLAMA_HOST)")
+                if llm_available():
+                    out.append(
+                        f"LLM planner ({llm_available() or 'нет ключей'}): "
+                        f"{len(llm_followup)} запросов"
+                    )
+                else:
+                    out.append(
+                        "LLM planner: нет ключей (DEEPSEEK_API_KEY/OLLAMA_HOST)"
+                    )
         for i, row in enumerate(source_rows, 1):
             tl = f"; {row['tier_label']}" if row['tier_label'] else ""
             out.append(f"[{i}] {row['title']}\n    {row['url']}"
@@ -218,14 +228,12 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 "VALUES (?,?,?,?)",
                 (cache_key, "research:" + json.dumps(
                     queries, ensure_ascii=False)[:200], result, time.time()))
-    except Exception:  # noqa: S110,BLE001 — кэш не критичен
+    except Exception:
         pass
     return result
 
 # Экспорт/таблицы — в camoufox_export (резка FILE-SIZE.md, 310→):
 # _write_csv/_write_md/export/table_extract вынесены, реэкспорт для
 # совместимости: fetch-фасад и worker_ext импортируют их отсюда.
-try:
-    from camoufox_research.camoufox_export import export, table_extract  # noqa: E402
-except ImportError:
-    from camoufox_export import export, table_extract  # noqa: E402
+with contextlib.suppress(ImportError):
+    from camoufox_research.camoufox_export import export, table_extract

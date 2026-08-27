@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """MCP-сервер веб-ресёрча на Camoufox (анти-детект Firefox). Тонкий каркас
 (canon/FILE-SIZE.md): мост к воркеру — camoufox_research_bridge, тулы —
@@ -18,13 +18,12 @@ pool, а async-тулы с subprocess в этой связке (mcp 1.x + python
 import os
 import sys
 import time
-from contextlib import suppress
 
 # Windows-консоль по умолчанию cp1251 — переключаем на UTF-8 (Python 3.7+).
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except Exception:  # noqa: S110,BLE001 — reconfigure опционален, без него живём
+except Exception:
     pass
 
 from mcp.server.fastmcp import FastMCP
@@ -37,10 +36,10 @@ from mcp.server.fastmcp import FastMCP
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from camoufox_research.camoufox_research_bridge import (
-    _START_TIME,
+    _AUTH_KEY,
     _RATE_LIMIT,
     _RATE_LIMIT_MAX,
-    _AUTH_KEY,
+    _START_TIME,
     _call,
 )
 from camoufox_research.camoufox_research_tools import register as register_research
@@ -178,11 +177,11 @@ def main():
     # страницы/диффы/поиск > 30 дней, отчёты exports > 90 дней. Ошибки
     # уборки не роняют сервер (бонус, не охота).
     try:
-        from camoufox_research.camoufox_housekeep import cleanup
         from camoufox_research.camoufox_campaign import _DB_PATH
+        from camoufox_research.camoufox_housekeep import cleanup
 
         cleanup(_DB_PATH)
-    except Exception:  # noqa: BLE001 — уборка бонус
+    except Exception:
         pass
     if args.transport == "stdio":
         mcp.run()

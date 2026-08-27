@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Экспорт результатов (вырезано из camoufox_fetch_ext.py, canon
 FILE-SIZE.md): CSV/JSON/Markdown на диск + HTML-таблицы → CSV.
@@ -39,8 +39,7 @@ def _write_md(obj, path):
     rows = obj if isinstance(obj, list) else [obj]
     if not rows or not isinstance(rows[0], dict):
         with open(path, "w", encoding="utf-8") as fh:
-            for r in rows:
-                fh.write(str(r) + "\n")
+            fh.writelines(str(r) + "\n" for r in rows)
         return
     keys = list(rows[0].keys())
     lines = [
@@ -59,7 +58,7 @@ def export(data, format="json", path=""):
     ~/.cache/camoufox-research/exports/export_<ts>.<ext>"""
     try:
         obj = json.loads(data) if isinstance(data, str) else data
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "ошибка: data не JSON"
     fmt = format.lower()
     ext = {"json": "json", "csv": "csv", "md": "md", "markdown": "md"}.get(fmt)
@@ -75,7 +74,7 @@ def export(data, format="json", path=""):
             _write_csv(obj, path)
         else:
             _write_md(obj, path)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"ошибка записи: {type(e).__name__}: {e}"
     return f"сохранено: {path} ({os.path.getsize(path)} байт)"
 

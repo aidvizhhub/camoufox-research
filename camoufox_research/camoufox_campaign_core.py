@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Кампании ресёрча: цель по РАЗНЫМ источникам, счётчик прогресса, отчёт.
 
@@ -12,10 +12,7 @@
 import json
 import os
 import sqlite3
-import subprocess
-import sys
 import time
-import uuid
 from pathlib import Path
 
 try:
@@ -106,7 +103,7 @@ def _log(log_path, msg):
     try:
         with open(log_path, "a", encoding="utf-8") as fh:
             fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
-    except Exception:  # noqa: BLE001 — лог не критичен, охота важнее
+    except Exception:
         pass
 
 
@@ -175,9 +172,9 @@ def _feed_leg(camp_id, feeds, notes):
     except ImportError:
         from camoufox_crawl import rss, sitemap
     try:
-        from camoufox_research.camoufox_sources import domain_tier, _reg_domain
+        from camoufox_research.camoufox_sources import _reg_domain, domain_tier
     except ImportError:
-        from camoufox_sources import domain_tier, _reg_domain
+        from camoufox_sources import _reg_domain, domain_tier
     rows = []
     for f in feeds:
         try:
@@ -194,7 +191,7 @@ def _feed_leg(camp_id, feeds, notes):
                         link = lines[i + 1].strip()
                         if link.startswith("http"):
                             rows.append({"title": title, "url": link})
-        except Exception:  # noqa: BLE001 — битый фид не роняет охоту
+        except Exception:
             continue
     if not rows:
         notes.append("фиды: пусто/не прочитались")
@@ -203,7 +200,7 @@ def _feed_leg(camp_id, feeds, notes):
         r["domain"] = _reg_domain(r["url"])
         r["tier"], r["tier_label"] = domain_tier(r["url"])
         r.setdefault("snippet", "")
-    fresh, total, uniq, skipped = _ingest(camp_id, {"sources": rows})
+    fresh, _total, uniq, skipped = _ingest(camp_id, {"sources": rows})
     notes.append(f"фиды:+{fresh} новых ({uniq} доменов)")
     if skipped:
         notes[-1] += f", реклама отсеяна: {skipped}"
@@ -259,7 +256,7 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         except ImportError:
             from camoufox_housekeep import post_pack
         post_pack(camp_id, log_path, done_path)
-    except Exception as e:  # noqa: BLE001 — беда фиксируется ЧЕСТНО, не молча
+    except Exception as e:
         _log(log_path, f"падение: {type(e).__name__}: {e}")
         total, uniq = _counts(camp_id)
         _finish(camp_id, topic, "failed", total, uniq,

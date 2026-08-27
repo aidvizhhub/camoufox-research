@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Расширение выжимок: отчёт на диск, память племени, пост-цикл охоты.
 Вырезано из camoufox_digest.py (390→ core 259 + ext 131, canon
@@ -103,7 +103,7 @@ def _note_memory(text):
             with open(p2, "a", encoding="utf-8") as fh:
                 fh.write(text + "\n")
             return str(p2.resolve())
-        except Exception as e:  # noqa: BLE001 — память бонус, не охота
+        except Exception as e:
             last_err = e
             continue
     if last_err:
@@ -116,7 +116,7 @@ def post_hunt(camp_id, log):
     том же фоне). Маркер done.json дополняется полями digests/verified/
     cit_report — агент ждёт ЕГО же, новых маркеров не плодим."""
     digests, total = make_digest(camp_id, log)
-    verified, broken = verify_sources(camp_id)
+    verified, _broken = verify_sources(camp_id)
     with _db() as con:
         broken_total = con.execute(
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=0", (camp_id,)
@@ -125,7 +125,7 @@ def post_hunt(camp_id, log):
     cit_report = ""
     try:
         cit_report = citation_report(camp_id)
-    except Exception:  # noqa: BLE001 — документ бонус, не охота
+    except Exception:
         cit_report = ""
     if not cit_report:
         log("cit-отчёт пропущен (пустые выжимки/verified)")
@@ -156,7 +156,7 @@ def post_hunt(camp_id, log):
             memory_note = _note_memory(note)
         if memory_note:
             log(f"сводка в память: {memory_note}")
-    except Exception as e:  # noqa: BLE001 — память бонус
+    except Exception as e:
         memory_note = ""
         log(f"сводка пропущена: {type(e).__name__}")
     return {

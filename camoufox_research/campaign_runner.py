@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Фон-раннер кампании ресёрча: ОТДЕЛЬНЫЙ процесс с логом и done-маркером.
 
@@ -20,13 +20,13 @@ import time
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except Exception:  # noqa: S110,BLE001 — опционально, без него живём
+except Exception:
     pass
 
 try:
-    import camoufox_research.camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
+    import camoufox_research.camoufox_campaign as cc
 except ImportError:
-    import camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
+    import camoufox_campaign as cc
 
 
 def main():
