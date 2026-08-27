@@ -154,20 +154,34 @@ def web_search(query: str, max_results: int = 10, pages: int = 1,
 def research(queries: list[str], max_results_per_query: int = 5,
              fetch_top: int = 0, article_only: bool = True,
              max_chars: int = 4000,
-             max_parallel: int | None = None) -> str:
+             max_parallel: int | None = None,
+             target_domains: int = 0, domains_limit: int = 0,
+             expand: bool = False, fetch_all: bool = False) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
     подзапросы, паттерн gpt-researcher quick_search); сервер ищет по
     каждой, дедуплицирует URL и возвращает список со сниппетами.
     fetch_top>0 — сразу читает топ-N источников (тексты статей;
     параллельно, авто по ресурсам машины; max_parallel — явный лимит).
-    Пример: research(queries=["agent patterns catalog", "agent design
-    patterns github"], max_results_per_query=5, fetch_top=8)
+
+    Режим «20+ источников, не топы» (реальный ресёрч):
+    - target_domains=N — цель по РАЗНЫМ доменам (20 = двадцать разных
+      сайтов). Пока не набрали — доборка второй волной поиска.
+    - domains_limit=K — не больше K источников с одного домена
+      (напр. 2), иначе топ забивают ссылки одного сайта.
+    - expand=True — к каждому запросу добавить переформулировки
+      («X comparison», «X documentation») — свежие домены и углы.
+    - fetch_all=True — прочитать тексты ВСЕХ источников, а не топ-N.
+    Пример глубокого ресёрча: research(queries=["deep research
+    agents"], target_domains=20, domains_limit=2, expand=True,
+    fetch_all=True, max_results_per_query=6)
     Результат кэшируется на сутки."""
     return _call("research", timeout=600, queries=queries,
                  max_results_per_query=max_results_per_query,
                  fetch_top=fetch_top, article_only=article_only,
-                 max_chars=max_chars, max_parallel=max_parallel)
+                 max_chars=max_chars, max_parallel=max_parallel,
+                 target_domains=target_domains, domains_limit=domains_limit,
+                 expand=expand, fetch_all=fetch_all)
 
 
 @mcp.tool()
@@ -271,11 +285,13 @@ def _res_info() -> str:
 
 @mcp.prompt()
 def research_plan(topic: str) -> str:
-    """Глубокий ресёрч темы: план «10+ источников»."""
+    """Глубокий ресёрч темы: план «20+ источников, не топы»."""
     return (f"Тема: {topic}\n\n"
             "1. Разбей тему на 3-5 подзапросов (разные формулировки).\n"
-            "2. Вызови research(queries=[...], max_results_per_query=5, "
-            "fetch_top=10) — норматив 10+ источников.\n"
+            "2. Вызови research(queries=[...], max_results_per_query=6, "
+            "target_domains=20, domains_limit=2, expand=True, "
+            "fetch_all=True, max_chars=4000) — цель двадцать РАЗНЫХ\n"
+            "   доменов, максимум 2 источника с одного сайта.\n"
             "3. Сопоставь источники: общее, противоречия, пробелы.\n"
             "4. Итог с цитатами источников.")
 

@@ -40,7 +40,7 @@ Most MCP browser tools give an agent isolated actions. Here the goal is
 different: **a complete toolkit for web research** — one server your agent
 can use end to end.
 
-- 🔎 **Search** — find sources (DuckDuckGo via anti-detect browser, deep `research` with 10+ sources)
+- 🔎 **Search** — find sources (DuckDuckGo via anti-detect browser, deep `research` with 20+ distinct sources)
 - 🌐 **Browse** — read JS/SPA pages, live sessions with tabs, clicks, forms, uploads
 - 👁️ **Understand pages** — labeled screenshots (Set-of-Mark), snapshot trees with refs
 - 📊 **Extract & export** — fields by CSS/XPath, tables → CSV, PDF/DOCX/XLSX, JSON/Markdown files
@@ -61,7 +61,7 @@ No browser automation code. Just a sentence to your agent.
 
 ## What it does (real scenarios)
 
-> 🔎 **Research** — *"Find information about this project, check 10 sources and summarize."*
+> 🔎 **Research** — *"Find information about this project, check 20 distinct sources and summarize."*
 > `research` → `fetch_page` → `export`
 
 > 🕷 **Crawl** — *"Walk the whole site and find every documentation page."*
@@ -100,6 +100,29 @@ Agent
 ```
 
 That's the whole point: **your agent drives a real browser**, you just describe the goal.
+
+## Deep research mode — 20+ distinct sources, not just top results
+
+One `research` call, no agent loop needed:
+
+```python
+research(
+    queries=["agent observability landscape", "agentic search 2026"],
+    max_results_per_query=6,
+    target_domains=20,     # goal: 20 DIFFERENT websites
+    domains_limit=2,       # max 2 results per site (no 15 links from one blog)
+    expand=True,           # add "X comparison", "X documentation" queries
+    fetch_all=True,        # read text of every collected source
+)
+```
+
+How it works (industry patterns, researched 27.08.2026):
+- **Query expansion** — each query gets reformulations (`comparison`, `documentation`), which surface different domains and angles.
+- **Second wave with pagination** — if the target of distinct domains isn't reached, a second search pass (`pages=2`) collects the rest.
+- **Domain dedup** — `docs.python.org` and `peps.python.org` count as one source (`python.org`); `example.co.uk` handled as a 3-part domain.
+- **Echo of the goal in the output** — `доменов: N (цель 20)`, so you can see coverage at a glance.
+
+Old behavior is preserved: `target_domains=0, domains_limit=0, expand=False, fetch_all=False` = plain top results.
 
 ## Need a tool? Start here
 
