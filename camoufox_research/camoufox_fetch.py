@@ -17,18 +17,38 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlparse
 
-from camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _search_results, _text
-from camoufox_cache import (
-    _CACHE_DB,
-    _CACHE_TTL,
-    _FETCH_LIMIT,
-    _cache_get,
-    _cache_set,
-    _prefetch_text,
-)
+try:
+    from camoufox_research.camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _search_results, _text
+except ImportError:
+    from camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _search_results, _text
+try:
+    from camoufox_research.camoufox_cache import (
+        _CACHE_DB,
+        _CACHE_TTL,
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+        _prefetch_text,
+    )
+except ImportError:
+    from camoufox_cache import (
+        _CACHE_DB,
+        _CACHE_TTL,
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+        _prefetch_text,
+    )
 
 def _save_to_internet(url, text):
-    """Persist fetched context without making persistence a fetch failure."""
+    """Persist fetched context without making persistence a fetch failure.
+
+    Скрытый побочный эффект выключен по умолчанию — включается только
+    при CAMOUFOX_SAVE_SKILLS=1 (оп-in, чтобы pip-пакет не писал в
+    чужие skills без спроса).
+    """
+    if os.environ.get("CAMOUFOX_SAVE_SKILLS", "") != "1":
+        return
     try:
         skills_dir = Path(__file__).resolve().parents[2] / "scripts" / "tools" / "skills"
         if str(skills_dir) not in sys.path:
@@ -247,14 +267,26 @@ def extract(url, schema):
 # (паттерн query expansion, agentlist.top: 80% качества = запросы).
 _EXPAND_SUFFIXES = (" comparison", " documentation")
 
-from camoufox_sources import (  # noqa: E402
-    _batch_texts,
-    _reg_domain,
-    domain_tier,
-    extract_terms,
-    rank_and_select,
-)
-from camoufox_academic import paper_rows  # noqa: E402
+try:
+    from camoufox_research.camoufox_sources import (  # noqa: E402
+        _batch_texts,
+        _reg_domain,
+        domain_tier,
+        extract_terms,
+        rank_and_select,
+    )
+except ImportError:
+    from camoufox_sources import (  # noqa: E402
+        _batch_texts,
+        _reg_domain,
+        domain_tier,
+        extract_terms,
+        rank_and_select,
+    )
+try:
+    from camoufox_research.camoufox_academic import paper_rows  # noqa: E402
+except ImportError:
+    from camoufox_academic import paper_rows  # noqa: E402
 
 def research(queries, max_results_per_query=5, fetch_top=0,
              article_only=True, max_chars=4000, max_parallel=None,

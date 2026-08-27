@@ -18,7 +18,10 @@ import time
 import uuid
 from pathlib import Path
 
-from camoufox_cache import _CACHE_DB
+try:
+    from camoufox_research.camoufox_cache import _CACHE_DB
+except ImportError:
+    from camoufox_cache import _CACHE_DB
 
 # Override для тестов: временная база вместо домашнего кэша.
 _DB_PATH = os.environ.get("CAMOUFOX_CAMPAIGN_DB", _CACHE_DB)

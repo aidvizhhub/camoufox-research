@@ -10,15 +10,26 @@ import os
 import time
 from contextlib import suppress
 
-from camoufox_browser import (
-    _click_checked,
-    _click_ref,
-    _goto,
-    _page_links,
-    _som_overlay,
-    _text,
-    _wait_content,
-)
+try:
+    from camoufox_research.camoufox_browser import (
+        _click_checked,
+        _click_ref,
+        _goto,
+        _page_links,
+        _som_overlay,
+        _text,
+        _wait_content,
+    )
+except ImportError:
+    from camoufox_browser import (
+        _click_checked,
+        _click_ref,
+        _goto,
+        _page_links,
+        _som_overlay,
+        _text,
+        _wait_content,
+    )
 
 _LIVE_PROVIDER = None
 
@@ -374,7 +385,10 @@ def screenshot(url="", selector="", som=False, full_page=True):
     temp = None
     if url:
         if live is None:
-            from camoufox_browser import _browser_ctx
+            try:
+                from camoufox_research.camoufox_browser import _browser_ctx
+            except ImportError:
+                from camoufox_browser import _browser_ctx
             with _browser_ctx() as browser:
                 page = browser.new_page()
                 _goto(page, url)

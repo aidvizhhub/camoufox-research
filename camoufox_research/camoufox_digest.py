@@ -21,8 +21,14 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from camoufox_cache import _cache_get
-from camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
+try:
+    from camoufox_research.camoufox_cache import _cache_get
+except ImportError:
+    from camoufox_cache import _cache_get
+try:
+    from camoufox_research.camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
+except ImportError:
+    from camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
 
 _UA = {"User-Agent": "camoufox-research/0.14 (+https://github.com/aidvizhhub/camoufox-research)"}
 _MAX_VERIFY = 30
@@ -82,7 +88,10 @@ def make_digest(camp_id, log=None, force=False):
     _digest_clean). Кэш тёплый после fetch — читаем, иначе batch_fetch
     (параллельно). force=True — пересобрать и существующие (перечистка
     старых пакетов). Возвращает (сделано, всего)."""
-    from camoufox_fetch import _batch_texts, batch_fetch  # поздний: браузер
+    try:
+        from camoufox_research.camoufox_fetch import _batch_texts, batch_fetch  # поздний: браузер
+    except ImportError:
+        from camoufox_fetch import _batch_texts, batch_fetch  # поздний: браузер
     rows = _sources(camp_id, only_empty_digest=not force)[:_MAX_DIGEST]
     if not rows:
         return 0, len(_sources(camp_id))

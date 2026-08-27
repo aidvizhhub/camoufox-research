@@ -12,19 +12,37 @@ import gzip
 import time
 from urllib.parse import urlparse
 
-import camoufox_browser as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+try:
+    import camoufox_research.camoufox_browser as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+except ImportError:
+    import camoufox_browser as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
 
-from camoufox_browser import (
-    _article_text,
-    _browser_ctx,
-    _goto,
-    _text,
-)
-from camoufox_cache import (
-    _FETCH_LIMIT,
-    _cache_get,
-    _cache_set,
-)
+try:
+    from camoufox_research.camoufox_browser import (
+        _article_text,
+        _browser_ctx,
+        _goto,
+        _text,
+    )
+except ImportError:
+    from camoufox_browser import (
+        _article_text,
+        _browser_ctx,
+        _goto,
+        _text,
+    )
+try:
+    from camoufox_research.camoufox_cache import (
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+    )
+except ImportError:
+    from camoufox_cache import (
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+    )
 
 _UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")

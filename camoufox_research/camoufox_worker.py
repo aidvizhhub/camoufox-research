@@ -23,79 +23,168 @@ except Exception:  # noqa: S110,BLE001 — reconfigure опционален, б�
     pass
 
 # Модули, вынесенные из этого файла (резка god-файла, canon/FILE-SIZE.md):
-from camoufox_browser import (  # noqa: E402
-    _article_text,
-    _browser_ctx,
-    _click_checked,
-    _click_ref,
-    _goto,
-    _interactive_snapshot,
-    _launch,
-    _page_links,
-    _search_results,
-    _text,
-    _wait_content,
-    init_browser,
-    profile_load,
-    profile_save,
-    set_proxy as _set_proxy_browser,
-)
-from camoufox_cache import (  # noqa: E402
-    _FETCH_LIMIT,
-    _cache_get,
-    _cache_set,
-    _delta_get,
-    _delta_set,
-    _prefetch_text,
-    _search_cache_get,
-    _search_cache_set,
-)
-from camoufox_crawl import check_links, crawl, map_site, rss, sitemap  # noqa: E402
-from camoufox_docs import read_document  # noqa: E402
-from camoufox_fetch import (  # noqa: E402
-    _save_to_internet,
-    batch_fetch,
-    export,
-    extract,
-    research,
-    table_extract,
-)
-from camoufox_academic import paper_search  # noqa: E402
-from camoufox_digest import (  # noqa: E402
-    citation_pack,
-    citation_report,
-    research_digest,
-)
-from camoufox_session import (  # noqa: E402
-    get_session_page,
-    get_session_pages,
-    init_session,
-    screenshot,
-    session_back,
-    session_block,
-    session_click,
-    session_console,
-    session_download,
-    session_end,
-    session_eval,
-    session_form_fill,
-    session_key_press,
-    session_links,
-    session_navigate,
-    session_network,
-    session_reset,
-    session_resize,
-    session_scroll,
-    session_select_option,
-    session_start,
-    session_status,
-    session_tabs,
-    session_text,
-    session_type,
-    session_unblock,
-    session_upload,
-    session_wait_for,
-)
+try:
+    from camoufox_research.camoufox_browser import (  # noqa: E402
+        _article_text,
+        _browser_ctx,
+        _click_checked,
+        _click_ref,
+        _goto,
+        _interactive_snapshot,
+        _launch,
+        _page_links,
+        _search_results,
+        _text,
+        _wait_content,
+        init_browser,
+        profile_load,
+        profile_save,
+        set_proxy as _set_proxy_browser,
+    )
+except ImportError:
+    from camoufox_browser import (  # noqa: E402
+        _article_text,
+        _browser_ctx,
+        _click_checked,
+        _click_ref,
+        _goto,
+        _interactive_snapshot,
+        _launch,
+        _page_links,
+        _search_results,
+        _text,
+        _wait_content,
+        init_browser,
+        profile_load,
+        profile_save,
+        set_proxy as _set_proxy_browser,
+    )
+try:
+    from camoufox_research.camoufox_cache import (  # noqa: E402
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+        _delta_get,
+        _delta_set,
+        _prefetch_text,
+        _search_cache_get,
+        _search_cache_set,
+    )
+except ImportError:
+    from camoufox_cache import (  # noqa: E402
+        _FETCH_LIMIT,
+        _cache_get,
+        _cache_set,
+        _delta_get,
+        _delta_set,
+        _prefetch_text,
+        _search_cache_get,
+        _search_cache_set,
+    )
+try:
+    from camoufox_research.camoufox_crawl import check_links, crawl, map_site, rss, sitemap  # noqa: E402
+except ImportError:
+    from camoufox_crawl import check_links, crawl, map_site, rss, sitemap  # noqa: E402
+try:
+    from camoufox_research.camoufox_docs import read_document  # noqa: E402
+except ImportError:
+    from camoufox_docs import read_document  # noqa: E402
+try:
+    from camoufox_research.camoufox_fetch import (  # noqa: E402
+        _save_to_internet,
+        batch_fetch,
+        export,
+        extract,
+        research,
+        table_extract,
+    )
+except ImportError:
+    from camoufox_fetch import (  # noqa: E402
+        _save_to_internet,
+        batch_fetch,
+        export,
+        extract,
+        research,
+        table_extract,
+    )
+try:
+    from camoufox_research.camoufox_academic import paper_search  # noqa: E402
+except ImportError:
+    from camoufox_academic import paper_search  # noqa: E402
+try:
+    from camoufox_research.camoufox_digest import (  # noqa: E402
+        citation_pack,
+        citation_report,
+        research_digest,
+    )
+except ImportError:
+    from camoufox_digest import (  # noqa: E402
+        citation_pack,
+        citation_report,
+        research_digest,
+    )
+try:
+    from camoufox_research.camoufox_session import (  # noqa: E402
+        get_session_page,
+        get_session_pages,
+        init_session,
+        screenshot,
+        session_back,
+        session_block,
+        session_click,
+        session_console,
+        session_download,
+        session_end,
+        session_eval,
+        session_form_fill,
+        session_key_press,
+        session_links,
+        session_navigate,
+        session_network,
+        session_reset,
+        session_resize,
+        session_scroll,
+        session_select_option,
+        session_start,
+        session_status,
+        session_tabs,
+        session_text,
+        session_type,
+        session_unblock,
+        session_upload,
+        session_wait_for,
+    )
+except ImportError:
+    from camoufox_session import (  # noqa: E402
+        get_session_page,
+        get_session_pages,
+        init_session,
+        screenshot,
+        session_back,
+        session_block,
+        session_click,
+        session_console,
+        session_download,
+        session_end,
+        session_eval,
+        session_form_fill,
+        session_key_press,
+        session_links,
+        session_navigate,
+        session_network,
+        session_reset,
+        session_resize,
+        session_scroll,
+        session_select_option,
+        session_start,
+        session_status,
+        session_tabs,
+        session_text,
+        session_type,
+        session_unblock,
+        session_upload,
+        session_wait_for,
+    )
 
 # Trafilatura — извлечение текста статьи (без меню/баннеров). Опциональна:
 # если не установлена, работаем как раньше (весь body).
@@ -380,13 +469,22 @@ def set_proxy(proxy=""):
 # session_end/рестарт воркера — штатный способ сброса.
 # Поздний импорт кампаний: модуль тянет fetch-слой (браузер), но
 # сам браузер не стартует — безопасно и в serve, и в разовом вызове.
-from camoufox_campaign import (  # noqa: E402
-    research_start,
-    research_status,
-    research_report,
-    research_resume,
-    research_index,
-)
+try:
+    from camoufox_research.camoufox_campaign import (  # noqa: E402
+        research_start,
+        research_status,
+        research_report,
+        research_resume,
+        research_index,
+    )
+except ImportError:
+    from camoufox_campaign import (  # noqa: E402
+        research_start,
+        research_status,
+        research_report,
+        research_resume,
+        research_index,
+    )
 
 ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
            "batch_fetch": batch_fetch, "research": research,

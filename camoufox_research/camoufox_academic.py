@@ -20,7 +20,10 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-from camoufox_cache import _search_cache_get, _search_cache_set
+try:
+    from camoufox_research.camoufox_cache import _search_cache_get, _search_cache_set
+except ImportError:
+    from camoufox_cache import _search_cache_get, _search_cache_set
 
 _ARXIV_URL = "https://export.arxiv.org/api/query"
 _S2_URL = ("https://api.semanticscholar.org/graph/v1/paper/search")

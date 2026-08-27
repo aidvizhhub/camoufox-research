@@ -22,7 +22,10 @@ try:
 except Exception:  # noqa: S110,BLE001 — опционально, без него живём
     pass
 
-import camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
+try:
+    import camoufox_research.camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
+except ImportError:
+    import camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
 
 
 def main():

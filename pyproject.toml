@@ -32,7 +32,14 @@ dependencies = [
     "mcp==1.29.0",
     "camoufox==0.5.4",
     "trafilatura>=2.0",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
 ]
+
+[project.optional-dependencies]
+# лёгкая установка без GPL-компонента (trafilatura GPL-3.0)
+light = ["pypdf>=4.0", "python-docx>=1.1", "openpyxl>=3.1"]
 
 [project.scripts]
 camoufox-research = "camoufox_research.camoufox_research:main"
