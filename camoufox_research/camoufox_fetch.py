@@ -8,8 +8,8 @@ try:
 except ImportError:
     import camoufox_fetch_core as _core
     import camoufox_fetch_ext as _ext
-globals().update(_core.__dict__)
-globals().update(_ext.__dict__)
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
+globals().update({k: v for k, v in _ext.__dict__.items() if not k.startswith('__')})
 __all__ = [
     "batch_fetch",
     "extract",

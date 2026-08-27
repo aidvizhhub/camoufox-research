@@ -9,7 +9,7 @@ try:
     import camoufox_research.camoufox_worker_core_a as _core
 except ImportError:
     import camoufox_worker_core_a as _core
-globals().update(_core.__dict__)
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
 
 
 # --- Кэш страниц (глубокий ресёрч: повторный fetch = мгновенно) ---

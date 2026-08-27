@@ -12,7 +12,7 @@ try:
     import camoufox_research.camoufox_worker_core as _core
 except ImportError:
     import camoufox_worker_core as _core
-globals().update(_core.__dict__)
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
 
 
 # --- Session-режим: одна живая вкладка между командами (как человек) ---

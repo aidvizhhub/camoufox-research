@@ -8,8 +8,9 @@ try:
 except ImportError:
     import camoufox_session_core as _core
     import camoufox_session_ext as _ext
-globals().update(_core.__dict__)
-globals().update(_ext.__dict__)
+# Без dunder-ключей (канон фасадов): __name__/__file__/__loader__ СВОИ.
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith("__")})
+globals().update({k: v for k, v in _ext.__dict__.items() if not k.startswith("__")})
 __all__ = [
     "init_session",
     "get_session_page",

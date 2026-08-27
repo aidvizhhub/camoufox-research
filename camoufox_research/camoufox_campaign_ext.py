@@ -13,7 +13,7 @@ try:
     import camoufox_research.camoufox_campaign_core as _core
 except ImportError:
     import camoufox_campaign_core as _core
-globals().update(_core.__dict__)
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
 
 def _paths(camp_id):
     """Пути (лог, done-маркер) — единые для start/resume/раннера."""
