@@ -4,19 +4,10 @@
 
 """Кампании ресёрча: цель по РАЗНЫМ источникам, счётчик прогресса, отчёт.
 
-Паттерн индустрии (ресёрч 27.08.2026, 36 источников): gpt-researcher Deep
-Research держит state исследования (breadth/depth, счётчики, заметки),
-LangGraph/Open Deep Research делает checkpointing между шагами. Здесь то же
-БЕЗ LLM внутри сервера: агент думает — сервер ПОМНИТ (сколько уникальных
-доменов реально прочитано, что осталось дочитать). Состояние лежит в том же
-sqlite, что кэш (_CACHE_DB) — один ларец, не два.
-
-Фон-режим (закон тяжёлых дел): охота уходит в ОТДЕЛЬНЫЙ процесс
-(campaign_runner.py), пишет лог + маркер done_file — жду маркер, не поллю.
-
-Границы: тексты страниц НЕ тащим в кампанию (дорого) — список источников с
-tier/доменом; тексты достаются через batch_fetch на этапе синтеза (кэш уже
-тёплый, чтение почти бесплатное).
+Паттерн индустрии (gpt-researcher state, LangGraph checkpointing): агент
+думает — сервер ПОМНИТ (сколько уникальных доменов прочитано, что осталось).
+Состояние в том же sqlite, что кэш; фон — отдельный процесс (campaign_runner,
+лог + маркер done_file). Тексты страниц не тащим — синтез читает batch_fetch.
 """
 import json
 import os
@@ -74,8 +65,7 @@ _DDL_DONE = False
 
 
 def _db():
-    """Соединение к базе кампаний. Миграция старых баз: у живого кэша
-    таблица без колонки feeds — ALTER мягко достраивает (повтор безопасен)."""
+    """Соединение к базе (+мягкая миграция feeds для старых баз)."""
     global _DDL_DONE
     con = sqlite3.connect(_DB_PATH)
     if not _DDL_DONE:
@@ -123,9 +113,12 @@ def _ingest(camp_id, payload):
             if row.get("tier") == 3:
                 skipped += 1
                 continue
+            # ЯВНЫЕ колонки: у соседей таблица растёт (digest, live) —
+            # позиционный INSERT падал «10 columns but 8 values» (27.08).
             cur = con.execute(
-                "INSERT OR IGNORE INTO campaign_sources VALUES "
-                "(?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO campaign_sources "
+                "(camp_id, url, title, domain, tier, tier_label, snippet, "
+                "added_ts) VALUES (?,?,?,?,?,?,?,?)",
                 (camp_id, row.get("url", ""), row.get("title", ""),
                  row.get("domain") or _reg_domain(row.get("url", "")),
                  row.get("tier", 2), row.get("tier_label", ""),
@@ -157,9 +150,8 @@ def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
 
 
 def _feed_leg(camp_id, feeds, notes):
-    """Первая нога охоты — ФИДЫ (RSS/sitemap): источники БЕЗ поисковика.
-    Работает даже при мёртвом DDG (синергия со сторожем). Форматы вывода
-    rss()/sitemap() детерминированы — парсим их, не пишем свой парсер."""
+    """Нога-фиды (RSS/sitemap): источники без поисковика (DDG мёртв —
+    фиды живут). Форматы rss()/sitemap() детерминированы — парсим их."""
     if not feeds:
         return
     from camoufox_crawl import rss, sitemap
@@ -197,13 +189,8 @@ def _feed_leg(camp_id, feeds, notes):
 
 def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
          feeds=None):
-    """Механическая охота кампании: фиды → волны research() до цели.
-
-    Вызывается В ОТДЕЛЬНОМ процессе (фон) или синхронно для малых целей.
-    Две ноги: фиды (без поисковика) → поисковые волны search → термы →
-    угловая (лучшие практики/грабли/альтернативы). Честный статус
-    partial, если цель недостижима — БЛЕФОВАТЬ «готово» ЗАПРЕЩЕНО.
-    """
+    """Механическая охота: фиды → волны research() до цели. Недобор =
+    честный partial: БЛЕФ «готово» ЗАПРЕЩЁН."""
     from camoufox_fetch import research  # поздний импорт: тянет браузер
     notes = []
     waves = [[*queries]]
@@ -240,6 +227,8 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         status = "done" if uniq >= target else "partial"
         _finish(camp_id, topic, status, total, uniq, target, notes, done_path)
         _log(log_path, f"финал: {status}, {uniq}/{target} доменов")
+        from camoufox_housekeep import post_pack
+        post_pack(camp_id, log_path, done_path)
     except Exception as e:  # noqa: BLE001 — беда фиксируется ЧЕСТНО, не молча
         _log(log_path, f"падение: {type(e).__name__}: {e}")
         total, uniq = _counts(camp_id)
@@ -270,12 +259,10 @@ def _paths(camp_id):
 
 def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                  feeds=None):
-    """Доборка раненой кампании (partial/failed) с места, не с нуля
-    (паттерн LangGraph resume). Отличия от hunt(): своя очередь углов
-    (_RESUME_ROUNDS), кап спирали — нулевая волна = стоп (собирать те же
-    домены бессмысленно), база существующих источников уже в sqlite и
-    UNIQUE-дедуп сам отсекает старьё. Фиды едим заново — в фиде могли
-    появиться новые посты."""
+    """Доборка partial/failed С МЕСТА (LangGraph resume): своя очередь
+    углов _RESUME_ROUNDS (повтор старых = те же домены), кап спирали —
+    нулевая волна = стоп, UNIQUE-дедуп отсекает старьё. Фиды едим заново
+    (могли обновиться)."""
     from camoufox_fetch import research
     notes = []
     try:
@@ -303,6 +290,8 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         status = "done" if uniq >= target else "partial"
         _finish(camp_id, topic, status, total, uniq, target, notes, done_path)
         _log(log_path, f"ресьюм-финал: {status}, {uniq}/{target} доменов")
+        from camoufox_housekeep import post_pack
+        post_pack(camp_id, log_path, done_path)
     except Exception as e:  # noqa: BLE001 — честный failed с маркером
         _log(log_path, f"падение доборки: {type(e).__name__}: {e}")
         total, uniq = _counts(camp_id)
@@ -311,9 +300,8 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
 
 
 def resume(camp_id, background=False):
-    """Продолжить partial/failed кампанию с места. done — отказ (нечего
-    добирать), running — отказ (двойной запуск = гонка за sqlite и
-    браузер). Статус ставится running ДО охоты — второй resume виден."""
+    """Доборка partial/failed с места. done/running — отказ (нечего
+    добирать / двойной запуск = гонка). running ставится ДО охоты."""
     with _db() as con:
         row = con.execute(
             "SELECT topic, queries, target_sources, domains_limit, status, "
@@ -364,9 +352,8 @@ def resume(camp_id, background=False):
 
 def start(topic, queries=None, target_sources=20, domains_limit=2,
           feeds=None, background=True):
-    """Запуск кампании. feeds (RSS/sitemap URL) — первая нога охоты БЕЗ
-    поисковика; queries можно опустить, если фиды заданы. Перед стартом —
-    пульс сторожа: мёртвый крон предупредит, а не промолчит."""
+    """Запуск кампании. feeds — нога БЕЗ поисковика (queries можно
+    опустить). Перед стартом — пульс крона сторожа."""
     if not str(topic or "").strip() and not (feeds or []):
         return "ошибка: пустая тема и без фидов — нечего охотить"
     qs = [str(q).strip() for q in (queries or []) if str(q).strip()]

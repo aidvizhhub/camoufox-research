@@ -315,7 +315,11 @@ def post_hunt(camp_id, log):
                 f"источников {total}, verified {verified}, "
                 f"битых {broken_total}, отчёт: "
                 f"{cit_report.splitlines()[0] if cit_report else 'нет'}")
-        memory_note = _note_memory(note)
+        if not total:  # пустая охота: в память только МУСОР попадёт
+            memory_note = ""
+            log("память пропущена: источников 0")
+        else:
+            memory_note = _note_memory(note)
         if memory_note:
             log(f"сводка в память: {memory_note}")
     except Exception as e:  # noqa: BLE001 — память бонус

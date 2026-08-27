@@ -89,6 +89,34 @@ def watchdog_note():
     return ""
 
 
+def post_pack(camp_id, log_path, done_path):
+    """Единый пост-цикл кампании: выжимки + верификация + cit-отчёт +
+    строка памяти; поля дописываются в тот же done-маркер. Ошибки не
+    роняют охоту (упаковка бонус)."""
+    try:
+        from camoufox_digest import post_hunt
+        extra = post_hunt(camp_id,
+                          lambda m: _log_line(log_path, m))
+        marker = json.loads(Path(done_path).read_text(encoding="utf-8"))
+        marker.update(extra)
+        Path(done_path).write_text(
+            json.dumps(marker, ensure_ascii=False, indent=1),
+            encoding="utf-8")
+        return extra
+    except Exception as e:  # noqa: BLE001 — упаковка бонус, не охота
+        _log_line(log_path, f"выжимки пропущены: {type(e).__name__}")
+        return {}
+
+
+def _log_line(log_path, msg):
+    """Строка в лог кампании (общая с campaign-модулем запись)."""
+    try:
+        with open(log_path, "a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def marker_update(done_path, key, value):
     """Дописать поле в done-маркер (отчёт-путь) — маркер уже рождён."""
     try:

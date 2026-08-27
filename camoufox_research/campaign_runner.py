@@ -23,7 +23,6 @@ except Exception:  # noqa: S110,BLE001 — опционально, без нег
     pass
 
 import camoufox_campaign as cc  # noqa: E402 — тот же каталог, flat-импорт
-import camoufox_digest as cd  # noqa: E402
 
 
 def main():
@@ -53,17 +52,8 @@ def main():
         cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
         cc.hunt(args.id, topic, queries, target, dl, log_path, done_path,
                 feeds=feeds)
-    # После охоты — выжимки + верификация (в этом же фоне); маркер
-    # done.json дополняем полями, нового не плодим (паттерн глубокой
-    # охоты 27.08.2026: post-hunt = синтез-готовая упаковка).
-    try:
-        extra = cd.post_hunt(args.id, lambda m: cc._log(log_path, m))
-        marker = json.load(open(done_path, encoding="utf-8"))
-        marker.update(extra)
-        open(done_path, "w", encoding="utf-8").write(
-            json.dumps(marker, ensure_ascii=False, indent=1))
-    except Exception as e:  # noqa: BLE001 — выжимки бонус, не охота
-        cc._log(log_path, f"выжимки пропущены: {type(e).__name__}")
+    # пост-цикл (выжимки/верификация/cit/память) живёт ВНУТРИ hunt/
+    # resume — все пути одинаковы, раннер только запускает
     with cc._db() as con:
         st = con.execute("SELECT status FROM campaigns WHERE id=?",
                          (args.id,)).fetchone()
