@@ -14,10 +14,13 @@ pages.yml (actions/configure-pages + upload-pages-artifact).
 """
 
 import argparse
+import datetime as _dt
+import email.utils
 import html
 import re
 import sys
 from pathlib import Path
+from xml.sax.saxutils import escape as _xml_escape
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -28,6 +31,7 @@ _PAGE = """<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Camoufox Research — добыча</title>
+<link rel="alternate" type="application/rss+xml" title="Camoufox Research — добыча" href="rss.xml">
 <style>
 body{{max-width:900px;margin:2rem auto;padding:0 1rem;
   font:16px/1.6 system-ui,sans-serif;color:#222;background:#fff}}
@@ -130,8 +134,67 @@ def md_to_html(md: str) -> str:
     return "\n".join(out)
 
 
-def build(src: Path, out_dir: Path) -> int:
-    """src/*.md → out_dir/index.html. Возвращает число встроенных файлов."""
+def build_rss(src: Path, out_dir: Path, base: str) -> int:
+    """src/*.md → out_dir/rss.xml (RSS 2.0, stdlib). Отчёт = item:
+    title из имени файла, link = base#файл, pubDate из даты в имени."""
+    items = []
+    for f in sorted(src.glob("20??-??-??-*.md")):
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})-", f.name)
+        title = re.sub(r"^\d{4}-\d{2}-\d{2}-|\.md$", "", f.name).replace("-", " ").replace("_", " ")
+        # описание: первая содержательная строка отчёта (мимо шапки/метаданных)
+        desc = ""
+        for ln in f.read_text(encoding="utf-8").splitlines():
+            s = ln.strip()
+            if (
+                s
+                and not s.startswith("<!--")
+                and not s.startswith("#")
+                and not s.startswith("- id:")
+            ):
+                desc = html.unescape(s)
+                break
+        desc = (desc or title)[:200]
+        pub = ""
+        if m:
+            try:
+                d = _dt.datetime(
+                    int(m.group(1)),
+                    int(m.group(2)),
+                    int(m.group(3)),
+                    12,
+                    0,
+                    tzinfo=_dt.timezone.utc,
+                )
+                pub = f"<pubDate>{email.utils.format_datetime(d)}</pubDate>"
+            except ValueError:
+                pub = ""
+        guid = f"{base}/#{f.stem}"
+        items.append(
+            "<item><title>"
+            + _xml_escape(title)
+            + "</title>"
+            + f"<link>{_xml_escape(guid)}</link>"
+            + f"<guid>{_xml_escape(guid)}</guid>"
+            + pub
+            + "<description>"
+            + _xml_escape(desc)
+            + "</description></item>"
+        )
+    body = "\n".join(items)
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<rss version="2.0"><channel>'
+        "<title>Camoufox Research — добыча</title>"
+        f"<link>{_xml_escape(base)}</link>"
+        "<description>Отчёты веб-охоты кауфми: источники, выжимки, выводы</description>"
+        "<language>ru</language>" + body + "</channel></rss>"
+    )
+    (out_dir / "rss.xml").write_text(xml, encoding="utf-8")
+    return len(items)
+
+
+def build(src: Path, out_dir: Path, base: str) -> int:
+    """src/*.md → out_dir/index.html (+ rss.xml). Возвращает число файлов."""
     _refresh_report_index(src)  # INDEX актуален перед сборкой
     out_dir.mkdir(parents=True, exist_ok=True)
     parts = []
@@ -147,10 +210,12 @@ def build(src: Path, out_dir: Path) -> int:
         parts.append(md_to_html(index.read_text(encoding="utf-8")))
     body = (
         f"<h1>Camoufox Research — добыча</h1>"
-        f"<p class='meta'>отчётов: {count} · собрано автоматически</p>"
-        + "\n".join(parts)
+        f"<p class='meta'>отчётов: {count} · собрано автоматически ·"
+        f" <a href='rss.xml'>📡 RSS-подписка</a></p>" + "\n".join(parts)
     )
     (out_dir / "index.html").write_text(_PAGE.format(body=body), encoding="utf-8")
+    n_rss = build_rss(src, out_dir, base)
+    print(f"   rss.xml: {n_rss} записей")
     # стиль лежит в шаблоне, отдельный css не нужен (KISS)
     return count
 
@@ -159,8 +224,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="витрина research/ → статический сайт")
     ap.add_argument("--src", default=str(REPO / "research"), help="каталог отчётов")
     ap.add_argument("--out", default=str(REPO / "_site"), help="куда собрать HTML")
+    ap.add_argument(
+        "--base",
+        default="https://aidvizhhub.github.io/camoufox-research",
+        help="базовый URL сайта (для ссылок RSS)",
+    )
     args = ap.parse_args()
-    n = build(Path(args.src), Path(args.out))
+    n = build(Path(args.src), Path(args.out), args.base)
     print(f"✅ сайт собран: {Path(args.out) / 'index.html'} (отчётов: {n})")
     return 0
 

@@ -1,5 +1,7 @@
 # Camoufox Research
 
+[![Витрина добычи](https://img.shields.io/badge/Витрина-добычи-blue?logo=github)](https://aidvizhhub.github.io/camoufox-research/)
+
 **Browser research toolkit for AI agents, exposed through MCP.**
 
 Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monitor changes.
@@ -109,22 +111,22 @@ One `research` call, no agent loop needed:
 research(
     queries=["agent observability landscape", "agentic search 2026"],
     max_results_per_query=6,
-    target_domains=20,     # goal: 20 DIFFERENT websites
-    domains_limit=2,       # max 2 results per site (no 15 links from one blog)
-    expand=True,           # add "X comparison", "X documentation" queries
-    terms_wave=True,       # 2nd wave built from rare terms of the 1st wave
-    quality_first=True,    # docs / GitHub / arXiv first, forums last
-    academic=True,         # arXiv + Semantic Scholar (free, no keys)
-    fetch_all=True,        # read text of every collected source
-    as_json=True,          # machine-readable: meta / sources / texts / notes
+    target_domains=20,  # goal: 20 DIFFERENT websites
+    domains_limit=2,  # max 2 results per site (no 15 links from one blog)
+    expand=True,  # add "X comparison", "X documentation" queries
+    terms_wave=True,  # 2nd wave built from rare terms of the 1st wave
+    quality_first=True,  # docs / GitHub / arXiv first, forums last
+    academic=True,  # arXiv + Semantic Scholar (free, no keys)
+    fetch_all=True,  # read text of every collected source
+    as_json=True,  # machine-readable: meta / sources / texts / notes
 )
 ```
 
 **Academic channel** — the vertical index industry uses to get primary sources (Exa vs Tavily: publications R@1 63.3% vs 31.8%). Both APIs are free, no keys:
 
 ```python
-paper_search("deep research agents")        # arXiv + Semantic Scholar
-research(queries=["..."], academic=True)   # adds tier-0 papers to the hunt
+paper_search("deep research agents")  # arXiv + Semantic Scholar
+research(queries=["..."], academic=True)  # adds tier-0 papers to the hunt
 ```
 
 **Digests & verified (`research_digest`, auto after background campaigns):**
