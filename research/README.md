@@ -10,6 +10,11 @@
 
 - **`YYYY-MM-DD-тема.md`** — автоотчёты кампаний (пишутся автоматически
   при завершении; см. `CAMOUFOX_REPORT_DIR` в configs/example.env).
+  **Приватные** — в git НЕ идут (research/*.md в .gitignore).
+- **`public/`** — отчёты, **разрешённые к публикации** на GitHub Pages
+  (витрина aidvizhhub.github.io/camoufox-research). Класть сюда вручную:
+  `cp research/YYYY-MM-DD-*.md research/public/` — и только чистые
+  (без секретов/личных путей; скан: grep -iE "key|token|…").
 - **`INDEX.md`** — оглавление всех отчётов (автособирается при
   сохранении; пересборка вручную: `python scripts/reports_index.py`).
 - **`cit/`** — цитатные пакеты кампаний (`cmp_*.cit.md`, выжимки для

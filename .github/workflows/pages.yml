@@ -29,10 +29,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Собрать витрину (research/ → _site/)
+      - name: Собрать витрину (research/public/ → _site/)
         run: |
           pip install . 2>&1 | tail -n 2
-          python scripts/build_pages.py --src research --out _site
+          python scripts/build_pages.py --src research/public --out _site
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
