@@ -17,10 +17,30 @@ import time
 from pathlib import Path
 import contextlib
 
-# Отчёты кампаний: по умолчанию — exports кэша; для записи в research/
-# репы задай CAMOUFOX_REPORT_DIR (конвенция research/README:
-# YYYY-MM-DD-тема.md).
+# Отчёты кампаний. Приоритет (переносимость, закон 28 — на ЛЮБОМ ПК
+# работает одинаково, без хардкода путей этой машины):
+# 1) CAMOUFOX_REPORT_DIR (env) — явный путь, если задан;
+# 2) <каталог запуска>/research (конвенция research/README:
+#    YYYY-MM-DD-тема.md) — папка рядом с проектом, куда бы ни
+#    поставили репо;
+# 3) фолбэк — exports кэша (старое поведение, если работаем вне репо).
 _REPORT_DIR = os.environ.get("CAMOUFOX_REPORT_DIR", "")
+
+
+def _report_dir() -> Path:
+    """Куда писать отчёты: env → research/ рядом с проектом → exports.
+
+    «Рядом с проектом» = parent пакета (пакет живёт в репо: editable или
+    прямая установка из исходников). cwd НЕ годится: MCP-сервер может
+    стартовать из любого каталога (проверено 28.08 — отчёты уплыли в
+    ~/.cache/exports, потому что сервер запущен из /home/admin1)."""
+    if _REPORT_DIR:
+        return Path(_REPORT_DIR)
+    pkg_parent = Path(__file__).resolve().parent.parent  # .../camoufox-reasearch/
+    cand = pkg_parent / "research"
+    if cand.is_dir():
+        return cand
+    return Path(_WLOG).parent / "exports"
 
 # Пульс крона сторожа: молчит дольше → предупреждение в research_start.
 _STALE_H = int(os.environ.get("CAMOUFOX_STALE_H", "48"))
@@ -41,7 +61,7 @@ def save_report(camp_id, topic, status, notes, report_md):
     if status not in ("done", "partial"):
         return None
     try:
-        d = Path(_REPORT_DIR) if _REPORT_DIR else Path(_WLOG).parent / "exports"
+        d = _report_dir()
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"{time.strftime('%Y-%m-%d')}-{_slug(topic)}.md"
         head = f"<!-- автоархив кампании {camp_id} · {time.strftime('%d.%m.%Y %H:%M')} -->\n\n"
@@ -184,7 +204,7 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
         con.close()
     except Exception as e:
         summary.append(f"db:err:{type(e).__name__}")
-    d = Path(_REPORT_DIR) if _REPORT_DIR else Path(_WLOG).parent / "exports"
+    d = _report_dir()
     n_files = 0
     if d.is_dir():
         cutoff = now - exports_days * 86400

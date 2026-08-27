@@ -216,7 +216,12 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         from camoufox_fetch import research  # поздний импорт: тянет браузер
     notes = []
     waves = [[*queries]]
-    waves.append([q + s for q in queries for s in _ANGLE_SUFFIXES])
+    # Фиды-кампании с пустыми queries: waves[0] = [] → все волны
+    # пропускаются «если not wq» (проверено 27.08: partial 3/12 доменов,
+    # фиды дали 40 источников, поиск не сработал). Тема — база запросов.
+    if not waves[0]:
+        waves[0] = [(topic or "web research")[:80]]
+    waves.append([q + s for q in waves[0] for s in _ANGLE_SUFFIXES])
     try:
         if feeds:
             _log(log_path, f"нога-фиды: {len(feeds)} фидов")

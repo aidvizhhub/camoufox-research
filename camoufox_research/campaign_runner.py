@@ -39,24 +39,42 @@ def main():
         "не новая охота — статус running ставит вызывающий",
     )
     args = ap.parse_args()
+    # Падение ДО охоты (argparse/импорт/БД) не должно висеть в running —
+    # иначе «закон одного инстанса» блокирует доборку навсегда
+    # (проверено 27.08: resume упал error: --id required, статус застыл).
+    def _fail(reason: str) -> None:
+        try:
+            with cc._db() as con:
+                con.execute(
+                    "UPDATE campaigns SET status='failed', error=?, "
+                    "updated_ts=? WHERE id=? AND status='running'",
+                    (reason, time.time(), args.id),
+                )
+        except Exception:
+            pass
+
     with cc._db() as con:
         row = con.execute(
             "SELECT topic, queries, target_sources, domains_limit, feeds FROM campaigns WHERE id=?",
             (args.id,),
         ).fetchone()
     if not row:
+        _fail(f"нет кампании {args.id}")
         print(f"ошибка: нет кампании {args.id}")
         sys.exit(1)
     topic, queries, target, dl = (row[0], json.loads(row[1]), int(row[2]), int(row[3]))
     feeds = json.loads(row[4] or "[]")
     log_path, done_path = cc._paths(args.id)
     t0 = time.monotonic()
-    if args.resume:
-        cc._log(log_path, "раннер-ресьюм стартовал")
-        cc._resume_hunt(args.id, topic, queries, target, dl, log_path, done_path, feeds=feeds)
-    else:
-        cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
-        cc.hunt(args.id, topic, queries, target, dl, log_path, done_path, feeds=feeds)
+    try:
+        if args.resume:
+            cc._log(log_path, "раннер-ресьюм стартовал")
+            cc._resume_hunt(args.id, topic, queries, target, dl, log_path, done_path, feeds=feeds)
+        else:
+            cc._log(log_path, f"раннер стартовал: {topic} · цель {target}")
+            cc.hunt(args.id, topic, queries, target, dl, log_path, done_path, feeds=feeds)
+    except Exception as e:
+        _fail(f"{type(e).__name__}: {e}")
     # пост-цикл (выжимки/верификация/cit/память) живёт ВНУТРИ hunt/
     # resume — все пути одинаковы, раннер только запускает
     with cc._db() as con:

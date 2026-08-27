@@ -36,6 +36,12 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
         if feeds:
             _feed_leg(camp_id, feeds, notes)
             uniq = _counts(camp_id)[1]
+        # Фиды-кампании могут прийти с ПУСТЫМИ queries: фид-нога дала
+        # домены, а волнам поиска не с чего строиться (проверено 27.08,
+        # partial 3/12: волны = [] → «нулевая волна»). Тема — база
+        # запросов (topic[:80] — первичный запрос, суффиксы прирастут).
+        if not queries:
+            queries = [(topic or "web research")[:80]]
         for i, suffixes in enumerate(_RESUME_ROUNDS, 1):
             if uniq >= target:
                 break
@@ -99,7 +105,7 @@ def resume(camp_id, background=False, llm_planner=False):
     if background:
         with open(log_path, "ab") as lf:
             subprocess.Popen(
-                [sys.executable, str(_RUNNER), "--resume", camp_id],
+                [sys.executable, str(_RUNNER), "--id", camp_id, "--resume"],
                 stdout=lf, stderr=subprocess.STDOUT,
                 cwd=str(Path(__file__).resolve().parent.parent),
                 start_new_session=True)

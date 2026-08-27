@@ -55,7 +55,7 @@ class CleanupTest(unittest.TestCase):
                 for k, v in env.items():
                     os.environ[k] = v
                 hk._WLOG = env["CAMOUFOX_WATCHDOG_LOG"]
-                hk._REPORT_DIR = ""
+                hk._REPORT_DIR = ex  # изолированный каталог отчётов (как в mk_dirs)
                 msg = hk.cleanup(db, dry_run=True)
                 self.assertEqual(msg, "pages:1 deltas:1 searches:1 exports:1")
                 con = sqlite3.connect(db)
@@ -75,7 +75,7 @@ class CleanupTest(unittest.TestCase):
             old2 = hk._WLOG
             try:
                 hk._WLOG = wlog
-                hk._REPORT_DIR = ""
+                hk._REPORT_DIR = ex  # изолированный каталог отчётов
                 msg = hk.cleanup(db, dry_run=False)
                 self.assertTrue("pages:1" in msg and "exports:1" in msg)
                 con = sqlite3.connect(db)
@@ -96,3 +96,57 @@ class CleanupTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class ReportDirTest(unittest.TestCase):
+    """Куда пишутся отчёты (переносимость, закон 28): cwd/research
+    по умолчанию (конвенция research/README), env — приоритет."""
+
+    def test_default_is_package_research(self):
+        """Дефолт = research/ рядом с ПАКЕТОМ (не cwd: сервер стартует из
+        любого каталога — проверено 28.08, отчёты уплывали в ~/.cache)."""
+        import camoufox_research.camoufox_housekeep as hk
+        import os
+
+        old_env = os.environ.get("CAMOUFOX_REPORT_DIR")
+        os.environ.pop("CAMOUFOX_REPORT_DIR", None)
+        old_dir = hk._REPORT_DIR
+        hk._REPORT_DIR = ""
+        try:
+            d = hk._report_dir()
+            self.assertTrue(str(d).endswith("research"))
+            pkg = Path(hk.__file__).resolve().parent.parent
+            self.assertTrue(str(d).startswith(str(pkg)))
+        finally:
+            hk._REPORT_DIR = old_dir
+            if old_env is not None:
+                os.environ["CAMOUFOX_REPORT_DIR"] = old_env
+
+    def test_env_priority(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import tempfile
+
+        old_dir = hk._REPORT_DIR
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                hk._REPORT_DIR = td
+                d = hk._report_dir()
+                self.assertEqual(str(d), td)
+        finally:
+            hk._REPORT_DIR = old_dir
+
+    def test_save_report_writes_research(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import tempfile
+
+        old_dir = hk._REPORT_DIR
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                hk._REPORT_DIR = str(Path(td) / "research")
+                p = hk.save_report("cmp_x", "тема доклад", "done", ["заметка"], "ТЕЛО")
+                self.assertTrue(p)
+                self.assertTrue(Path(p).exists())
+                self.assertIn("ТЕЛО", Path(p).read_text(encoding="utf-8"))
+                self.assertIn("2026", Path(p).name)  # YYYY-MM-DD-тема.md
+        finally:
+            hk._REPORT_DIR = old_dir
