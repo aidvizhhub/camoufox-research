@@ -2,7 +2,9 @@
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
 # AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
 
-"""MCP-сервер веб-ресёрча на Camoufox (анти-детект Firefox).
+"""MCP-сервер веб-ресёрча на Camoufox (анти-детект Firefox). Тонкий каркас
+(canon/FILE-SIZE.md): мост к воркеру — camoufox_research_bridge, тулы —
+camoufox_research_tools (вестб-поиск/ресёрч) и session_tools (сессии/вижн).
 
 Свой вместо готового camoufox-mcp: тот стартует браузер с headless=False
 и без дисплея виснет. Здесь — headless=True, браузер в отдельном процессе
@@ -13,12 +15,8 @@ pool, а async-тулы с subprocess в этой связке (mcp 1.x + python
 Подключение (через scripts/install/install_mcp.py) в opencode/claude/codex/deepcode.
 """
 
-import json
 import os
-import queue
-import subprocess
 import sys
-import threading
 import time
 from contextlib import suppress
 
@@ -31,161 +29,17 @@ except Exception:  # noqa: S110,BLE001 — reconfigure опционален, б�
 
 from mcp.server.fastmcp import FastMCP
 
+from camoufox_research.camoufox_research_bridge import (
+    _START_TIME,
+    _RATE_LIMIT,
+    _RATE_LIMIT_MAX,
+    _AUTH_KEY,
+    _call,
+)
+from camoufox_research.camoufox_research_tools import register as register_research
+from camoufox_research.session_tools import register as register_session
+
 mcp = FastMCP("camoufox-research")
-WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "camoufox_worker.py")
-
-# --- Production: healthcheck + rate-limit + auth (MCP Best Practices 9,11) ---
-_START_TIME = time.monotonic()
-_RATE_LIMIT: dict[str, list[float]] = {}
-_RATE_LIMIT_MAX = int(os.environ.get("CAMOUFOX_RATE_LIMIT", "60"))  # max calls/min global
-_RATE_LIMIT_WINDOW = 60.0
-_AUTH_KEY = os.environ.get("CAMOUFOX_API_KEY", "").strip()
-
-
-def _check_auth(kwargs: dict) -> str | None:
-    """Если CAMOUFOX_API_KEY задан — требуем api_key в kwargs, иначе 401."""
-    if not _AUTH_KEY:
-        return None
-    provided = str(kwargs.get("api_key", "")).strip() or str(kwargs.get("auth", "")).strip()
-    if provided != _AUTH_KEY:
-        return "ошибка: 401 Unauthorized — неверный api_key (задай CAMOUFOX_API_KEY env и передай api_key в вызов)"
-    return None
-
-
-def _check_rate_limit(action: str) -> str | None:
-    """Простой fixed-window: max _RATE_LIMIT_MAX вызовов в 60с, иначе 429."""
-    if _RATE_LIMIT_MAX <= 0:
-        return None
-    now = time.monotonic()
-    # чистим старые
-    for k in list(_RATE_LIMIT.keys()):
-        _RATE_LIMIT[k] = [t for t in _RATE_LIMIT[k] if now - t < _RATE_LIMIT_WINDOW]
-        if not _RATE_LIMIT[k]:
-            del _RATE_LIMIT[k]
-    # глобальный + per-action
-    total = sum(len(v) for v in _RATE_LIMIT.values())
-    if total >= _RATE_LIMIT_MAX:
-        return f"ошибка: 429 Too Many Requests — лимит {_RATE_LIMIT_MAX}/мин, подожди {int(_RATE_LIMIT_WINDOW - (now - min(min(v) for v in _RATE_LIMIT.values())))}с"
-    lst = _RATE_LIMIT.setdefault(action, [])
-    if len(lst) >= _RATE_LIMIT_MAX // 2:  # per-action половина глобального
-        return f"ошибка: 429 Too Many Requests — лимит для {action} {_RATE_LIMIT_MAX // 2}/мин"
-    lst.append(now)
-    return None
-
-# Живой воркер (serve-режим): браузер держится между вызовами.
-# Lock обязателен: FastMCP выполняет тулы в thread pool — без него
-# параллельные вызовы перемешают запросы/ответы на stdin/stdout.
-# Чтение stdout — через поток-читатель + queue: select нельзя смешивать
-# с TextIOWrapper (буфер вычитал данные, select на pipe молчит — дедлок,
-# проверено 08.2026).
-_worker_state = None  # {"proc": Popen, "queue": Queue}
-_worker_lock = threading.Lock()
-
-
-def _read_loop(proc, q):
-    """Фон: строки из stdout воркера → очередь. None на EOF."""
-    for line in proc.stdout:
-        q.put(line)
-    q.put(None)
-
-
-def _worker_proc():
-    global _worker_state
-    if _worker_state is None or _worker_state["proc"].poll() is not None:
-        proc = subprocess.Popen(  # nosemgrep: python.lang.compatibility.python36.python36-compatibility-Popen1, python.lang.compatibility.python36.python36-compatibility-Popen2
-            [sys.executable, WORKER, "--serve"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            # nosemgrep: python36-compatibility-Popen — воркспейс на Python
-            # 3.10+, errors=/encoding= доступны с 3.6 (семгреп-эвристика)
-            stderr=subprocess.DEVNULL,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        q = queue.Queue()
-        t = threading.Thread(target=_read_loop, args=(proc, q), daemon=True)
-        t.start()
-        _worker_state = {"proc": proc, "queue": q}
-    return _worker_state
-
-
-def _call_live(req, timeout):
-    """Запрос к живому воркеру: JSON-строка в stdin, JSON-строка из queue."""
-    proc, q = _worker_proc()["proc"], _worker_state["queue"]
-    try:
-        proc.stdin.write(req + "\n")
-        proc.stdin.flush()
-    except (BrokenPipeError, OSError) as e:
-        _kill_worker()
-        raise RuntimeError("воркер упал при записи") from e
-    deadline = time.monotonic() + timeout
-    while True:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            _kill_worker()
-            raise TimeoutError(f"воркер не ответил за {timeout}с")
-        try:
-            line = q.get(timeout=remaining)
-        except queue.Empty as e:
-            _kill_worker()
-            raise TimeoutError(f"воркер не ответил за {timeout}с") from e
-        if line is None:
-            _kill_worker()
-            raise RuntimeError("воркер закрыл stdout") from None
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            return _parse(json.loads(line))
-        except json.JSONDecodeError:
-            continue  # мусорная строка (лог браузера) — пропускаем
-
-
-def _kill_worker():
-    global _worker_state
-    if _worker_state is not None:
-        with suppress(Exception):  # процесс мог уже умереть
-            _worker_state["proc"].kill()
-        _worker_state = None
-
-
-def _parse(parsed):
-    if "error" in parsed:
-        return f"ошибка: {parsed['error']}"
-    return parsed.get("result", "")
-
-
-def _call(action, timeout=120, **kwargs):
-    # production gates
-    err = _check_auth(kwargs)
-    if err:
-        return err
-    kwargs.pop("api_key", None)
-    kwargs.pop("auth", None)
-    err = _check_rate_limit(action)
-    if err:
-        return err
-    req = json.dumps({"action": action, **kwargs})
-    with _worker_lock:
-        try:
-            return _call_live(req, timeout)
-        except Exception as e:  # noqa: BLE001 — любой сбой живого воркера → фолбэк на разовый
-            # фолбэк: разовый запуск воркера (как раньше)
-            proc = subprocess.run(
-                [sys.executable, WORKER, req],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-            out = proc.stdout.strip()
-            if not out:
-                return f"ошибка: пустой ответ воркера ({type(e).__name__})"
-            try:
-                return _parse(json.loads(out))
-            except json.JSONDecodeError:
-                return f"ошибка: не-JSON ответ: {out[:120]}"
 
 
 @mcp.tool()
@@ -194,285 +48,8 @@ def ping() -> str:
     return "pong"
 
 
-# Оригинал от https://t.me/aidvizhenie · https://t.me/hilartem. Каждая версия уникальна и лучше предыдущей.
-@mcp.tool()
-def web_search(
-    query: str, max_results: int = 10, pages: int = 1, include_snippets: bool = False
-) -> str:
-    """Поиск в DuckDuckGo через анти-детект браузер: номер, заголовок,
-    URL. pages>1 — пагинация (больше уникальных URL). include_snippets —
-    сниппет под URL. Кэш на сутки."""
-    return _call(
-        "web_search",
-        query=query,
-        max_results=max_results,
-        pages=pages,
-        include_snippets=include_snippets,
-    )
-
-
-@mcp.tool()
-def research(
-    queries: list[str],
-    max_results_per_query: int = 5,
-    fetch_top: int = 0,
-    article_only: bool = True,
-    max_chars: int = 4000,
-    max_parallel: int | None = None,
-    target_domains: int = 0,
-    domains_limit: int = 0,
-    expand: bool = False,
-    fetch_all: bool = False,
-    terms_wave: bool = False,
-    quality_first: bool = False,
-    as_json: bool = False,
-    academic: bool = False,
-    llm_planner: bool = False,
-) -> str:
-    """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
-    queries — несколько формулировок запроса (агент сам планирует
-    подзапросы, паттерн gpt-researcher); сервер ищет по каждой,
-    дедуплицирует URL и возвращает список со сниппетами.
-    fetch_top>0 — сразу читает топ-N источников (тексты статей).
-
-    Режим «20+ источников, не топы» (реальный ресёрч):
-    - target_domains=N — цель по РАЗНЫМ доменам (20 = двадцать разных
-      сайтов). Пока не набрали — доборка волнами: базовые запросы,
-      потом follow-up из термов сниппетов, потом пагинация.
-    - domains_limit=K — не больше K источников с одного домена.
-    - expand=True — к каждому запросу переформулировки («X comparison»,
-      «X documentation») — свежие домены и углы.
-    - terms_wave=True — вторая волна из РЕДКИХ ТЕРМОВ первой волны
-      (имена, названия из сниппетов) — паттерн Open Deep Research.
-    - quality_first=True — отбор по качеству домена: доки/GitHub/arXiv
-      первыми, форумы вниз (паттерн gpt-researcher source ranking).
-    - fetch_all=True — тексты ВСЕХ отобранных, а не топ-N.
-    - as_json=True — машинный JSON: meta (счётчики, follow-up запросы),
-      sources (title/url/domain/tier/tier_label/snippet), texts, notes.
-      Идеален для автоматизации и синтеза агентом.
-    - academic=True — вертикальный АКАДЕМИЧЕСКИЙ канал: arXiv +
-      Semantic Scholar (бесплатные API, без ключей) — первоисточники
-      (tier 0), которых DDG почти не видит (паттерн Exa vertical index).
-    - llm_planner=True — LLM (DeepSeek/Ollama) генерирует 10 follow-up
-      запросов как в gpt-researcher/STORM (Layer B, опционально, требует
-      DEEPSEEK_API_KEY или OLLAMA_HOST, иначе пропуск).
-    Пример глубокого ресёрча: research(queries=["deep research
-    agents"], target_domains=20, domains_limit=2, expand=True,
-    terms_wave=True, quality_first=True, academic=True, llm_planner=True,
-    fetch_all=True, as_json=True, max_results_per_query=6)
-    Результат кэшируется на сутки."""
-    return _call(
-        "research",
-        timeout=900,
-        queries=queries,
-        max_results_per_query=max_results_per_query,
-        fetch_top=fetch_top,
-        article_only=article_only,
-        max_chars=max_chars,
-        max_parallel=max_parallel,
-        target_domains=target_domains,
-        domains_limit=domains_limit,
-        expand=expand,
-        fetch_all=fetch_all,
-        terms_wave=terms_wave,
-        quality_first=quality_first,
-        as_json=as_json,
-        academic=academic,
-        llm_planner=llm_planner,
-    )
-
-
-@mcp.tool()
-def paper_search(query: str, sources: str = "arxiv,semantic", max_results: int = 10) -> str:
-    """Поиск научных статей: arXiv + Semantic Scholar (бесплатные API,
-    без ключей). Возвращает статьи с годом/авторами/цитатами —
-    первоисточники (tier 0), которых общий поиск почти не видит
-    (паттерн индустрии: vertical index / arxiv-канал рядом с вебом).
-    Кэш на сутки. Пример: paper_search("deep research agents")"""
-    return _call("paper_search", query=query, sources=sources, max_results=max_results)
-
-
-@mcp.tool()
-def research_digest(camp_id: str, refresh: bool = True) -> str:
-    """Выжимки + верификация кампании: короткие пакеты
-    (заголовок + первый абзац, ~700 символов) для синтеза и статус
-    «жив/битый» каждого источника (гейт качества, паттерн DEER /
-    DeepResearch Bench: verified citations). refresh=True — собрать
-    выжимки и проверить живость заново (до 30 URL, параллельно);
-    у фоновой кампании всё уже заполнено — refresh не нужен."""
-    return _call("research_digest", camp_id=camp_id, refresh=refresh)
-
-
-@mcp.tool()
-def citation_pack(camp_id: str) -> str:
-    """CIT-ПАКЕТ для синтеза отчёта: только verified ✅ источники
-    с выжимками, одним блоком (цитируй по номерам [1]..[N]).
-    Это гейт качества DEER/DeepResearch Bench: отчёт опирается на
-    живые источники, а не на мёртвые ссылки. Если verify/выжимки ещё
-    не прогонялись — достроит автоматически (сеть/браузер)."""
-    return _call("citation_pack", camp_id=camp_id)
-
-
-@mcp.tool()
-def citation_report(camp_id: str, path: str = "") -> str:
-    """Цитированный отчёт НА ДИСК: готовый MD-документ с выжимками
-    verified ✅ источников (нумерация [1..N] + раздел «Ссылки»).
-    Без path — exports/{camp_id}.cit.md. Отдаёт путь и размер —
-    документ можно сразу отправить/приложить."""
-    return _call("citation_report", camp_id=camp_id, path=path)
-
-
-@mcp.tool()
-def research_start(
-    topic: str,
-    queries: list[str] | None = None,
-    target_sources: int = 20,
-    domains_limit: int = 2,
-    feeds: list[str] | None = None,
-    background: bool = True,
-    llm_planner: bool = False,
-) -> str:
-    """КАМПАНИЯ ресёрча: цель «N РАЗНЫХ сайтов» с счётчиком прогресса.
-    Фон=True — охота уходит в отдельный процесс: лог + маркер done
-    (~/.cache/camoufox-research/exports/<id>.json) — ждать маркер,
-    не поллить. Состояние в sqlite: сколько уникальных доменов
-    реально собрано; угловые волны (лучшие практики/грабли/
-    альтернативы) добирают сами. Уникальных сайтов меньше цели →
-    честный статус partial. Синтез: research_report(id) → список
-    источников → batch_fetch по тем, что нужны текстом.
-    feeds — RSS/sitemap URL: первая нога охоты БЕЗ поисковика
-    (работает даже при мёртвом DDG); queries можно опустить.
-    Перед стартом проверяет пульс крона сторожа — мёртвый крон
-    предупредит, а не промолчит. Финальный отчёт автоархивируется
-    (CAMOUFOX_REPORT_DIR, по умолчанию exports).
-    llm_planner=True — Layer B, LLM (DeepSeek/Ollama) для 20+ вопросов [1]."""
-    return _call(
-        "research_start",
-        timeout=600,
-        topic=topic,
-        queries=queries,
-        target_sources=target_sources,
-        domains_limit=domains_limit,
-        feeds=feeds,
-        background=background,
-        llm_planner=llm_planner,
-    )
-
-
-@mcp.tool()
-def research_status(camp_id: str, limit: int = 6) -> str:
-    """Прогресс кампании: статус, счётчик разных сайтов vs цель,
-    топ источников по качеству (доки/код первыми)."""
-    return _call("research_status", camp_id=camp_id, limit=limit)
-
-
-@mcp.tool()
-def research_report(camp_id: str, fmt: str = "md") -> str:
-    """Отчёт кампании: список источников (титул/URL/домен/класс) в
-    md-таблице или json. Сырьё для синтеза с цитатами."""
-    return _call("research_report", camp_id=camp_id, fmt=fmt)
-
-
-@mcp.tool()
-def research_resume(camp_id: str, background: bool = False) -> str:
-    """ДОБОРКА кампании с места (паттерн LangGraph resume): берёт
-    partial/failed и добирает недостающие РАЗНЫЕ сайты свежими углами
-    (tutorial/comparison/case study). done — откажет («нечего добирать»),
-    running — откажет (двойной запуск = гонка). Нулевая волна (те же
-    домены по кругу) = честный стоп. Синхронно по умолчанию; большую
-    доборку — background=True (ждать маркер <id>.json)."""
-    return _call("research_resume", timeout=600, camp_id=camp_id, background=background)
-
-
-@mcp.tool()
-def research_index(limit: int = 50, fmt: str = "md") -> str:
-    """Сводка ВСЕХ кампаний: id · тема · статус · домены/цель · когда
-    обновлена. md-таблица или json. Сырьё для «что мы уже охотили»."""
-    return _call("research_index", limit=limit, fmt=fmt)
-
-
-@mcp.tool()
-def fetch_page(
-    url: str, max_chars: int = 6000, article_only: bool = False, delta: bool = False
-) -> str:
-    """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на
-    сутки. article_only=True — текст статьи (Trafilatura), fallback —
-    весь body. delta=True — delta-чтение: если контент не изменился
-    с прошлого раза, вернёт маркер '[delta: ...]' вместо текста
-    (не тратим токены на повтор)."""
-    return _call("fetch_page", url=url, max_chars=max_chars, article_only=article_only, delta=delta)
-
-
-@mcp.tool()
-def batch_fetch(
-    urls: list[str],
-    max_chars: int = 4000,
-    article_only: bool = False,
-    max_parallel: int | None = None,
-) -> str:
-    """Открывает НЕСКОЛЬКО URL в одном браузере — для глубокого ресёрча
-    на 30-50 источников одним вызовом вместо серии холодных стартов.
-    Кэш: уже посещённые URL возвращаются мгновенно, без браузера.
-    Rate limit между переходами защищает от капчи. Батч ≥8 URL —
-    параллельно (пул потоков, свой браузер на поток); число воркеров
-    автоопределяется по ресурсам машины (слабый ПК — 1-2, мощный — 3-4),
-    max_parallel — явное ограничение. Возвращает тексты с разделителями
-    '--- URL: ...'.
-    article_only=True — извлечь текст статьи (Trafilatura), без меню
-    и баннеров. Пример:
-    batch_fetch(urls=["https://docs.python.org/3/", "https://opencode.ai/docs/"],
-                max_chars=6000, article_only=True)"""
-    return _call(
-        "batch_fetch",
-        timeout=600,
-        urls=urls,
-        max_chars=max_chars,
-        article_only=article_only,
-        max_parallel=max_parallel,
-    )
-
-
-@mcp.tool()
-def extract_links(url: str, pattern: str = "", max_links: int = 20) -> str:
-    """Собирает ссылки страницы (фильтр по подстроке pattern)."""
-    return _call("extract_links", url=url, pattern=pattern, max_links=max_links)
-
-
-@mcp.tool()
-def browser_navigate(url: str, max_links: int = 10) -> str:
-    """Текст страницы + первые ссылки."""
-    return _call("browser_navigate", url=url, max_links=max_links)
-
-
-@mcp.tool()
-def browser_click(
-    url: str, selector: str = "", target_text: str = "", ref: str = "", max_links: int = 10
-) -> str:
-    """Открывает URL и кликает по элементу: CSS-селектор (selector),
-    текст ссылки/кнопки (target_text) или ref из snapshot (ref="3").
-    Возвращает страницу после клика.
-    Пример: browser_click(url, target_text="Продолжить")"""
-    return _call(
-        "browser_click",
-        url=url,
-        selector=selector,
-        target_text=target_text,
-        ref=ref,
-        max_links=max_links,
-    )
-
-
-@mcp.tool()
-def browser_type(url: str, selector: str, text: str) -> str:
-    """Открывает URL, вводит text в поле ввода (CSS-селектор), возвращает
-    обновлённую страницу. Для форм поиска."""
-    return _call("browser_type", url=url, selector=selector, text=text)
-
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from camoufox_research.session_tools import register  # noqa: E402
-
-register(mcp, _call)
+register_research(mcp, _call)
+register_session(mcp, _call)
 
 
 # --- MCP Resources: данные для чтения «как файлы» (4-й примитив
@@ -594,8 +171,8 @@ def main():
     # страницы/диффы/поиск > 30 дней, отчёты exports > 90 дней. Ошибки
     # уборки не роняют сервер (бонус, не охота).
     try:
-        from camoufox_housekeep import cleanup
-        from camoufox_campaign import _DB_PATH
+        from camoufox_research.camoufox_housekeep import cleanup
+        from camoufox_research.camoufox_campaign import _DB_PATH
 
         cleanup(_DB_PATH)
     except Exception:  # noqa: BLE001 — уборка бонус
@@ -610,6 +187,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
