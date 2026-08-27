@@ -3,6 +3,7 @@
 """Вторая половина воркера: ACTIONS, serve, main — зависит от core."""
 
 import json
+import os
 import sys
 import time
 from contextlib import suppress
@@ -119,13 +120,19 @@ def _close_pages(browser):
 
 def _serve():
     """Долгоживущий режим: читает JSON-команды из stdin построчно,
-    держит браузер открытым между командами. Запуск: --serve."""
+    держит браузер открытым между командами. Запуск: --serve.
+    CAMOUFOX_NO_BROWSER=1 — протокол БЕЗ браузера (CI/тесты:
+    небраузерные действия работают, браузерные честно скажут
+    «нет браузера»). Проверено 28.08: тест serve в CI падал,
+    потому что _launch() без установленного Camoufox = крах."""
     global _LIVE
-    cam = _launch()
-    cam.start()
-    _LIVE = (cam, cam.browser)
-    init_session(lambda: _LIVE)  # session-модуль: доступ к живому браузеру
-    init_browser(lambda: _LIVE)  # browser-модуль: _browser_ctx для хелперов
+    no_browser = os.environ.get("CAMOUFOX_NO_BROWSER", "") == "1"
+    if not no_browser:
+        cam = _launch()
+        cam.start()
+        _LIVE = (cam, cam.browser)
+        init_session(lambda: _LIVE)  # session-модуль: доступ к живому браузеру
+        init_browser(lambda: _LIVE)  # browser-модуль: _browser_ctx для хелперов
     print("[ready]", file=sys.stderr, flush=True)  # маркер готовности (канон)
     try:
         for line in sys.stdin:
@@ -150,11 +157,13 @@ def _serve():
             except Exception as e:
                 print(json.dumps({"error": f"битая команда: {e}"}), flush=True)
             finally:
-                _close_pages(_LIVE[1])
+                if not no_browser:
+                    _close_pages(_LIVE[1])
     finally:
-        cur = _LIVE[0] if _LIVE is not None else cam
-        with suppress(Exception):  # мог уже закрыться в set_proxy
-            cur.__exit__(None, None, None)
+        if not no_browser:
+            cur = _LIVE[0] if _LIVE is not None else cam
+            with suppress(Exception):  # мог уже закрыться в set_proxy
+                cur.__exit__(None, None, None)
 
 
 def main():

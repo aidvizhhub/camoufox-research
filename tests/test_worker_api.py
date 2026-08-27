@@ -109,7 +109,11 @@ class WorkerServeProtocolTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             db = os.path.join(td, "c.db")
             _init_db(db)
-            env = {**os.environ, "CAMOUFOX_CAMPAIGN_DB": db}
+            env = {
+                **os.environ,
+                "CAMOUFOX_CAMPAIGN_DB": db,
+                "CAMOUFOX_NO_BROWSER": "1",  # CI: serve без браузера
+            }
             proc = subprocess.Popen(
                 [sys.executable, WORKER, "--serve"],
                 stdin=subprocess.PIPE,
