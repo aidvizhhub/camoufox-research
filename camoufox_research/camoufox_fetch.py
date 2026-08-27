@@ -249,63 +249,52 @@ def extract(url, schema):
     return json.dumps(out, ensure_ascii=False, indent=2)
 
 
-# Домены 2-го уровня, где registrable domain = 3 компонента
-# (example.co.uk), для честного счётчика «разные источники» (паттерн
-# Firecrawl domain dedup, ресёрч 27.08.2026).
-_TWO_PART_TLDS = {"co.uk", "co.jp", "co.kr", "co.in", "co.au", "com.au",
-                  "com.br", "com.mx", "com.tr", "org.uk", "net.au"}
-
-
-def _reg_domain(url):
-    """Регистрируемый домен: example.com из www.example.com/поддоменов.
-    docs.python.org и peps.python.org считаются одним источником —
-    лимит «2 на домен» должен резать дубли по сути, а не по строке."""
-    netloc = (urlparse(url).netloc or "").lower()
-    parts = [p for p in netloc.split(".") if p]
-    for prefix in ("www.", "www2."):
-        if netloc.startswith(prefix):
-            parts = parts[1:]
-            break
-    if len(parts) > 2 and ".".join(parts[-2:]) in _TWO_PART_TLDS:
-        return ".".join(parts[-3:])
-    return ".".join(parts[-2:]) if len(parts) >= 2 else netloc
-
-
 # Шаблоны расширения запросов: переформулировки добавляют ДРУГИЕ домены
 # (паттерн query expansion, agentlist.top: 80% качества = запросы).
 _EXPAND_SUFFIXES = (" comparison", " documentation")
 
 
+from camoufox_sources import (  # noqa: E402
+    _reg_domain,
+    domain_tier,
+    extract_terms,
+    rank_and_select,
+)
+
+
 def research(queries, max_results_per_query=5, fetch_top=0,
              article_only=True, max_chars=4000, max_parallel=None,
              target_domains=0, domains_limit=0, expand=False,
-             fetch_all=False):
+             fetch_all=False, terms_wave=False, quality_first=False):
     """Deep-поиск ОДНИМ вызовом: N запросов → дедупликация URL со
     сниппетами → опционально fetch источников. Паттерн индустрии
     gpt-researcher quick_search: агент планирует подзапросы, воркер
     собирает ранжированный список со сниппетами (отбор без fetch).
 
     Глубокий режим «20+ источников, не топы» (ресёрч 27.08.2026):
-    - target_domains: цель по РАЗНЫМ доменам (20 = 20 уникальных
-      источников). Пока не набрали цель — вторая волна с пагинацией
-      (волна 1: pages=1; волна 2: pages=2, добор по хвосту выдачи).
-    - domains_limit: не больше K источников с одного домена
-      (например 2 — чтобы 15 ссылок с одного сайта не заняли топ).
-    - expand: добавить к каждому запросу переформулировки
-      (query expansion: «X comparison», «X documentation») — другие
-      домены, свежие углы. Итого запросов ×3.
-    - fetch_all: прочитать тексты ВСЕХ собранных источников (а не
-      top-N); при fetch_top>0 и fetch_all=False — как раньше, топ-N.
+    - target_domains: цель по РАЗНЫМ доменам. Пока не набрали — волны:
+      1) базовые запросы (+expand); 2) follow-up из термов сниппетов
+      (terms_wave, Open Deep Research); 3) пагинация pages=2.
+    - domains_limit: не больше K источников с одного домена в отборе.
+    - expand: к каждому запросу переформулировки «X comparison»,
+      «X documentation» (query expansion). Итого запросов ×3.
+    - terms_wave: после первой волны извлечь редкие/именные термы из
+      сниппетов и искать по ним (вторая волна словами).
+    - quality_first: отбирать и ранжировать по качеству домена
+      (доки/GitHub/arXiv → форумы), паттерн gpt-researcher.
+    - fetch_all: тексты ВСЕХ отобранных; иначе fetch_top>0 — топ-N.
 
-    Совместимость: target_domains=0, domains_limit=0, expand=False,
-    fetch_all=False — старое поведение (топы). Кэш на сутки.
+    Совместимость: все новые параметры по умолчанию выключены — старое
+    поведение (топы). Кэш на сутки.
     """
     if not queries:
         return "ошибка: пустой список запросов"
-    deep = target_domains or domains_limit or expand or fetch_all
+    deep = (target_domains or domains_limit or expand or fetch_all
+            or terms_wave or quality_first)
     cache_key = "r:" + hashlib.sha256(json.dumps(
         [queries, max_results_per_query, fetch_top, article_only,
-         target_domains, domains_limit, expand, fetch_all],
+         target_domains, domains_limit, expand, fetch_all,
+         terms_wave, quality_first],
         ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
     try:
         with sqlite3.connect(_CACHE_DB) as con:
@@ -320,50 +309,67 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     if expand:
         for q in queries:
             qs += [q + s for s in _EXPAND_SUFFIXES]
-    seen, seen_keys, dom_counts = [], set(), {}
-    log = []
+    # raw: list[(tier, title, url, snippet)] — полная добыча без отбора,
+    # качество и лимит домена применяются в конце (rank_and_select).
+    raw, seen_keys, dom_seen, log = [], set(), set(), []
 
     def _add(title, url, snippet):
         if not url or url in seen_keys:
             return
-        d = _reg_domain(url)
-        if domains_limit and dom_counts.get(d, 0) >= domains_limit:
-            return
         seen_keys.add(url)
-        dom_counts[d] = dom_counts.get(d, 0) + 1
-        seen.append((title, url, snippet))
+        dom_seen.add(_reg_domain(url))
+        tier, _ = domain_tier(url)
+        raw.append((tier, title, url, snippet))
 
-    # Волны: 1-я без пагинации, 2-я с пагинацией — добор до цели по
-    # РАЗНЫМ доменам (а не «прочитали топ-10 с одного сайта»).
-    waves = (1, 2) if target_domains else (1,)
-    for wave in waves:
-        if target_domains and len(dom_counts) >= target_domains:
-            break
-        for q in qs:
-            if target_domains and len(dom_counts) >= target_domains:
-                break
+    def _have_goal():
+        return target_domains and len(dom_seen) >= target_domains
+
+    def _wave(query_list, pages):
+        for q in query_list:
+            if _have_goal():
+                return
             try:
                 for url, title, snippet in _search_results(
-                        q, max_results_per_query * wave, pages=wave):
+                        q, max_results_per_query * pages, pages=pages):
                     _add(title, url, snippet)
-            except Exception:  # noqa: BLE001 — один битый запрос не роняет всё
+            except Exception:  # noqa: BLE001 — битый запрос не роняет всё
                 log.append(f"[пропущен запрос: {q}]")
-    if not seen:
+
+    _wave(qs, 1)
+    followup = []
+    if terms_wave and target_domains and not _have_goal() and raw:
+        texts = [f"{t} {s}" for _, t, u, s in raw if t or s]
+        followup = extract_terms(texts, queries)
+        if followup:
+            log.append("follow-up из термов: " + " · ".join(followup))
+            _wave(followup, 1)
+    if target_domains and not _have_goal():
+        _wave(qs, 2)
+    if not raw:
         return "ничего не найдено по запросам"
-    out = [f"источников: {len(seen)}"]
+    sel = rank_and_select(raw, domains_limit) if quality_first else [
+        (t, u, s) for _, t, u, s in raw]
+    sel_domains = {_reg_domain(u) for _, u, _ in sel}
+    out = [f"источников: {len(sel)}"]
     if deep:
-        out.append(f"доменов: {len(dom_counts)}"
+        out.append(f"доменов: {len(sel_domains)}"
                    + (f" (цель {target_domains})" if target_domains else "")
                    + (f", лимит {domains_limit} на домен" if domains_limit else ""))
         if expand:
             out.append("запросов с расширением: "
                        f"{len(qs)} вместо {len(queries)}")
-    for i, (title, url, snippet) in enumerate(seen, 1):
-        out.append(f"[{i}] {title.strip()}\n    {url} ({_reg_domain(url)})")
+        if quality_first:
+            t0 = sum(1 for tier, *rest in raw if tier == 0)
+            out.append(f"первоисточников: {t0} из {len(raw)}"
+                       " (доки/код/наука первыми)")
+    for i, (title, url, snippet) in enumerate(sel, 1):
+        tier, label = domain_tier(url)
+        out.append(f"[{i}] {title.strip()}\n    {url} ({_reg_domain(url)}"
+                   + (f"; {label})" if label else ")"))
         if snippet:
             out.append(f"    {snippet.strip()[:200]}")
     if fetch_all or (fetch_top > 0 and not fetch_all):
-        urls = [u for _, u, _ in (seen if fetch_all else seen[:fetch_top])]
+        urls = [u for _, u, _ in (sel if fetch_all else sel[:fetch_top])]
         if urls:
             out.append("\n--- ТЕКСТЫ ИСТОЧНИКОВ ---")
             out.append(batch_fetch(urls, max_chars=max_chars,

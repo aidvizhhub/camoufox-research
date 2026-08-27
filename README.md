@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.3.0-green)
+![Version](https://img.shields.io/badge/version-0.4.0-green)
 
 ```
     AI Agent
@@ -112,13 +112,20 @@ research(
     target_domains=20,     # goal: 20 DIFFERENT websites
     domains_limit=2,       # max 2 results per site (no 15 links from one blog)
     expand=True,           # add "X comparison", "X documentation" queries
+    terms_wave=True,       # 2nd wave built from rare terms of the 1st wave
+    quality_first=True,    # docs / GitHub / arXiv first, forums last
     fetch_all=True,        # read text of every collected source
 )
 ```
 
 How it works (industry patterns, researched 27.08.2026):
 - **Query expansion** — each query gets reformulations (`comparison`, `documentation`), which surface different domains and angles.
-- **Second wave with pagination** — if the target of distinct domains isn't reached, a second search pass (`pages=2`) collects the rest.
+- **Terms wave** — from the 1st wave's snippets the server extracts rare terms
+  and names (proper nouns, CamelCase) and searches them next (Open Deep Research pattern).
+- **Quality ranking** — official docs / GitHub / arXiv rank first, forums last
+  (gpt-researcher source ranking); you can extend the registry in
+  `camoufox_research/camoufox_sources.py`.
+- **Second wave with pagination** — if the target of distinct domains isn't reached, a final pass (`pages=2`) collects the rest.
 - **Domain dedup** — `docs.python.org` and `peps.python.org` count as one source (`python.org`); `example.co.uk` handled as a 3-part domain.
 - **Echo of the goal in the output** — `доменов: N (цель 20)`, so you can see coverage at a glance.
 

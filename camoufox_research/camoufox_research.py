@@ -156,32 +156,39 @@ def research(queries: list[str], max_results_per_query: int = 5,
              max_chars: int = 4000,
              max_parallel: int | None = None,
              target_domains: int = 0, domains_limit: int = 0,
-             expand: bool = False, fetch_all: bool = False) -> str:
+             expand: bool = False, fetch_all: bool = False,
+             terms_wave: bool = False,
+             quality_first: bool = False) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
-    подзапросы, паттерн gpt-researcher quick_search); сервер ищет по
-    каждой, дедуплицирует URL и возвращает список со сниппетами.
-    fetch_top>0 — сразу читает топ-N источников (тексты статей;
-    параллельно, авто по ресурсам машины; max_parallel — явный лимит).
+    подзапросы, паттерн gpt-researcher); сервер ищет по каждой,
+    дедуплицирует URL и возвращает список со сниппетами.
+    fetch_top>0 — сразу читает топ-N источников (тексты статей).
 
     Режим «20+ источников, не топы» (реальный ресёрч):
     - target_domains=N — цель по РАЗНЫМ доменам (20 = двадцать разных
-      сайтов). Пока не набрали — доборка второй волной поиска.
-    - domains_limit=K — не больше K источников с одного домена
-      (напр. 2), иначе топ забивают ссылки одного сайта.
-    - expand=True — к каждому запросу добавить переформулировки
-      («X comparison», «X documentation») — свежие домены и углы.
-    - fetch_all=True — прочитать тексты ВСЕХ источников, а не топ-N.
+      сайтов). Пока не набрали — доборка волнами: базовые запросы,
+      потом follow-up из термов сниппетов, потом пагинация.
+    - domains_limit=K — не больше K источников с одного домена.
+    - expand=True — к каждому запросу переформулировки («X comparison»,
+      «X documentation») — свежие домены и углы.
+    - terms_wave=True — вторая волна из РЕДКИХ ТЕРМОВ первой волны
+      (имена, названия из сниппетов) — паттерн Open Deep Research.
+    - quality_first=True — отбор по качеству домена: доки/GitHub/arXiv
+      первыми, форумы вниз (паттерн gpt-researcher source ranking).
+    - fetch_all=True — тексты ВСЕХ отобранных, а не топ-N.
     Пример глубокого ресёрча: research(queries=["deep research
     agents"], target_domains=20, domains_limit=2, expand=True,
-    fetch_all=True, max_results_per_query=6)
+    terms_wave=True, quality_first=True, fetch_all=True,
+    max_results_per_query=6)
     Результат кэшируется на сутки."""
-    return _call("research", timeout=600, queries=queries,
+    return _call("research", timeout=900, queries=queries,
                  max_results_per_query=max_results_per_query,
                  fetch_top=fetch_top, article_only=article_only,
                  max_chars=max_chars, max_parallel=max_parallel,
                  target_domains=target_domains, domains_limit=domains_limit,
-                 expand=expand, fetch_all=fetch_all)
+                 expand=expand, fetch_all=fetch_all,
+                 terms_wave=terms_wave, quality_first=quality_first)
 
 
 @mcp.tool()
@@ -289,9 +296,11 @@ def research_plan(topic: str) -> str:
     return (f"Тема: {topic}\n\n"
             "1. Разбей тему на 3-5 подзапросов (разные формулировки).\n"
             "2. Вызови research(queries=[...], max_results_per_query=6, "
-            "target_domains=20, domains_limit=2, expand=True, "
-            "fetch_all=True, max_chars=4000) — цель двадцать РАЗНЫХ\n"
-            "   доменов, максимум 2 источника с одного сайта.\n"
+            "target_domains=20, domains_limit=2, expand=True,\n"
+            "   terms_wave=True, quality_first=True, fetch_all=True, "
+            "max_chars=4000) — цель двадцать РАЗНЫХ\n"
+            "   доменов; доки/код/arXiv первыми; вторая волна из "
+            "термов первой.\n"
             "3. Сопоставь источники: общее, противоречия, пробелы.\n"
             "4. Итог с цитатами источников.")
 
