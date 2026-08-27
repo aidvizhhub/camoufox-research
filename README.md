@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.13.0-green)
+![Version](https://img.shields.io/badge/version-0.14.0-green)
 
 ```
     AI Agent
@@ -140,6 +140,8 @@ campaign is `running` — 1 campaign = 1 worker = 1 browser (atomic
 **Citation pack (`citation_pack`, after a campaign):** verified ✅ sources
 with digests, one block, numbered [1]..[N] — the report citer writes with
 live links only (DEER / DeepResearch Bench verified-citations gate).
+Digests are menu-cleaned (`_digest_clean`: GitHub/SPA navigation junk is
+stripped; `research_digest(camp_id, refresh)` rebuilds old packs).
 
 For automation, `as_json=True` returns a JSON payload instead of a text dump:
 

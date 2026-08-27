@@ -12,6 +12,7 @@ citations per report», DEER (arXiv 2512.17776) — верификация ци�
 проставляет статус жив/кэш/битый. Факты копятся в той же sqlite.
 """
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -21,10 +22,47 @@ from concurrent.futures import ThreadPoolExecutor
 from camoufox_cache import _cache_get
 from camoufox_campaign import _DB_PATH, _db
 
-_UA = {"User-Agent": "camoufox-research/0.11 (+https://github.com/aidvizhhub/camoufox-research)"}
+_UA = {"User-Agent": "camoufox-research/0.14 (+https://github.com/aidvizhhub/camoufox-research)"}
 _MAX_VERIFY = 30
 _MAX_DIGEST = 30
 _DIGEST_CHARS = 700
+
+# Навигационный мусор выжимок: Trafilatura на GitHub/SPA тащит меню
+# («Navigation Menu», «Sign in»...) прямо в текст статьи (проверено
+# 27.08.2026 — цитата с «Skip to content» дискредитирует отчёт).
+_MENU_JUNK = ("skip to content", "navigation menu", "sign in", "sign up",
+              "main navigation", "toggle navigation", "open menu",
+              "close menu", "breadcrumbs", "ai code creation",
+              "github copilot", "mcp registry", "search", "platform",
+              "docs", "pricing", "language", "cookie", "privacy policy",
+              "terms of service", "say thanks", "report abuse",
+              "all rights reserved", "notifications", "feedback",
+              "explore")
+
+# Фразы для тотального удаления ИЗ ЛЮБОЙ СТРОКИ: только безопасные
+# (без «search»/«docs»/«menu»-слов, встречающихся в контенте).
+_MENU_PHRASES = ("skip to main content", "skip to content",
+                 "navigation menu", "main navigation",
+                 "toggle navigation", "back to top", "open menu",
+                 "close menu", "breadcrumbs", "ai code creation",
+                 "github copilot", "mcp registry", "appdirect agents",
+                 "from issue to merge", "sign in", "sign up",
+                 "report abuse", "say thanks", "all rights reserved",
+                 "privacy policy", "terms of service")
+
+
+def _digest_clean(body):
+    """Срезать меню из выжимки: короткие junk-строки (len<=40) вон +
+    меню-фразы из любой строки (GitHub склеивает меню в длинную строку —
+    проверено 27.08). Остальное склеить, схлопнуть пробелы, до 700."""
+    lines = [l.strip() for l in body.splitlines() if l.strip()]
+    kept = [l for l in lines
+            if not (len(l) <= 40 and any(j in l.lower()
+                                          for j in _MENU_JUNK))]
+    text = " ".join(kept)
+    for phrase in _MENU_PHRASES:
+        text = re.sub(re.escape(phrase), "", text, flags=re.IGNORECASE)
+    return re.sub(r"\s{2,}", " ", text)[:_DIGEST_CHARS]
 
 
 def _sources(camp_id, only_empty_digest=False):
@@ -37,18 +75,19 @@ def _sources(camp_id, only_empty_digest=False):
     return rows
 
 
-def make_digest(camp_id, log=None):
-    """Выжимки: title + первые _DIGEST_CHARS текста. Кэш тёплый после
-    fetch — читаем, иначе batch_fetch (параллельно, браузер в фоне
-    кампании). Возвращает (сделано, всего)."""
+def make_digest(camp_id, log=None, force=False):
+    """Выжимки: title + первые _DIGEST_CHARS текста (меню-строки срезаны
+    _digest_clean). Кэш тёплый после fetch — читаем, иначе batch_fetch
+    (параллельно). force=True — пересобрать и существующие (перечистка
+    старых пакетов). Возвращает (сделано, всего)."""
     from camoufox_fetch import _batch_texts, batch_fetch  # поздний: браузер
-    rows = _sources(camp_id, only_empty_digest=True)[:_MAX_DIGEST]
+    rows = _sources(camp_id, only_empty_digest=not force)[:_MAX_DIGEST]
     if not rows:
         return 0, len(_sources(camp_id))
     urls = [r[0] for r in rows]
     texts = {}
     try:
-        raw = batch_fetch(urls, max_chars=_DIGEST_CHARS + 200,
+        raw = batch_fetch(urls, max_chars=_DIGEST_CHARS + 600,
                           article_only=True)
         for item in _batch_texts(raw):
             texts[item["url"]] = item["text"]
@@ -60,7 +99,7 @@ def make_digest(camp_id, log=None):
             body = texts.get(url, "")
             if not body:
                 continue
-            digest = (f"{title.strip()} — {body.strip()[:_DIGEST_CHARS]}")
+            digest = f"{title.strip()} — {_digest_clean(body)}"
             con.execute("UPDATE campaign_sources SET digest=? WHERE camp_id=?"
                         " AND url=?", (digest, camp_id, url))
             done += 1
