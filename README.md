@@ -316,8 +316,7 @@ camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
   собирает источники БЕЗ поисковика (queries можно опустить).
 - Сторож поиска (scripts/watchdog_search.py + cron) проверяет DDG
   реальным путём: провал → watchdog_ALERT; research_start проверяет
-  пульс крона и предупреждает, если тот молчит.
-- Ларец не переполняется: `research_index` — сводка всех кампаний;
+  пульс крона и предупреждает, если тот молчит.- Ларец не переполняется: `research_index` — сводка всех кампаний;
   `scripts/campaign_cleanup.py` (dry-run по умолчанию, --yes) выметает
   артефакты старше 30 дней. Отчёты .md метла не трогает.
 
@@ -363,6 +362,25 @@ PASSED). Публикация — через Trusted Publishing (OIDC, без т
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md): layout, adding a new tool, smoke-test ritual.
+
+## Сторож поиска (cron) — ОБЯЗАТЕЛЕН для честных кампаний
+
+`scripts/watchdog_search.py` ходит в DDG реальным путём: разметка сменилась
+→ `_search_results` молча вернёт 0, кэш на сутки замаскирует, кампании
+станут честными «partial» без причины. Сторож ловит это ДО охот (shift-left):
+провал → файл `watchdog_ALERT`; `research_start` проверяет пульс крона и
+предупреждает, если тот молчит дольше `CAMOUFOX_STALE_H` (по умолчанию 48ч).
+
+Cron (идемпотентно, одна строка; путь вентиля — `CAMOUFOX_WATCHDOG_LOG`):
+
+```bash
+7 9,21 * * * ~/.venvs/camoufox-research/bin/python \
+  /путь/к/camoufox-reasearch/scripts/watchdog_search.py \
+  >> ~/.cache/camoufox-research/watchdog.log 2>&1
+```
+
+Проверка пульса: `watchdog.log` должен иметь строки `ok` с таймстампами.
+Молчит → `research_start` скажет «⚠ сторож не найден/молчит».
 
 ## CI
 

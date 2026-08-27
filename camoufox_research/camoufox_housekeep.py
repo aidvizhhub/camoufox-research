@@ -232,7 +232,11 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
         con.close()
     except Exception as e:
         summary.append(f"db:err:{type(e).__name__}")
-    d = _report_dir()
+    # Чистим ТОЛЬКО временный кэш exports (артефакты, .cit, дубли) —
+    # НЕ research/: там вечная добыча (архив отчётов, INDEX.md).
+    # _report_dir() сюда НЕ годится: с 28.08 он указывает на research/,
+    # и чистка снесла бы архив (проверено pre-мортэмом).
+    d = Path(_WLOG).parent / "exports"
     n_files = 0
     if d.is_dir():
         cutoff = now - exports_days * 86400

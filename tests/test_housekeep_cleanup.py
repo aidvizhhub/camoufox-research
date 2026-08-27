@@ -196,3 +196,65 @@ class ReportIndexTest(unittest.TestCase):
                 self.assertIn("новая тема", idx2)
         finally:
             hk._REPORT_DIR = old_dir
+
+
+class CleanupKeepsResearchTest(unittest.TestCase):
+    """Регрессия 28.08: cleanup не должен трогать research/ (вечный
+    архив). _report_dir() теперь указывает туда — до фикса чистка
+    сносила бы архив по TTL (pre-mortem поймал ДО релиза)."""
+
+    def test_cleanup_does_not_touch_research(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import os
+        import tempfile
+        import time
+
+        old_dir = hk._REPORT_DIR
+        old_wlog = hk._WLOG
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                # research/ с СТАРЫМ файлом (возраст > 90 дней)
+                rdir = Path(td) / "research"
+                rdir.mkdir()
+                old_report = rdir / "2020-01-01-старый-архив.md"
+                old_report.write_text("ВЕЧНАЯ ДОБЫЧА", encoding="utf-8")
+                old_ts = time.time() - 400 * 86400
+                os.utime(old_report, (old_ts, old_ts))
+
+                # кэш-exports со старым файлом (его и должна удалить):
+                # _WLOG рядом (хранится в .../exports/), очистка идёт от
+                # каталога _WLOG.parent/exports
+                ex = Path(td) / "exports"
+                ex.mkdir()
+                old_cache = ex / "2020-01-01-старый-артефакт.md"
+                old_cache.write_text("МУСОР", encoding="utf-8")
+                os.utime(old_cache, (old_ts, old_ts))
+
+                hk._REPORT_DIR = str(rdir)
+                hk._WLOG = str(Path(td) / "watchdog.log")  # d = td/exports
+                # БД с нужными таблицами
+                db = os.path.join(td, "c.db")
+                con = sqlite3.connect(db)
+                con.executescript(
+                    """
+                    CREATE TABLE pages (url_hash TEXT PRIMARY KEY, url TEXT,
+                        text TEXT, ts REAL);
+                    CREATE TABLE deltas (url_hash TEXT PRIMARY KEY,
+                        content_hash TEXT, ts REAL);
+                    CREATE TABLE searches (q_hash TEXT PRIMARY KEY,
+                        query TEXT, result TEXT, ts REAL);
+                    CREATE TABLE campaigns (id TEXT PRIMARY KEY,
+                        topic TEXT, updated_ts REAL);
+                    """
+                )
+                con.close()
+
+                msg = hk.cleanup(db, dry_run=False)
+                self.assertTrue(old_report.exists(), "research/ архив СНЕСЁН чисткой — БАГ")
+                self.assertFalse(
+                    old_cache.exists(), "кэш-артефакт не удалён"
+                )
+                self.assertIn("exports:1", msg)
+        finally:
+            hk._REPORT_DIR = old_dir
+            hk._WLOG = old_wlog
