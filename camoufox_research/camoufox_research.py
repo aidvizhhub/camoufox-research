@@ -445,6 +445,15 @@ def main():
                     default=int(os.environ.get("CAMOUFOX_PORT", "8833")),
                     help="порт для http/sse (или env CAMOUFOX_PORT)")
     args = ap.parse_args()
+    # TTL-уборка кэша при старте (паттерн cleanupPeriodDays, см. housekeep):
+    # страницы/диффы/поиск > 30 дней, отчёты exports > 90 дней. Ошибки
+    # уборки не роняют сервер (бонус, не охота).
+    try:
+        from camoufox_housekeep import cleanup
+        from camoufox_campaign import _DB_PATH
+        cleanup(_DB_PATH)
+    except Exception:  # noqa: BLE001 — уборка бонус
+        pass
     if args.transport == "stdio":
         mcp.run()
     elif args.transport == "http":

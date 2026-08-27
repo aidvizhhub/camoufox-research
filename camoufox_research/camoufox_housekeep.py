@@ -128,6 +128,51 @@ def marker_update(done_path, key, value):
         pass
 
 
+def cleanup(db_path, cache_days=30, exports_days=90, dry_run=False):
+    """TTL-уборка кэша при старте (паттерн cleanupPeriodDays у Claude Code).
+
+    cache_days — возраст строк кэша (pages/deltas/searches) в БД;
+    exports_days — возраст файлов-отчётов в exports/.
+    Суть охоты (campaigns, campaign_sources) НЕ трогаем — добыча вечная.
+    dry_run=True — только посчитать, ничего не удалять (проверка ДО).
+    Пишет итог в watchdog.log (вентиль путей CAMOUFOX_WATCHDOG_LOG),
+    stdout не трогает — MCP-протокол по stdio не загрязняем."""
+    import sqlite3
+    now = time.time()
+    summary = []
+    try:
+        con = sqlite3.connect(db_path)
+        old = now - cache_days * 86400
+        for tbl in ("pages", "deltas", "searches"):
+            n = con.execute(f"SELECT COUNT(*) FROM {tbl} WHERE ts < ?",
+                            (old,)).fetchone()[0]
+            if n and not dry_run:
+                con.execute(f"DELETE FROM {tbl} WHERE ts < ?", (old,))
+            summary.append(f"{tbl}:{n}")
+        con.commit()
+        con.close()
+    except Exception as e:  # noqa: BLE001 — уборка не роняет старт сервера
+        summary.append(f"db:err:{type(e).__name__}")
+    d = Path(_REPORT_DIR) if _REPORT_DIR else Path(_WLOG).parent / "exports"
+    n_files = 0
+    if d.is_dir():
+        cutoff = now - exports_days * 86400
+        for f in d.iterdir():
+            try:
+                if f.is_file() and f.stat().st_mtime < cutoff:
+                    n_files += 1
+                    if not dry_run:
+                        f.unlink()
+            except OSError:
+                continue
+    summary.append(f"exports:{n_files}")
+    msg = " ".join(summary)
+    if not dry_run and msg != " ".join(
+            [f"{t}:0" for t in ("pages", "deltas", "searches")] + ["exports:0"]):
+        _log_line(_WLOG, f"cleanup: {msg}")
+    return msg
+
+
 def index(db_path, limit=50, fmt="md"):
     """Сводка всех кампаний: id · тема · статус · домены/цель · когда.
     Сырьё для «покажи всех зверей охоты» без ручного sqlite."""
