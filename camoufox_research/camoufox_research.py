@@ -224,6 +224,16 @@ def research_digest(camp_id: str, refresh: bool = True) -> str:
 
 
 @mcp.tool()
+def citation_pack(camp_id: str) -> str:
+    """CIT-ПАКЕТ для синтеза отчёта: только verified ✅ источники
+    с выжимками, одним блоком (цитируй по номерам [1]..[N]).
+    Это гейт качества DEER/DeepResearch Bench: отчёт опирается на
+    живые источники, а не на мёртвые ссылки. Если verify/выжимки ещё
+    не прогонялись — достроит автоматически (сеть/браузер)."""
+    return _call("citation_pack", camp_id=camp_id)
+
+
+@mcp.tool()
 def research_start(topic: str, queries: list[str] | None = None,
                    target_sources: int = 20, domains_limit: int = 2,
                    feeds: list[str] | None = None,

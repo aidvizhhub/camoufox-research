@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.12.0-green)
+![Version](https://img.shields.io/badge/version-0.13.0-green)
 
 ```
     AI Agent
@@ -136,6 +136,10 @@ DEER / DeepResearch Bench pattern). The done-marker gains `digests / verified
 **One hunt at a time (guard):** a new campaign starts only if no other
 campaign is `running` — 1 campaign = 1 worker = 1 browser (atomic
 `INSERT ... WHERE NOT EXISTS`, no races; Playwright EPIPE lesson).
+
+**Citation pack (`citation_pack`, after a campaign):** verified ✅ sources
+with digests, one block, numbered [1]..[N] — the report citer writes with
+live links only (DEER / DeepResearch Bench verified-citations gate).
 
 For automation, `as_json=True` returns a JSON payload instead of a text dump:
 

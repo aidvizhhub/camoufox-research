@@ -129,6 +129,41 @@ def digest_report(camp_id):
     return f"источников: {total}\n" + "\n".join(out)
 
 
+def citation_pack(camp_id, autofix=True):
+    """CIT-ПАКЕТ для синтеза: только verified ✅ источники с выжимками.
+
+    Агент пишет отчёт с цитатами по живому, а не по мёртвым ссылкам
+    (паттерн DEER/DeepResearch Bench: verified citations per report).
+    autofix=True — если verify/выжимки не прогонялись, достроить
+    (сеть/браузер — но только то, чего не хватает). Честная шапка:
+    verified/битые/не проверено.
+    """
+    rows = _sources(camp_id)
+    if not rows:
+        return f"ошибка: нет источников кампании {camp_id}"
+    if autofix and any(r[3] == -1 for r in rows):
+        verify_sources(camp_id)
+        rows = _sources(camp_id)
+    if autofix and any(r[3] == 1 and not r[2] for r in rows):
+        make_digest(camp_id)
+        rows = _sources(camp_id)
+    verified_n = sum(1 for r in rows if r[3] == 1)
+    broken_n = sum(1 for r in rows if r[3] == 0)
+    picked = [r for r in rows if r[3] == 1 and r[2]]
+    if not picked:
+        return (f"CIT-ПАКЕТ пуст: verified {verified_n}, битых {broken_n}, "
+                f"выжимок без текста — добыть тексты нельзя, проверь "
+                "источники вручную или запусти кампанию заново.")
+    head = (f"CIT-ПАКЕТ {camp_id}: {len(picked)} живых источников с текстом"
+            f" (всего {len(rows)}: verified {verified_n} · битых {broken_n}"
+            f" · не проверено {len(rows) - verified_n - broken_n})\n"
+            "Синтезируй отчёт, цитируя по номерам [1]..[N].")
+    body = []
+    for i, (url, title, digest, _) in enumerate(picked, 1):
+        body.append(f"[{i}] {title}\n    {url}\n    {digest[:220]}")
+    return head + "\n" + "\n".join(body)
+
+
 def research_digest(camp_id, refresh=True):
     """ACTION для воркера: выжимки + верификация + пакет для синтеза."""
     if refresh:
