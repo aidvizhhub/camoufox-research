@@ -55,6 +55,33 @@ def _slug(topic):
     return s[:60] or "campaign"
 
 
+def _refresh_report_index(d: Path) -> None:
+    """Оглавление отчётов: research/INDEX.md — список «дата · тема · файл»
+    из ФАКТИЧЕСКИХ файлов (идемпотентно: пересборка после каждого
+    сохранения, удалённые файлы сами уходят из списка). Ошибки не
+    роняют сохранение — индекс бонус."""
+    try:
+        files = sorted(d.glob("20??-??-??-*.md"))
+        if not files:
+            return
+        rows = []
+        for f in files:
+            m = re.match(r"(\d{4}-\d{2}-\d{2})-(.+)\.md$", f.name)
+            if not m:
+                continue
+            date, topic = m.group(1), m.group(2).replace("-", " ").replace("_", " ")
+            rows.append(f"| {date} | {topic[:70]} | [{f.name}]({f.name}) |")
+        head = (
+            "# Индекс отчётов\n\n"
+            "Автособирается при сохранении отчёта кампании (housekeep).\n"
+            "Конвенция: `YYYY-MM-DD-тема.md` (см. research/README.md).\n\n"
+            "| Дата | Тема | Файл |\n|---|---|---|\n"
+        )
+        (d / "INDEX.md").write_text(head + "\n".join(rows) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+
 def save_report(camp_id, topic, status, notes, report_md):
     """Автоархив отчёта кампании. Пишем done и partial (partial — тоже
     результат, честно помечен в шапке). Ошибки НЕ роняют охоту."""
@@ -67,6 +94,7 @@ def save_report(camp_id, topic, status, notes, report_md):
         head = f"<!-- автоархив кампании {camp_id} · {time.strftime('%d.%m.%Y %H:%M')} -->\n\n"
         body = head + report_md + "\n\nзаметки волн: " + "; ".join(notes) + "\n"
         path.write_text(body, encoding="utf-8")
+        _refresh_report_index(d)  # индекс отчётов: список по датам
         return str(path)
     except Exception:
         return None

@@ -356,6 +356,9 @@ PASSED). Публикация — через Trusted Publishing (OIDC, без т
   backoff; `delta=True` skips re-reading unchanged pages.
 - Config via environment only (see `configs/example.env`): `CAMOUFOX_VENV`,
   `CAMOUFOX_CACHE_DIR`, timeouts, proxy.
+- Campaign reports go to `CAMOUFOX_REPORT_DIR` if set; otherwise to
+  `research/` **next to this repo** (portable, convention `research/README.md`);
+  fallback — `~/.cache/.../exports`. `research/INDEX.md` lists all reports by date.
 
 ## Development
 

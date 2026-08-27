@@ -150,3 +150,49 @@ class ReportDirTest(unittest.TestCase):
                 self.assertIn("2026", Path(p).name)  # YYYY-MM-DD-тема.md
         finally:
             hk._REPORT_DIR = old_dir
+
+
+class ReportIndexTest(unittest.TestCase):
+    """research/INDEX.md: автосборка оглавления при сохранении отчёта."""
+
+    def test_index_created_on_save(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import tempfile
+
+        old_dir = hk._REPORT_DIR
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                hk._REPORT_DIR = td
+                hk.save_report("cmp_i1", "тема альфа", "done", [], "ТЕЛО А")
+                hk.save_report("cmp_i2", "тема бета", "partial", [], "ТЕЛО Б")
+                idx = Path(td) / "INDEX.md"
+                self.assertTrue(idx.exists(), "INDEX.md не создан")
+                body = idx.read_text(encoding="utf-8")
+                self.assertIn("# Индекс отчётов", body)
+                self.assertIn("тема альфа", body)
+                self.assertIn("тема бета", body)
+                # обе строки с датами
+                self.assertGreaterEqual(body.count("20"), 2)
+        finally:
+            hk._REPORT_DIR = old_dir
+
+    def test_index_rebuilds_without_deleted(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import tempfile
+
+        old_dir = hk._REPORT_DIR
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                hk._REPORT_DIR = td
+                hk.save_report("cmp_d1", "удаляемая тема", "done", [], "ТЕЛО")
+                idx1 = (Path(td) / "INDEX.md").read_text(encoding="utf-8")
+                self.assertIn("удаляемая тема", idx1)
+                # удаляем файл отчёта → индекс пересобирается без него
+                for f in Path(td).glob("20??-??-??-*.md"):
+                    f.unlink()
+                hk.save_report("cmp_d2", "новая тема", "done", [], "ТЕЛО 2")
+                idx2 = (Path(td) / "INDEX.md").read_text(encoding="utf-8")
+                self.assertNotIn("удаляемая тема", idx2)
+                self.assertIn("новая тема", idx2)
+        finally:
+            hk._REPORT_DIR = old_dir
