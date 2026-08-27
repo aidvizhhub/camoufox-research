@@ -1,0 +1,19 @@
+name: gitleaks
+
+# Страж секретов (supply-chain, канон 27.08.2026): каждый пуш и каждый
+# PR проверяются gitleaks — секрет, попавший в git, скомпрометирован
+# навсегда, ловим ДО публикации. v3 — последняя мажорная экшена
+# (GitHub с июня 2026 дефолт Node 24, v2 падает без флагов).
+
+on: [push, pull_request]
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0      # полная история — скан всех коммитов
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

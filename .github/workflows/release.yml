@@ -36,8 +36,8 @@ jobs:
         with:
           name: dist
           path: dist/
-      # API-токен PyPI (project-scoped): секрет API_TOKEN_PYPI в repo secrets.
-      # (OIDC-вариант остаётся планом А после привязки trusted publisher.)
+      # Trusted Publishing (OIDC): БЕЗ токенов — pypi.org ↔ GitHub
+      # узнают друг друга по отпечатку. Привязка (5 полей):
+      # owner aidvizhhub · repo camoufox-research · workflow release.yml ·
+      # environment pypi · project name camoufox-research.
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.API_TOKEN_PYPI }}

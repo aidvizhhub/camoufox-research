@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "camoufox-research"
-version = "0.17.2"
+version = "0.18.0"
 description = "MCP server for browser research on the anti-detect Camoufox browser: search, page reading (incl. JS/SPA), batch fetch, clicks, typing, sessions, cache"
 readme = "README.md"
 license = {text = "MIT"}

@@ -1,0 +1,8 @@
+[
+  {
+    "topic": "пример темы дозора",
+    "feeds": ["https://hnrss.org/frontpage"],
+    "queries": ["пример запрос"],
+    "target_sources": 4
+  }
+]

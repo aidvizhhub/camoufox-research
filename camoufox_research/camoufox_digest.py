@@ -315,6 +315,8 @@ def post_hunt(camp_id, log):
                 f"источников {total}, verified {verified}, "
                 f"битых {broken_total}, отчёт: "
                 f"{cit_report.splitlines()[0] if cit_report else 'нет'}")
+        # поводок длины: база не пухнет от длинных тем/путей (лимит env)
+        note = note[:int(os.environ.get("CAMOUFOX_MEMORY_MAX", "300"))]
         if not total:  # пустая охота: в память только МУСОР попадёт
             memory_note = ""
             log("память пропущена: источников 0")
