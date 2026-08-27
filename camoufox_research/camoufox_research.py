@@ -29,6 +29,13 @@ except Exception:  # noqa: S110,BLE001 — reconfigure опционален, б�
 
 from mcp.server.fastmcp import FastMCP
 
+# Запуск как скрипт из подпапки (camoufox_worker спавнит именно так):
+# sys.path[0] = каталог camoufox_research, где лежит ФАЙЛ camoufox_research.py
+# — Python грузит его как «модуль camoufox_research» вместо пакета, и
+# `from camoufox_research.X import` падает («is not a package»).
+# Корень репо В ПЕРВУЮ ОЧЕРЕДЬ → пакет грузится из корня (хак оригинала).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from camoufox_research.camoufox_research_bridge import (
     _START_TIME,
     _RATE_LIMIT,
