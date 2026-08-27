@@ -128,15 +128,16 @@ def marker_update(done_path, key, value):
         pass
 
 
-def cleanup(db_path, cache_days=30, exports_days=90, dry_run=False):
+def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=False):
     """TTL-уборка кэша при старте (паттерн cleanupPeriodDays у Claude Code).
 
     cache_days — возраст строк кэша (pages/deltas/searches) в БД;
-    exports_days — возраст файлов-отчётов в exports/.
-    Суть охоты (campaigns, campaign_sources) НЕ трогаем — добыча вечная.
+    exports_days — возраст файлов-отчётов в exports/;
+    campaigns_days — возраст кампаний (campaigns + campaign_sources), 90д.
     dry_run=True — только посчитать, ничего не удалять (проверка ДО).
     Пишет итог в watchdog.log (вентиль путей CAMOUFOX_WATCHDOG_LOG),
-    stdout не трогает — MCP-протокол по stdio не загрязняем."""
+    stdout не трогает — MCP-протокол по stdio не загрязняем.
+    После удалений — VACUUM (сжать БД, отдать место)."""
     import sqlite3
     now = time.time()
     summary = []
@@ -149,7 +150,30 @@ def cleanup(db_path, cache_days=30, exports_days=90, dry_run=False):
             if n and not dry_run:
                 con.execute(f"DELETE FROM {tbl} WHERE ts < ?", (old,))
             summary.append(f"{tbl}:{n}")
+        # TTL кампаний: старые охоты + их источники (иначе БД пухнет вечно)
+        old_camp = now - campaigns_days * 86400
+        try:
+            n_camp = con.execute("SELECT COUNT(*) FROM campaigns WHERE updated_ts < ?",
+                                 (old_camp,)).fetchone()[0]
+            n_src = con.execute("SELECT COUNT(*) FROM campaign_sources WHERE camp_id IN "
+                                "(SELECT id FROM campaigns WHERE updated_ts < ?)",
+                                (old_camp,)).fetchone()[0]
+            if (n_camp or n_src) and not dry_run:
+                con.execute("DELETE FROM campaign_sources WHERE camp_id IN "
+                            "(SELECT id FROM campaigns WHERE updated_ts < ?)",
+                            (old_camp,))
+                con.execute("DELETE FROM campaigns WHERE updated_ts < ?", (old_camp,))
+            summary.append(f"campaigns:{n_camp}")
+            summary.append(f"campaign_sources:{n_src}")
+        except Exception:
+            # старая БД без кампаний — не страшно
+            pass
         con.commit()
+        if not dry_run and any(":" in s and not s.endswith(":0") for s in summary):
+            try:
+                con.execute("VACUUM")
+            except Exception:
+                pass
         con.close()
     except Exception as e:  # noqa: BLE001 — уборка не роняет старт сервера
         summary.append(f"db:err:{type(e).__name__}")
