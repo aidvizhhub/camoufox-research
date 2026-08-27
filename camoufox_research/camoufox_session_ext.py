@@ -3,6 +3,7 @@
 # Разрезано из camoufox_session.py (580→ 341+239, канон FILE-SIZE.md)
 
 """Session-extra: скриншоты, сеть/консоль, скачивание, формы — вторая половина."""
+
 import json
 import os
 import time
@@ -33,8 +34,7 @@ except ImportError:
 
 
 def _shots_dir():
-    d = os.path.join(os.path.expanduser("~"), ".cache",
-                     "camoufox-research", "shots")
+    d = os.path.join(os.path.expanduser("~"), ".cache", "camoufox-research", "shots")
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -52,9 +52,7 @@ def _shot_to_file(page, selector, som, full_page):
     finally:
         if som:
             with suppress(Exception):
-                page.evaluate(
-                    "() => document.querySelectorAll('.vz-som')"
-                    ".forEach(e => e.remove())")
+                page.evaluate("() => document.querySelectorAll('.vz-som').forEach(e => e.remove())")
     size = os.path.getsize(path)
     return f"PNG: {path} ({size // 1024} KB)"
 
@@ -110,8 +108,7 @@ def session_resize(width, height, max_chars=2000):
     page.set_viewport_size({"width": int(width), "height": int(height)})
     page.wait_for_timeout(1200)
     _wait_content(page)
-    return (f"viewport: {width}x{height}\n\n"
-            + _text(page, max_chars))
+    return f"viewport: {width}x{height}\n\n" + _text(page, max_chars)
 
 
 def session_form_fill(fields, submit="", max_chars=6000):
@@ -122,7 +119,7 @@ def session_form_fill(fields, submit="", max_chars=6000):
     try:
         spec = json.loads(fields) if isinstance(fields, str) else fields
     except Exception:  # noqa: BLE001
-        return "ошибка: fields не JSON — нужен объект {\"селектор\": \"значение\"}"
+        return 'ошибка: fields не JSON — нужен объект {"селектор": "значение"}'
     if not isinstance(spec, dict) or not spec:
         return "ошибка: fields должна быть непустым объектом"
     report = []
@@ -142,8 +139,11 @@ def session_form_fill(fields, submit="", max_chars=6000):
             page.wait_for_timeout(2500)
             _wait_content(page)
         except Exception as e:  # noqa: BLE001
-            return ("заполнено, но submit не сработал:\n"
-                    + "\n".join(report) + f"\nошибка: {type(e).__name__}: {e}")
+            return (
+                "заполнено, но submit не сработал:\n"
+                + "\n".join(report)
+                + f"\nошибка: {type(e).__name__}: {e}"
+            )
     return "заполнено:\n" + "\n".join(report) + "\n\n" + _text(page, max_chars)
 
 
@@ -170,7 +170,7 @@ def session_network(limit=50):
     if not w or not w["network"]:
         return "запросов не наблюдалось (сеть пишется с момента открытия вкладки)"
     rows = []
-    for r in w["network"][-int(limit):]:
+    for r in w["network"][-int(limit) :]:
         rows.append(f"[{r['status']}] {r['method']} {r['type']} {r['url']}")
     return "\n".join(rows)
 
@@ -182,7 +182,7 @@ def session_console(limit=50):
     if not w or not w["console"]:
         return "сообщений консоли нет"
     rows = []
-    for m in w["console"][-int(limit):]:
+    for m in w["console"][-int(limit) :]:
         rows.append(f"[{m['type']}] {m['text']}")
     return "\n".join(rows)
 
@@ -191,8 +191,7 @@ def session_block(pattern):
     """Заблокировать запросы, URL которых содержит pattern (напр.
     'analytics', '**.gif'). Действует на активную вкладку."""
     page = _core._session_page()
-    w = _core._WATCH.setdefault(id(page), {"network": [], "console": [],
-                                     "blocked": []})
+    w = _core._WATCH.setdefault(id(page), {"network": [], "console": [], "blocked": []})
     if pattern not in w["blocked"]:
         w["blocked"].append(pattern)
     return f"блокирую: {pattern} (всего: {len(w['blocked'])})"
@@ -215,8 +214,7 @@ def session_download(url="", selector="", timeout=30):
     """Скачать файл. url — прямая ссылка (через браузерный контекст);
     selector — кликнуть по элементу и поймать download (кнопки «Скачать»).
     Сохраняет в ~/.cache/camoufox-research/downloads/. Возвращает путь."""
-    ddir = os.path.join(os.path.expanduser("~"), ".cache",
-                        "camoufox-research", "downloads")
+    ddir = os.path.join(os.path.expanduser("~"), ".cache", "camoufox-research", "downloads")
     os.makedirs(ddir, exist_ok=True)
     page = _core._session_page()
     if selector:
@@ -224,8 +222,9 @@ def session_download(url="", selector="", timeout=30):
             with page.expect_download(timeout=int(timeout) * 1000) as dl:
                 page.click(selector, timeout=10000)
             d = dl.value
-            path = os.path.join(ddir, os.path.basename(d.suggested_filename)
-                                or f"download_{int(time.time())}")
+            path = os.path.join(
+                ddir, os.path.basename(d.suggested_filename) or f"download_{int(time.time())}"
+            )
             d.save_as(path)
             return f"скачано: {path} ({os.path.getsize(path) // 1024} KB)"
         except Exception as e:  # noqa: BLE001 — скачивания не было
@@ -233,8 +232,7 @@ def session_download(url="", selector="", timeout=30):
     if url:
         try:
             live = _core._LIVE_PROVIDER() if _core._LIVE_PROVIDER else None
-            ctx = (live[1].contexts[0] if live and live[1].contexts
-                   else None)
+            ctx = live[1].contexts[0] if live and live[1].contexts else None
             if ctx is not None:
                 resp = ctx.request.get(url, timeout=int(timeout) * 1000)
                 if not resp.ok:
@@ -242,6 +240,7 @@ def session_download(url="", selector="", timeout=30):
                 body = resp.body()
             else:
                 import urllib.request
+
                 with urllib.request.urlopen(url, timeout=int(timeout)) as r:
                     body = r.read()
             name = os.path.basename(url.split("?")[0]) or "download"

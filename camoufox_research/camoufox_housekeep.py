@@ -9,6 +9,7 @@
 сторож. Сторож пишет лог сюда же — ОДИН вентиль путей CAMOUFOX_WATCHDOG_LOG
 (полный путь к логу) для скрипта и читателя.
 """
+
 import json
 import os
 import re
@@ -23,14 +24,13 @@ _REPORT_DIR = os.environ.get("CAMOUFOX_REPORT_DIR", "")
 # Пульс крона сторожа: молчит дольше → предупреждение в research_start.
 _STALE_H = int(os.environ.get("CAMOUFOX_STALE_H", "48"))
 _WLOG = os.environ.get(
-    "CAMOUFOX_WATCHDOG_LOG",
-    str(Path.home() / ".cache/camoufox-research/watchdog.log"))
+    "CAMOUFOX_WATCHDOG_LOG", str(Path.home() / ".cache/camoufox-research/watchdog.log")
+)
 
 
 def _slug(topic):
     """Тема → безопасное имя файла: «YYYY-MM-DD-<slug>.md»."""
-    s = re.sub(r"\s+", "-",
-               re.sub(r'[\\/:*?"<>|]+', " ", topic).strip().lower())
+    s = re.sub(r"\s+", "-", re.sub(r'[\\/:*?"<>|]+', " ", topic).strip().lower())
     return s[:60] or "campaign"
 
 
@@ -43,10 +43,8 @@ def save_report(camp_id, topic, status, notes, report_md):
         d = Path(_REPORT_DIR) if _REPORT_DIR else Path(_WLOG).parent / "exports"
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"{time.strftime('%Y-%m-%d')}-{_slug(topic)}.md"
-        head = (f"<!-- автоархив кампании {camp_id} · "
-                f"{time.strftime('%d.%m.%Y %H:%M')} -->\n\n")
-        body = (head + report_md
-                + "\n\nзаметки волн: " + "; ".join(notes) + "\n")
+        head = f"<!-- автоархив кампании {camp_id} · {time.strftime('%d.%m.%Y %H:%M')} -->\n\n"
+        body = head + report_md + "\n\nзаметки волн: " + "; ".join(notes) + "\n"
         path.write_text(body, encoding="utf-8")
         return str(path)
     except Exception:  # noqa: BLE001 — архив важнее, но не дороже охоты
@@ -60,9 +58,11 @@ def watchdog_note():
     строка сдохла), пусть старт охоты скажет. Пусто = всё живо."""
     try:
         if not os.path.exists(_WLOG):
-            return ("⚠ сторож поиска не найден (watchdog.log нет) — "
-                    "поставь cron по README «Сторож», иначе смена "
-                    "разметки DDG поймается только по «внезапным partial».")
+            return (
+                "⚠ сторож поиска не найден (watchdog.log нет) — "
+                "поставь cron по README «Сторож», иначе смена "
+                "разметки DDG поймается только по «внезапным partial»."
+            )
         last_ok = None
         with open(_WLOG, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -82,8 +82,10 @@ def watchdog_note():
             return ""
         age_h = (time.time() - time.mktime(ts)) / 3600
         if age_h > _STALE_H:
-            return (f"⚠ сторож молчит {age_h:.0f} ч (порог {_STALE_H} ч) — "
-                    "крон умер? Проверь `crontab -l` и хвост watchdog.log.")
+            return (
+                f"⚠ сторож молчит {age_h:.0f} ч (порог {_STALE_H} ч) — "
+                "крон умер? Проверь `crontab -l` и хвост watchdog.log."
+            )
     except Exception:  # noqa: BLE001 — пульс не роняет старт охоты
         return ""
     return ""
@@ -95,13 +97,13 @@ def post_pack(camp_id, log_path, done_path):
     роняют охоту (упаковка бонус)."""
     try:
         from camoufox_digest import post_hunt
-        extra = post_hunt(camp_id,
-                          lambda m: _log_line(log_path, m))
+
+        extra = post_hunt(camp_id, lambda m: _log_line(log_path, m))
         marker = json.loads(Path(done_path).read_text(encoding="utf-8"))
         marker.update(extra)
         Path(done_path).write_text(
-            json.dumps(marker, ensure_ascii=False, indent=1),
-            encoding="utf-8")
+            json.dumps(marker, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
         return extra
     except Exception as e:  # noqa: BLE001 — упаковка бонус, не охота
         _log_line(log_path, f"выжимки пропущены: {type(e).__name__}")
@@ -122,8 +124,7 @@ def marker_update(done_path, key, value):
     try:
         mk = json.loads(Path(done_path).read_text(encoding="utf-8"))
         mk[key] = value
-        Path(done_path).write_text(
-            json.dumps(mk, ensure_ascii=False, indent=1), encoding="utf-8")
+        Path(done_path).write_text(json.dumps(mk, ensure_ascii=False, indent=1), encoding="utf-8")
     except Exception:  # noqa: BLE001 — маркер не критичен
         pass
 
@@ -139,29 +140,34 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
     stdout не трогает — MCP-протокол по stdio не загрязняем.
     После удалений — VACUUM (сжать БД, отдать место)."""
     import sqlite3
+
     now = time.time()
     summary = []
     try:
         con = sqlite3.connect(db_path)
         old = now - cache_days * 86400
         for tbl in ("pages", "deltas", "searches"):
-            n = con.execute(f"SELECT COUNT(*) FROM {tbl} WHERE ts < ?",
-                            (old,)).fetchone()[0]
+            n = con.execute(f"SELECT COUNT(*) FROM {tbl} WHERE ts < ?", (old,)).fetchone()[0]
             if n and not dry_run:
                 con.execute(f"DELETE FROM {tbl} WHERE ts < ?", (old,))
             summary.append(f"{tbl}:{n}")
         # TTL кампаний: старые охоты + их источники (иначе БД пухнет вечно)
         old_camp = now - campaigns_days * 86400
         try:
-            n_camp = con.execute("SELECT COUNT(*) FROM campaigns WHERE updated_ts < ?",
-                                 (old_camp,)).fetchone()[0]
-            n_src = con.execute("SELECT COUNT(*) FROM campaign_sources WHERE camp_id IN "
-                                "(SELECT id FROM campaigns WHERE updated_ts < ?)",
-                                (old_camp,)).fetchone()[0]
+            n_camp = con.execute(
+                "SELECT COUNT(*) FROM campaigns WHERE updated_ts < ?", (old_camp,)
+            ).fetchone()[0]
+            n_src = con.execute(
+                "SELECT COUNT(*) FROM campaign_sources WHERE camp_id IN "
+                "(SELECT id FROM campaigns WHERE updated_ts < ?)",
+                (old_camp,),
+            ).fetchone()[0]
             if (n_camp or n_src) and not dry_run:
-                con.execute("DELETE FROM campaign_sources WHERE camp_id IN "
-                            "(SELECT id FROM campaigns WHERE updated_ts < ?)",
-                            (old_camp,))
+                con.execute(
+                    "DELETE FROM campaign_sources WHERE camp_id IN "
+                    "(SELECT id FROM campaigns WHERE updated_ts < ?)",
+                    (old_camp,),
+                )
                 con.execute("DELETE FROM campaigns WHERE updated_ts < ?", (old_camp,))
             summary.append(f"campaigns:{n_camp}")
             summary.append(f"campaign_sources:{n_src}")
@@ -192,7 +198,8 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
     summary.append(f"exports:{n_files}")
     msg = " ".join(summary)
     if not dry_run and msg != " ".join(
-            [f"{t}:0" for t in ("pages", "deltas", "searches")] + ["exports:0"]):
+        [f"{t}:0" for t in ("pages", "deltas", "searches")] + ["exports:0"]
+    ):
         _log_line(_WLOG, f"cleanup: {msg}")
     return msg
 
@@ -201,24 +208,40 @@ def index(db_path, limit=50, fmt="md"):
     """Сводка всех кампаний: id · тема · статус · домены/цель · когда.
     Сырьё для «покажи всех зверей охоты» без ручного sqlite."""
     import sqlite3
+
     con = sqlite3.connect(db_path)
     rows = con.execute(
         "SELECT c.id, c.topic, c.status, c.target_sources, c.updated_ts, "
         "COUNT(DISTINCT s.domain) FROM campaigns c "
         "LEFT JOIN campaign_sources s ON s.camp_id = c.id "
-        "GROUP BY c.id ORDER BY c.updated_ts DESC LIMIT ?", (limit,)).fetchall()
+        "GROUP BY c.id ORDER BY c.updated_ts DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
     con.close()
     if fmt == "json":
-        return json.dumps([
-            {"id": i, "topic": t, "status": st, "domains": u,
-             "target": tg,
-             "updated": time.strftime("%d.%m %H:%M", time.localtime(ts))}
-            for i, t, st, tg, ts, u in rows],
-            ensure_ascii=False, indent=1)
-    out = [f"кампаний: {len(rows)}", "",
-           "| id | тема | статус | домены/цель | обновлена |",
-           "|---|---|---|---|---|"]
-    out += [f"| {i} | {t[:40]} | {st} | {u}/{tg} | "
-            f"{time.strftime('%d.%m %H:%M', time.localtime(ts))} |"
-            for i, t, st, tg, ts, u in rows]
+        return json.dumps(
+            [
+                {
+                    "id": i,
+                    "topic": t,
+                    "status": st,
+                    "domains": u,
+                    "target": tg,
+                    "updated": time.strftime("%d.%m %H:%M", time.localtime(ts)),
+                }
+                for i, t, st, tg, ts, u in rows
+            ],
+            ensure_ascii=False,
+            indent=1,
+        )
+    out = [
+        f"кампаний: {len(rows)}",
+        "",
+        "| id | тема | статус | домены/цель | обновлена |",
+        "|---|---|---|---|---|",
+    ]
+    out += [
+        f"| {i} | {t[:40]} | {st} | {u}/{tg} | {time.strftime('%d.%m %H:%M', time.localtime(ts))} |"
+        for i, t, st, tg, ts, u in rows
+    ]
     return "\n".join(out)

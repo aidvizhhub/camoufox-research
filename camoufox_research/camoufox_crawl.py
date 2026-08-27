@@ -8,6 +8,7 @@
 Плюс фиды сайта (паттерн Crawlbase/Octoparse sitemap crawlers и
 Apify/Bright Data RSS scrapers) и проверка битых ссылок
 (Screaming Frog/TinyUtils broken link checkers)."""
+
 import gzip
 import time
 from urllib.parse import urlparse
@@ -44,8 +45,10 @@ except ImportError:
         _cache_set,
     )
 
-_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+_UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
 
 
 def _fetch_bytes(url, timeout=30):
@@ -54,13 +57,13 @@ def _fetch_bytes(url, timeout=30):
     live = _cb._LIVE_PROVIDER() if _cb._LIVE_PROVIDER else None
     if live is not None:
         browser = live[1]
-        ctx = (browser.contexts[0] if getattr(browser, "contexts", [])
-               else browser.new_context())
+        ctx = browser.contexts[0] if getattr(browser, "contexts", []) else browser.new_context()
         resp = ctx.request.get(url, timeout=int(timeout) * 1000)
         if not resp.ok:
             raise RuntimeError(f"HTTP {resp.status} для {url}")
         return resp.body()
     import urllib.request
+
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
@@ -78,8 +81,7 @@ def _crawl_fetch(url, max_chars, article_only):
     with _browser_ctx() as browser:
         page = browser.new_page()
         _goto(page, url)
-        t = (_article_text(page, _FETCH_LIMIT) if article_only
-             else _text(page, _FETCH_LIMIT))
+        t = _article_text(page, _FETCH_LIMIT) if article_only else _text(page, _FETCH_LIMIT)
     _cache_set(url, t, suffix)
     return t[:max_chars]
 
@@ -97,8 +99,7 @@ def _same_domain(a, b):
         return False
     if pa.netloc == pb.netloc:
         return True
-    return (pa.netloc.endswith("." + pb.netloc)
-            or pb.netloc.endswith("." + pa.netloc))
+    return pa.netloc.endswith("." + pb.netloc) or pb.netloc.endswith("." + pa.netloc)
 
 
 def _page_hrefs(url):
@@ -107,7 +108,8 @@ def _page_hrefs(url):
         page = browser.new_page()
         _goto(page, url)
         return page.eval_on_selector_all(
-            "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))")
+            "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))"
+        )
 
 
 def map_site(url, max_links=50, pattern=""):
@@ -128,8 +130,7 @@ def map_site(url, max_links=50, pattern=""):
     return "\n".join(out[:max_links]) if out else "ссылок не найдено"
 
 
-def crawl(url, max_pages=10, max_depth=2, pattern="",
-          article_only=True, max_chars=4000):
+def crawl(url, max_pages=10, max_depth=2, pattern="", article_only=True, max_chars=4000):
     """BFS-обход сайта: стартовая страница + внутренние ссылки
     (depth <= max_depth, всего <= max_pages страниц). Каждая страница
     читается через кэш-фетч (_crawl_fetch) — повторный crawl почти
@@ -176,6 +177,7 @@ def sitemap(url, max_links=200):
     карта ВСЕХ страниц — идеальный фид для crawl (обход по кнопкам
     находит меньше). Возвращает список URL построчно."""
     from xml.etree import ElementTree as ET
+
     urls, seen, queue = [], set(), [url]
 
     def _parse(u):
@@ -216,6 +218,7 @@ def rss(url, limit=20):
     """Посты из RSS/Atom-фида: title, link, дата. Паттерн Apify/Bright Data
     RSS scrapers — новости, блоги, changelog одним вызовом."""
     from xml.etree import ElementTree as ET
+
     try:
         body = _fetch_bytes(url)
     except Exception as e:  # noqa: BLE001
@@ -282,33 +285,34 @@ def check_links(url, max_links=50, internal_only=True, timeout=15):
         try:
             live = _cb._LIVE_PROVIDER() if _cb._LIVE_PROVIDER else None
             if live is not None:
-                ctx = (live[1].contexts[0]
-                       if getattr(live[1], "contexts", [])
-                       else live[1].new_context())
+                ctx = (
+                    live[1].contexts[0]
+                    if getattr(live[1], "contexts", [])
+                    else live[1].new_context()
+                )
                 resp = ctx.request.head(h, timeout=int(timeout) * 1000)
                 if resp.status in (405, 501):  # HEAD не разрешён — GET
                     resp = ctx.request.get(h, timeout=int(timeout) * 1000)
                 return h, resp.status
             import urllib.request
-            req = urllib.request.Request(h, method="HEAD",
-                                         headers={"User-Agent": _UA})
+
+            req = urllib.request.Request(h, method="HEAD", headers={"User-Agent": _UA})
             try:
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     return h, r.status
             except Exception:  # noqa: S110 — HEAD не дали, пробуем GET
-                req = urllib.request.Request(h, method="GET",
-                                             headers={"User-Agent": _UA})
+                req = urllib.request.Request(h, method="GET", headers={"User-Agent": _UA})
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     return h, r.status
         except Exception as e:  # noqa: BLE001
             return h, f"{type(e).__name__}"
+
     # ПОСЛЕДОВАТЕЛЬНО, не в потоках: Playwright sync API не потокобезопасен
     # (проверено 22.08.2026 — ThreadPoolExecutor + ctx.request = все error).
     results = []
     for h in targets:
         results.append(_status(h))
-    bad = [(h, s) for h, s in results
-           if s == 404 or not isinstance(s, int)]
+    bad = [(h, s) for h, s in results if s == 404 or not isinstance(s, int)]
     lines = [f"проверено: {len(results)} ссылок, битых: {len(bad)}"]
     for h, s in bad[:20]:
         lines.append(f"  [{s}] {h}")

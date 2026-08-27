@@ -54,9 +54,17 @@ def run(cmd, *, timeout=None, cwd=None, env=None, check=False):
     child_env = os.environ.copy() if env is None else {**os.environ, **env}
     if IS_NT:
         child_env.setdefault("PYTHONUTF8", "1")
-    return subprocess.run(cmd, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
-                          timeout=timeout, cwd=cwd, env=child_env, check=check)
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        cwd=cwd,
+        env=child_env,
+        check=check,
+    )
 
 
 # Маркеры корня AGGG2.0: файлы/папки, которые есть ТОЛЬКО в корне воркспейса
@@ -87,8 +95,7 @@ def chulan_root():
     if env:
         root = Path(env).expanduser()
         if not root.is_absolute():
-            raise RuntimeError(
-                f"AGGG2_ROOT должен быть абсолютным путём: {env!r}")
+            raise RuntimeError(f"AGGG2_ROOT должен быть абсолютным путём: {env!r}")
         _validate_root(root, source="AGGG2_ROOT")
         return root
     here = Path(__file__).resolve()
@@ -112,7 +119,8 @@ def _validate_root(root, source):
             f"недостаточно ({len(present)} из {ROOT_MIN_MARKERS}), есть: "
             f"{', '.join(present) or 'ничего'}; нужны любые "
             f"{ROOT_MIN_MARKERS} из: {', '.join(ROOT_MARKERS)}. Задайте "
-            f"AGGG2_ROOT или укажите корень AGGG2.0.")
+            f"AGGG2_ROOT или укажите корень AGGG2.0."
+        )
 
 
 def venv_dir():
@@ -151,6 +159,7 @@ def db_connect(path, row_factory=None):
     CLI-процессы освобождаются при выходе, но дисциплина общая.
     """
     import sqlite3
+
     con = sqlite3.connect(path)
     if row_factory is not None:
         con.row_factory = row_factory
@@ -173,6 +182,7 @@ def yaml_scalar(value):
     install_proshivka hermes-hook) — без YAML-парсера, чтобы не убивать
     комментарии и чужое форматирование."""
     import json
+
     if isinstance(value, str):
         return json.dumps(value)
     return str(value)
@@ -197,16 +207,18 @@ def replace_top_level_yaml_block(path, block, marker):
             line = lines[i]
             stripped = line.strip()
             is_block_start = (
-                bool(line) and not line[0].isspace()
-                and (stripped == marker
-                     or stripped.startswith(marker + " ")
-                     or stripped.startswith(marker + "\t")
-                     or stripped.startswith(marker + "#"))
+                bool(line)
+                and not line[0].isspace()
+                and (
+                    stripped == marker
+                    or stripped.startswith(marker + " ")
+                    or stripped.startswith(marker + "\t")
+                    or stripped.startswith(marker + "#")
+                )
             )
             if is_block_start:
                 i += 1
-                while i < len(lines) and (
-                        not lines[i].strip() or lines[i][0].isspace()):
+                while i < len(lines) and (not lines[i].strip() or lines[i][0].isspace()):
                     i += 1
                 out.extend(block.splitlines())
                 replaced = True

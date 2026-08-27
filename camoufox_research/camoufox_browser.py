@@ -5,6 +5,7 @@
 """Браузерные хелперы и DDG-поиск (вынесено из camoufox_worker.py,
 canon/FILE-SIZE.md): ланчер, ожидание JS-контента, текст страницы, ссылки,
 клик с пред-проверкой, сбор результатов DuckDuckGo."""
+
 import json
 import os
 import re
@@ -25,8 +26,7 @@ IS_NT = os.name == "nt"
 # Прокси на лету (паттерн stealth-agent-browser-mcp set_proxy): глобал,
 # применяется при следующем старте браузера (_launch).
 _PROXY = None
-_PROFILES_DIR = os.path.join(os.path.expanduser("~"), ".cache",
-                             "camoufox-research", "profiles")
+_PROFILES_DIR = os.path.join(os.path.expanduser("~"), ".cache", "camoufox-research", "profiles")
 
 
 def set_proxy(proxy: str = "") -> str:
@@ -70,6 +70,7 @@ def _browser_ctx():
         return nullcontext(live[1])
     return _launch()
 
+
 def _launch():
     """Запуск браузера с Windows-fallback.
 
@@ -84,9 +85,7 @@ def _launch():
         if not IS_NT:
             raise
         # Windows: headless упал — пробуем headed со скрытым окном
-        return Camoufox(headless=False, windows_hide=True,
-                        proxy=_proxy_conf())
-
+        return Camoufox(headless=False, windows_hide=True, proxy=_proxy_conf())
 
 
 def _wait_content(page, min_chars=300, max_wait=8):
@@ -138,9 +137,10 @@ def _goto(page, url, tries=2, wait_ms=700):
                     "**/*",
                     lambda route: (
                         route.abort()
-                        if (route.request.resource_type
-                            in ("image", "font", "media", "stylesheet"))
-                        else route.continue_()))
+                        if (route.request.resource_type in ("image", "font", "media", "stylesheet"))
+                        else route.continue_()
+                    ),
+                )
             page.goto(url, timeout=45000, wait_until="domcontentloaded")
             with suppress(Exception):  # JS-страницы: затишье сети до текста
                 page.wait_for_load_state("networkidle", timeout=5000)
@@ -163,25 +163,25 @@ def _text(page, max_chars=6000):
     return text[:max_chars]
 
 
-
 def _ddg_results(page):
     """Собрать (url, title, snippet) с текущей страницы DDG html.
     Сниппет (a.result__snippet) — для отбора источников без fetch."""
     links = page.eval_on_selector_all(
-        "a.result__a, a[data-testid='result-title-a']",
-        "els => els.map(e => e.href)")
+        "a.result__a, a[data-testid='result-title-a']", "els => els.map(e => e.href)"
+    )
     titles = page.eval_on_selector_all(
-        "a.result__a, a[data-testid='result-title-a']",
-        "els => els.map(e => e.textContent)")
+        "a.result__a, a[data-testid='result-title-a']", "els => els.map(e => e.textContent)"
+    )
     snippets = page.eval_on_selector_all(
-        "a.result__snippet, a[data-testid='result-snippet']",
-        "els => els.map(e => e.textContent)")
+        "a.result__snippet, a[data-testid='result-snippet']", "els => els.map(e => e.textContent)"
+    )
     out = []
     for i, (u, t) in enumerate(zip(links, titles, strict=False)):
         if u and u.startswith("http"):
             s = snippets[i].strip() if i < len(snippets) else ""
             out.append((u, t, s))
     return out
+
 
 # Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
 # AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
@@ -206,8 +206,11 @@ def _search_results(query, max_results, pages=1):
     results = []  # (url, title, snippet)
     with _browser_ctx() as browser:
         page = browser.new_page()
-        page.goto(f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}",
-                  timeout=45000, wait_until="domcontentloaded")
+        page.goto(
+            f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}",
+            timeout=45000,
+            wait_until="domcontentloaded",
+        )
         page.wait_for_timeout(1500)
         for p in range(max(1, pages)):
             for url, title, snippet in _ddg_results(page):
@@ -220,16 +223,15 @@ def _search_results(query, max_results, pages=1):
     return results[:max_results]
 
 
-
 def _page_links(page, max_links=10):
     hrefs = page.eval_on_selector_all(
-        "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))")
+        "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))"
+    )
     seen = []
     for h in hrefs:
         if h not in seen:
             seen.append(h)
     return seen[:max_links]
-
 
 
 def _click_checked(page, selector, target_text, timeout_ms=15000):
@@ -254,15 +256,19 @@ def _click_checked(page, selector, target_text, timeout_ms=15000):
                          + `: "${t}"`);
             }
             return out;
-        }""", 20)
+        }""",
+        20,
+    )
     if selector:
         with suppress(Exception):
             page.wait_for_selector(selector, timeout=3000)
         if not page.locator(selector).count():
-            err = (f"ошибка: селектор '{selector}' не найден (URL: "
-                   f"{page.url}). Интерактивные элементы:\n"
-                   + "\n".join("  " + s for s in snap)
-                   + ("\n  ..." if len(snap) == 20 else ""))
+            err = (
+                f"ошибка: селектор '{selector}' не найден (URL: "
+                f"{page.url}). Интерактивные элементы:\n"
+                + "\n".join("  " + s for s in snap)
+                + ("\n  ..." if len(snap) == 20 else "")
+            )
             return None, err
         page.click(selector, timeout=timeout_ms, force=True)
         return page, None
@@ -275,12 +281,16 @@ def _click_checked(page, selector, target_text, timeout_ms=15000):
                     && !x.href.includes('y.js'));
                 if (a) { a.click(); return a.href; }
                 return null;
-            }""", target_text)
+            }""",
+            target_text,
+        )
         if not clicked:
-            err = (f"ошибка: ссылка с текстом '{target_text}' не найдена "
-                   f"(URL: {page.url}). Интерактивные элементы:\n"
-                   + "\n".join("  " + s for s in snap)
-                   + ("\n  ..." if len(snap) == 20 else ""))
+            err = (
+                f"ошибка: ссылка с текстом '{target_text}' не найдена "
+                f"(URL: {page.url}). Интерактивные элементы:\n"
+                + "\n".join("  " + s for s in snap)
+                + ("\n  ..." if len(snap) == 20 else "")
+            )
             return None, err
         return page, None
     return None, "ошибка: нужен selector или target_text"
@@ -334,7 +344,9 @@ def _interactive_snapshot(page, limit=30):
                     + `  text: "${t}"${extra}`);
             }
             return out.join('\\n');
-        }""", limit)
+        }""",
+        limit,
+    )
 
 
 def _som_overlay(page):
@@ -376,7 +388,8 @@ def _som_overlay(page):
                 document.body.appendChild(box);
             }
             return n;
-        }""")
+        }"""
+    )
 
 
 def _click_ref(page, ref, timeout_ms=15000):
@@ -386,8 +399,10 @@ def _click_ref(page, ref, timeout_ms=15000):
     with suppress(Exception):
         page.wait_for_selector(sel, timeout=3000)
     if not page.locator(sel).count():
-        return None, (f"ошибка: ref={ref} не найден — страница перерисовалась, "
-                      f"сними snapshot заново (URL: {page.url})")
+        return None, (
+            f"ошибка: ref={ref} не найден — страница перерисовалась, "
+            f"сними snapshot заново (URL: {page.url})"
+        )
     page.click(sel, timeout=timeout_ms, force=True)
     return page, None
 
@@ -413,7 +428,8 @@ def profile_save(name="default"):
                 ls = page.evaluate(
                     "() => { const o = {}; for (let i = 0; i < localStorage.length; i++)"
                     " { const k = localStorage.key(i); o[k] = localStorage.getItem(k); }"
-                    " return o; }")
+                    " return o; }"
+                )
                 data["local_storage"][page.url] = ls
             except Exception:  # noqa: S110,BLE001 — страница могла упасть
                 pass
@@ -421,8 +437,10 @@ def profile_save(name="default"):
     path = os.path.join(_PROFILES_DIR, name + ".json")
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False)
-    return (f"профиль сохранён: {path} "
-            f"(куки: {len(data['cookies'])}, origins: {len(data['local_storage'])})")
+    return (
+        f"профиль сохранён: {path} "
+        f"(куки: {len(data['cookies'])}, origins: {len(data['local_storage'])})"
+    )
 
 
 def profile_load(name="default"):
@@ -444,8 +462,11 @@ def profile_load(name="default"):
             return f"ошибка: нет контекста браузера: {type(e).__name__}: {e}"
     added = 0
     try:
-        cookies = [c for c in data.get("cookies", [])
-                   if c.get("name") and (c.get("url") or c.get("domain"))]
+        cookies = [
+            c
+            for c in data.get("cookies", [])
+            if c.get("name") and (c.get("url") or c.get("domain"))
+        ]
         if cookies:
             ctx.add_cookies(cookies)
             added = len(cookies)
@@ -457,11 +478,10 @@ def profile_load(name="default"):
             p = browser.new_page()
             p.goto(origin, timeout=20000, wait_until="domcontentloaded")
             p.evaluate(
-                "(o) => { Object.entries(o).forEach(([k, v]) =>"
-                " localStorage.setItem(k, v)); }", ls)
+                "(o) => { Object.entries(o).forEach(([k, v]) => localStorage.setItem(k, v)); }", ls
+            )
             p.close()
             loaded_origins += 1
         except Exception:  # noqa: S110,BLE001 — один origin не критичен
             pass
-    return (f"профиль загружен: {path} "
-            f"(куки: {added}, origins: {loaded_origins})")
+    return f"профиль загружен: {path} (куки: {added}, origins: {loaded_origins})"

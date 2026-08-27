@@ -13,6 +13,7 @@ semanticscholar.org) = tier 0, которых DDG почти не видит.
 Оба API — GET, ответ парсится БЕЗ браузера (urllib): статья не требует
 headless-потока. Кэш на сутки — таблица searches (ключ "acad*:...").
 """
+
 import json
 import re
 import time
@@ -26,7 +27,7 @@ except ImportError:
     from camoufox_cache import _search_cache_get, _search_cache_set
 
 _ARXIV_URL = "https://export.arxiv.org/api/query"
-_S2_URL = ("https://api.semanticscholar.org/graph/v1/paper/search")
+_S2_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 _UA = {"User-Agent": "camoufox-research/0.7 (+https://github.com/aidvizhhub/camoufox-research)"}
 _NS = {"a": "http://www.w3.org/2005/Atom"}
 
@@ -42,8 +43,7 @@ def _arxiv_rows(query, max_results):
     """Статьи arXiv: list[(title, url, snippet)] — точная фраза в кавычках
     (проверено 27.08: all:"фраза" даёт релевантный топ, без кавычек — рой)."""
     q = urllib.parse.quote(f'all:"{query}"')
-    url = (f"{_ARXIV_URL}?search_query={q}&start=0"
-           f"&max_results={max_results}&sortBy=relevance")
+    url = f"{_ARXIV_URL}?search_query={q}&start=0&max_results={max_results}&sortBy=relevance"
     key = f"acadarxiv:{query}:{max_results}"
     cached = _search_cache_get(key, 1, 1)
     if cached:
@@ -60,8 +60,7 @@ def _arxiv_rows(query, max_results):
         eid = (ent.findtext("a:id", "", _NS) or "").strip()
         title = " ".join((ent.findtext("a:title", "", _NS) or "").split())
         abstract = " ".join((ent.findtext("a:summary", "", _NS) or "").split())
-        authors = [n.text.strip() for n in ent.findall("a:author/a:name", _NS)
-                   if n.text]
+        authors = [n.text.strip() for n in ent.findall("a:author/a:name", _NS) if n.text]
         year = (ent.findtext("a:published", "", _NS) or "")[:4]
         if not eid:
             continue
@@ -69,9 +68,15 @@ def _arxiv_rows(query, max_results):
         # (одна форма с DDG/кэшем — дедуп и счётчик доменов честные).
         eid = eid.replace("http://", "https://")
         eid = re.sub(r"v\d+$", "", eid)
-        rows.append({"title": title, "url": eid,
-                     "snippet": f"[{year}] {abstract[:260]}",
-                     "authors": authors[:2], "year": year})
+        rows.append(
+            {
+                "title": title,
+                "url": eid,
+                "snippet": f"[{year}] {abstract[:260]}",
+                "authors": authors[:2],
+                "year": year,
+            }
+        )
     _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
 
@@ -80,9 +85,8 @@ def _s2_rows(query, max_results):
     """Статьи Semantic Scholar: тот же список записей (JSON API).
     Без ключа общий лимит 1000 rps, но бывают 429 — 2 попытки с паузой."""
     q = urllib.parse.quote(query)
-    fields = ("title,abstract,url,externalIds,publicationYear,"
-              "citationCount,authors,venue,paperId")
-    url = (f"{_S2_URL}?query={q}&limit={max_results}&fields={fields}")
+    fields = "title,abstract,url,externalIds,publicationYear,citationCount,authors,venue,paperId"
+    url = f"{_S2_URL}?query={q}&limit={max_results}&fields={fields}"
     key = f"acads2:{query}:{max_results}"
     cached = _search_cache_get(key, 1, 1)
     if cached:
@@ -104,20 +108,24 @@ def _s2_rows(query, max_results):
     rows = []
     for p in data.get("data", []):
         ext = p.get("externalIds") or {}
-        url = (p.get("url")
-               or (f"https://arxiv.org/abs/{ext.get('ArXiv')}"
-                   if ext.get("ArXiv") else "")
-               or f"https://www.semanticscholar.org/paper/{p.get('paperId')}")
+        url = (
+            p.get("url")
+            or (f"https://arxiv.org/abs/{ext.get('ArXiv')}" if ext.get("ArXiv") else "")
+            or f"https://www.semanticscholar.org/paper/{p.get('paperId')}"
+        )
         if not url:
             continue
         abstract = " ".join((p.get("abstract") or "").split())
-        rows.append({
-            "title": p.get("title") or "",
-            "url": url,
-            "snippet": f"[{p.get('publicationYear') or '?'}"
-                       f" · цит. {p.get('citationCount') or 0}] {abstract[:260]}",
-            "authors": [a.get("name", "") for a in p.get("authors", [])[:2]],
-            "year": str(p.get("publicationYear") or "")})
+        rows.append(
+            {
+                "title": p.get("title") or "",
+                "url": url,
+                "snippet": f"[{p.get('publicationYear') or '?'}"
+                f" · цит. {p.get('citationCount') or 0}] {abstract[:260]}",
+                "authors": [a.get("name", "") for a in p.get("authors", [])[:2]],
+                "year": str(p.get("publicationYear") or ""),
+            }
+        )
     _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
 
@@ -132,15 +140,19 @@ def paper_rows(query, max_results=8, sources="arxiv,semantic"):
     for src in ("arxiv", "semantic"):
         if src not in sources.lower():
             continue
-        rows = (_arxiv_rows(query, max_results)
-                if src == "arxiv" else _s2_rows(query, max_results))
+        rows = _arxiv_rows(query, max_results) if src == "arxiv" else _s2_rows(query, max_results)
         for r in rows:
             if not r.get("url") or r["url"] in seen:
                 continue
             seen.add(r["url"])
-            out.append((r["title"], r["url"], r["snippet"],
-                        {"source": src, "authors": r.get("authors", []),
-                         "year": r.get("year", "")}))
+            out.append(
+                (
+                    r["title"],
+                    r["url"],
+                    r["snippet"],
+                    {"source": src, "authors": r.get("authors", []), "year": r.get("year", "")},
+                )
+            )
     return out
 
 
@@ -152,13 +164,13 @@ def paper_search(query, sources="arxiv,semantic", max_results=10):
     """
     rows = paper_rows(query, max_results=max(4, max_results), sources=sources)
     if not rows:
-        return ("ничего не нашёл по запросам (arXiv/S2 недоступны или"
-                " пусто)")
+        return "ничего не нашёл по запросам (arXiv/S2 недоступны или пусто)"
     by_src = {}
     for _, _, _, meta in rows:
         by_src[meta["source"]] = by_src.get(meta["source"], 0) + 1
-    out = [f"статей: {len(rows)} (" + " · ".join(
-        f"{k}: {v}" for k, v in sorted(by_src.items())) + ")"]
+    out = [
+        f"статей: {len(rows)} (" + " · ".join(f"{k}: {v}" for k, v in sorted(by_src.items())) + ")"
+    ]
     for i, (title, url, snippet, meta) in enumerate(rows, 1):
         out.append(f"[{i}] {title}")
         out.append(f"    {url} ({meta['source']}, {meta.get('year', '?')})")

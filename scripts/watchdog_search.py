@@ -17,17 +17,19 @@ Cron (idempotent, ставится одной строкой):
   /run/media/admin1/DATA/camoufox-reasearch/scripts/watchdog_search.py
   >> ~/.cache/camoufox-research/watchdog.log 2>&1
 """
+
 import os
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "camoufox_research"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "camoufox_research")
+)
 
 _MIN = int(os.environ.get("WATCHDOG_MIN", "5"))  # порог для FAIL-симуляции
 _HOME_CACHE = os.environ.get(
-    "CAMOUFOX_WATCHDOG_LOG_DIR",
-    os.path.expanduser("~/.cache/camoufox-research"))
+    "CAMOUFOX_WATCHDOG_LOG_DIR", os.path.expanduser("~/.cache/camoufox-research")
+)
 _LOG = os.path.join(_HOME_CACHE, "watchdog.log")
 _ALERT = os.path.join(_HOME_CACHE, "watchdog_ALERT")
 
@@ -42,6 +44,7 @@ def main():
     n, err = 0, ""
     try:
         from camoufox_browser import _search_results
+
         n = len(_search_results("python programming", 8))
     except Exception as e:  # noqa: BLE001 — любая беда = FAIL, не краш
         err = f"{type(e).__name__}: {e}"
@@ -52,11 +55,13 @@ def main():
         return
     _stamp(f"FAIL: {n} результатов (порог {_MIN})" + (f" · {err}" if err else ""))
     with open(_ALERT, "w", encoding="utf-8") as fh:
-        fh.write(f"{time.strftime('%d.%m %H:%M')} DDG охота дала {n} "
-                 f"результатов (порог {_MIN}). {err}\n"
-                 "Кампании и research втёмную работают по кэшу. "
-                 "Смотри хвост watchdog.log, чини _search_results "
-                 "(camoufox_browser.py, разметка DDG?).\n")
+        fh.write(
+            f"{time.strftime('%d.%m %H:%M')} DDG охота дала {n} "
+            f"результатов (порог {_MIN}). {err}\n"
+            "Кампании и research втёмную работают по кэшу. "
+            "Смотри хвост watchdog.log, чини _search_results "
+            "(camoufox_browser.py, разметка DDG?).\n"
+        )
     sys.exit(1)
 
 

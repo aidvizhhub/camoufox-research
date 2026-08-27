@@ -13,14 +13,16 @@ Dry-run по умолчанию: показывает ЧТО удалит и с�
 
 Запуск: python scripts/campaign_cleanup.py [--days 30] [--yes] [--dir ПУТЬ]
 """
+
 import argparse
 import os
 import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "camoufox_research"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "camoufox_research")
+)
 from camoufox_campaign import _EXPORT_DIR  # noqa: E402
 
 
@@ -32,21 +34,23 @@ def plan(directory, days):
         return []
     old = []
     for f in d.iterdir():
-        if (f.is_file() and f.name.startswith("cmp_")
-                and f.suffix in (".log", ".json")
-                and f.stat().st_mtime < cut):
+        if (
+            f.is_file()
+            and f.name.startswith("cmp_")
+            and f.suffix in (".log", ".json")
+            and f.stat().st_mtime < cut
+        ):
             old.append(f)
     return sorted(old, key=lambda p: p.stat().st_mtime)
 
 
 def main():
     ap = argparse.ArgumentParser(description="метла артефактов кампаний")
-    ap.add_argument("--days", type=int, default=30,
-                    help="удалять артефакты старше N дней (30)")
-    ap.add_argument("--yes", action="store_true",
-                    help="реально удалить (без флага — dry-run)")
-    ap.add_argument("--dir", default=str(_EXPORT_DIR),
-                    help="папка артефактов (по умолчанию exports кэша)")
+    ap.add_argument("--days", type=int, default=30, help="удалять артефакты старше N дней (30)")
+    ap.add_argument("--yes", action="store_true", help="реально удалить (без флага — dry-run)")
+    ap.add_argument(
+        "--dir", default=str(_EXPORT_DIR), help="папка артефактов (по умолчанию exports кэша)"
+    )
     args = ap.parse_args()
     old = plan(args.dir, args.days)
     if not old:
@@ -54,10 +58,14 @@ def main():
         return
     total = sum(f.stat().st_size for f in old)
     for f in old:
-        print(f"{time.strftime('%d.%m', time.localtime(f.stat().st_mtime))} "
-              f"{f.name} ({f.stat().st_size} б)")
-    print(f"итого: {len(old)} файлов, {total} б — "
-          + ("УДАЛЕНО" if args.yes else "dry-run (для удаления: --yes)"))
+        print(
+            f"{time.strftime('%d.%m', time.localtime(f.stat().st_mtime))} "
+            f"{f.name} ({f.stat().st_size} б)"
+        )
+    print(
+        f"итого: {len(old)} файлов, {total} б — "
+        + ("УДАЛЕНО" if args.yes else "dry-run (для удаления: --yes)")
+    )
     if args.yes:
         for f in old:
             f.unlink()

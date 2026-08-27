@@ -20,14 +20,16 @@
     python3 scripts/install/update_camoufox.py --check    # только проверка, без изменений
     python3 scripts/install/update_camoufox.py --check --json   # машинный вывод
 """
+
 import argparse
 import json
 import os
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))  # scripts/ — кирпичи канона
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)  # scripts/ — кирпичи канона
 from pathlib import Path
 
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
@@ -43,13 +45,11 @@ IS_NT = _compat.IS_NT
 
 def _py():
     """Интерпретатор для pip/fetch: текущий venv или системный python."""
-    return str(_compat.venv_python() if _compat.venv_python().exists()
-               else Path(sys.executable))
+    return str(_compat.venv_python() if _compat.venv_python().exists() else Path(sys.executable))
 
 
 def _run(cmd, **kw):
-    return subprocess.run(cmd, capture_output=True, text=True,
-                          check=False, **kw)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False, **kw)
 
 
 def check_python_source():
@@ -58,9 +58,11 @@ def check_python_source():
         return True, "Linux/macOS — не применимо"
     exe = Path(sys.executable).resolve()
     if "WindowsApps" in str(exe):
-        return False, ("Python из Microsoft Store: AppData\\Local сандбоксится "
-                       "в LocalCache — camoufox.exe не найдётся. Поставьте "
-                       "Python с python.org и пересоздайте venv.")
+        return False, (
+            "Python из Microsoft Store: AppData\\Local сандбоксится "
+            "в LocalCache — camoufox.exe не найдётся. Поставьте "
+            "Python с python.org и пересоздайте venv."
+        )
     return True, f"OK: {exe}"
 
 
@@ -72,9 +74,11 @@ def check_vc_redist():
     system32 = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32"
     if (system32 / "VCRUNTIME140.dll").exists():
         return True, "OK: VCRUNTIME140.dll найден"
-    return False, ("VC++ Redistributable (x64) не найден. Скачайте и "
-                   "установите с learn.microsoft.com (vc_redist.x64.exe), "
-                   "иначе camoufox.exe не стартует.")
+    return False, (
+        "VC++ Redistributable (x64) не найден. Скачайте и "
+        "установите с learn.microsoft.com (vc_redist.x64.exe), "
+        "иначе camoufox.exe не стартует."
+    )
 
 
 def check_install_dir():
@@ -90,14 +94,17 @@ def check_install_dir():
         cfg = Path.home() / ".cache" / "camoufox" / "config.json"
         if cfg.exists():
             import re
+
             m = re.search(r'"active_version":\s*"([^"]+)"', cfg.read_text())
             if m:
                 p = (Path.home() / ".cache" / "camoufox" / m.group(1)).resolve()
                 if local in p.parents or roaming in p.parents:
-                    return False, ("Установка внутри AppData (Edge/Chrome "
-                                   "добавляют туда AppContainer SID — "
-                                   "side-by-side error). Поставьте вне: "
-                                   "CAMOUFOX_INSTALL_DIR=C:\\Users\\<юзер>\\.camoufox")
+                    return False, (
+                        "Установка внутри AppData (Edge/Chrome "
+                        "добавляют туда AppContainer SID — "
+                        "side-by-side error). Поставьте вне: "
+                        "CAMOUFOX_INSTALL_DIR=C:\\Users\\<юзер>\\.camoufox"
+                    )
         return True, "OK: путь вне AppData или не определён"
     p = Path(env_dir).resolve()
     if local in p.parents or roaming in p.parents:
@@ -126,12 +133,11 @@ def upgrade_package(py, check_only):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--check", action="store_true",
-                    help="только проверка, ничего не менять")
-    ap.add_argument("--json", action="store_true",
-                    help="вывод в JSON (для скриптов)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("--check", action="store_true", help="только проверка, ничего не менять")
+    ap.add_argument("--json", action="store_true", help="вывод в JSON (для скриптов)")
     args = ap.parse_args()
 
     py = _py()
@@ -146,19 +152,23 @@ def main():
 
     errors = [c for c in checks if not c[1][0]]
     if args.json:
-        print(json.dumps(
-            {"ok": not errors,
-             "checks": {name: {"ok": ok, "msg": msg}
-                        for name, (ok, msg) in checks}},
-            ensure_ascii=False, indent=1))
+        print(
+            json.dumps(
+                {
+                    "ok": not errors,
+                    "checks": {name: {"ok": ok, "msg": msg} for name, (ok, msg) in checks},
+                },
+                ensure_ascii=False,
+                indent=1,
+            )
+        )
         return 1 if errors else 0
 
     print(f"python: {py}")
     for name, (ok, msg) in checks:
         print(f"[{'✓' if ok else '✗'}] {name}: {msg}")
     if errors:
-        print("\nЕсть проблемы — см. строки с ✗ (research.db id=309: баги "
-              "Camoufox на Windows).")
+        print("\nЕсть проблемы — см. строки с ✗ (research.db id=309: баги Camoufox на Windows).")
         return 1
     print("\nвсё ок")
     return 0

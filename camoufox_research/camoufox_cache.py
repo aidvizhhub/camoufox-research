@@ -4,6 +4,7 @@
 
 """Кэш страниц/поиска (вынесено из camoufox_worker.py, canon/FILE-SIZE.md):
 sqlite-кэш ~/.cache/camoufox-research, TTL сутки."""
+
 import hashlib
 import os
 import sqlite3
@@ -16,27 +17,29 @@ _CACHE_DB = os.path.join(_CACHE_DIR, "cache.db")
 _CACHE_TTL = 86400  # сутки
 _FETCH_LIMIT = 12000  # сколько символов храним в кэше (хватает на большие статьи)
 
+
 def _cache_init():
     os.makedirs(_CACHE_DIR, exist_ok=True)
     with sqlite3.connect(_CACHE_DB) as con:
         con.execute(
             "CREATE TABLE IF NOT EXISTS pages "
-            "(url_hash TEXT PRIMARY KEY, url TEXT, text TEXT, ts REAL)")
+            "(url_hash TEXT PRIMARY KEY, url TEXT, text TEXT, ts REAL)"
+        )
         con.execute(
             "CREATE TABLE IF NOT EXISTS searches "
-            "(q_hash TEXT PRIMARY KEY, query TEXT, result TEXT, ts REAL)")
+            "(q_hash TEXT PRIMARY KEY, query TEXT, result TEXT, ts REAL)"
+        )
         con.execute(
             "CREATE TABLE IF NOT EXISTS deltas "
-            "(url_hash TEXT PRIMARY KEY, content_hash TEXT, ts REAL)")
+            "(url_hash TEXT PRIMARY KEY, content_hash TEXT, ts REAL)"
+        )
 
 
 def _search_cache_get(query, max_results=10, pages=1):
     key = hashlib.sha256(f"{query}|{max_results}|{pages}".encode()).hexdigest()[:16]
     try:
         with sqlite3.connect(_CACHE_DB) as con:
-            row = con.execute(
-                "SELECT result, ts FROM searches WHERE q_hash=?",
-                (key,)).fetchone()
+            row = con.execute("SELECT result, ts FROM searches WHERE q_hash=?", (key,)).fetchone()
         if row and time.time() - row[1] < _CACHE_TTL:
             return row[0]
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
@@ -49,9 +52,9 @@ def _search_cache_set(query, result, max_results=10, pages=1):
     try:
         with sqlite3.connect(_CACHE_DB) as con:
             con.execute(
-                "INSERT OR REPLACE INTO searches (q_hash, query, result, ts) "
-                "VALUES (?,?,?,?)",
-                (key, query, result, time.time()))
+                "INSERT OR REPLACE INTO searches (q_hash, query, result, ts) VALUES (?,?,?,?)",
+                (key, query, result, time.time()),
+            )
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
         pass
 
@@ -60,9 +63,7 @@ def _cache_get(url, suffix=""):
     key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
     try:
         with sqlite3.connect(_CACHE_DB) as con:
-            row = con.execute(
-                "SELECT text, ts FROM pages WHERE url_hash=?",
-                (key,)).fetchone()
+            row = con.execute("SELECT text, ts FROM pages WHERE url_hash=?", (key,)).fetchone()
         if row and time.time() - row[1] < _CACHE_TTL:
             return row[0]
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
@@ -75,9 +76,9 @@ def _cache_set(url, text, suffix=""):
     try:
         with sqlite3.connect(_CACHE_DB) as con:
             con.execute(
-                "INSERT OR REPLACE INTO pages (url_hash, url, text, ts) "
-                "VALUES (?,?,?,?)",
-                (key, url, text, time.time()))
+                "INSERT OR REPLACE INTO pages (url_hash, url, text, ts) VALUES (?,?,?,?)",
+                (key, url, text, time.time()),
+            )
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
         pass
 
@@ -90,8 +91,8 @@ def _delta_get(url, suffix=""):
     try:
         with sqlite3.connect(_CACHE_DB) as con:
             row = con.execute(
-                "SELECT content_hash, ts FROM deltas WHERE url_hash=?",
-                (key,)).fetchone()
+                "SELECT content_hash, ts FROM deltas WHERE url_hash=?", (key,)
+            ).fetchone()
         if row:
             return row[0], row[1]
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
@@ -104,9 +105,9 @@ def _delta_set(url, content_hash, suffix=""):
     try:
         with sqlite3.connect(_CACHE_DB) as con:
             con.execute(
-                "INSERT OR REPLACE INTO deltas (url_hash, content_hash, ts) "
-                "VALUES (?,?,?)",
-                (key, content_hash, time.time()))
+                "INSERT OR REPLACE INTO deltas (url_hash, content_hash, ts) VALUES (?,?,?)",
+                (key, content_hash, time.time()),
+            )
     except Exception:  # noqa: S110,BLE001 — кэш не критичен
         pass
 
@@ -133,18 +134,29 @@ def _github_api_text(url, timeout=25):
         return None
     owner, repo, ref = parts[0], parts[1], parts[2]
     path = "/".join(parts[3:])
-    api_url = ("https://api.github.com/repos/%s/%s/contents/%s?ref=%s"
-               % (owner, repo, quote(path), quote(ref)))
+    api_url = "https://api.github.com/repos/%s/%s/contents/%s?ref=%s" % (
+        owner,
+        repo,
+        quote(path),
+        quote(ref),
+    )
     if not api_url.startswith("https://api.github.com/"):
         return None
-    req = urllib.request.Request(api_url, headers={
-        "Accept": "application/vnd.github.raw",
-        "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"),
-        "X-GitHub-Api-Version": "2022-11-28",
-    })
+    req = urllib.request.Request(
+        api_url,
+        headers={
+            "Accept": "application/vnd.github.raw",
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            ),
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected — URL is constructed from the fixed api.github.com origin above
+        with (
+            urllib.request.urlopen(req, timeout=timeout) as resp
+        ):  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected — URL is constructed from the fixed api.github.com origin above
             body = resp.read()
             if len(body) > 2_000_000:
                 return None

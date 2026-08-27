@@ -12,6 +12,7 @@ pool, а async-тулы с subprocess в этой связке (mcp 1.x + python
 
 Подключение (через scripts/install/install_mcp.py) в opencode/claude/codex/deepcode.
 """
+
 import json
 import os
 import queue
@@ -31,8 +32,7 @@ except Exception:  # noqa: S110,BLE001 — reconfigure опционален, б�
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("camoufox-research")
-WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                      "camoufox_worker.py")
+WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "camoufox_worker.py")
 
 # Живой воркер (serve-режим): браузер держится между вызовами.
 # Lock обязателен: FastMCP выполняет тулы в thread pool — без него
@@ -56,11 +56,15 @@ def _worker_proc():
     if _worker_state is None or _worker_state["proc"].poll() is not None:
         proc = subprocess.Popen(  # nosemgrep: python.lang.compatibility.python36.python36-compatibility-Popen1, python.lang.compatibility.python36.python36-compatibility-Popen2
             [sys.executable, WORKER, "--serve"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             # nosemgrep: python36-compatibility-Popen — воркспейс на Python
             # 3.10+, errors=/encoding= доступны с 3.6 (семгреп-эвристика)
-            stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
-            errors="replace")
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         q = queue.Queue()
         t = threading.Thread(target=_read_loop, args=(proc, q), daemon=True)
         t.start()
@@ -121,9 +125,13 @@ def _call(action, timeout=120, **kwargs):
             return _call_live(req, timeout)
         except Exception as e:  # noqa: BLE001 — любой сбой живого воркера → фолбэк на разовый
             # фолбэк: разовый запуск воркера (как раньше)
-            proc = subprocess.run([sys.executable, WORKER, req],
-                                  capture_output=True, text=True,
-                                  timeout=timeout, check=False)
+            proc = subprocess.run(
+                [sys.executable, WORKER, req],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
             out = proc.stdout.strip()
             if not out:
                 return f"ошибка: пустой ответ воркера ({type(e).__name__})"
@@ -141,26 +149,38 @@ def ping() -> str:
 
 # Оригинал от https://t.me/aidvizhenie · https://t.me/hilartem. Каждая версия уникальна и лучше предыдущей.
 @mcp.tool()
-def web_search(query: str, max_results: int = 10, pages: int = 1,
-               include_snippets: bool = False) -> str:
+def web_search(
+    query: str, max_results: int = 10, pages: int = 1, include_snippets: bool = False
+) -> str:
     """Поиск в DuckDuckGo через анти-детект браузер: номер, заголовок,
     URL. pages>1 — пагинация (больше уникальных URL). include_snippets —
     сниппет под URL. Кэш на сутки."""
-    return _call("web_search", query=query, max_results=max_results,
-                 pages=pages, include_snippets=include_snippets)
+    return _call(
+        "web_search",
+        query=query,
+        max_results=max_results,
+        pages=pages,
+        include_snippets=include_snippets,
+    )
 
 
 @mcp.tool()
-def research(queries: list[str], max_results_per_query: int = 5,
-             fetch_top: int = 0, article_only: bool = True,
-             max_chars: int = 4000,
-             max_parallel: int | None = None,
-             target_domains: int = 0, domains_limit: int = 0,
-             expand: bool = False, fetch_all: bool = False,
-             terms_wave: bool = False,
-             quality_first: bool = False,
-             as_json: bool = False,
-             academic: bool = False) -> str:
+def research(
+    queries: list[str],
+    max_results_per_query: int = 5,
+    fetch_top: int = 0,
+    article_only: bool = True,
+    max_chars: int = 4000,
+    max_parallel: int | None = None,
+    target_domains: int = 0,
+    domains_limit: int = 0,
+    expand: bool = False,
+    fetch_all: bool = False,
+    terms_wave: bool = False,
+    quality_first: bool = False,
+    as_json: bool = False,
+    academic: bool = False,
+) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
     подзапросы, паттерн gpt-researcher); сервер ищет по каждой,
@@ -190,26 +210,34 @@ def research(queries: list[str], max_results_per_query: int = 5,
     terms_wave=True, quality_first=True, academic=True, fetch_all=True,
     as_json=True, max_results_per_query=6)
     Результат кэшируется на сутки."""
-    return _call("research", timeout=900, queries=queries,
-                 max_results_per_query=max_results_per_query,
-                 fetch_top=fetch_top, article_only=article_only,
-                 max_chars=max_chars, max_parallel=max_parallel,
-                 target_domains=target_domains, domains_limit=domains_limit,
-                 expand=expand, fetch_all=fetch_all,
-                 terms_wave=terms_wave, quality_first=quality_first,
-                 as_json=as_json, academic=academic)
+    return _call(
+        "research",
+        timeout=900,
+        queries=queries,
+        max_results_per_query=max_results_per_query,
+        fetch_top=fetch_top,
+        article_only=article_only,
+        max_chars=max_chars,
+        max_parallel=max_parallel,
+        target_domains=target_domains,
+        domains_limit=domains_limit,
+        expand=expand,
+        fetch_all=fetch_all,
+        terms_wave=terms_wave,
+        quality_first=quality_first,
+        as_json=as_json,
+        academic=academic,
+    )
 
 
 @mcp.tool()
-def paper_search(query: str, sources: str = "arxiv,semantic",
-                 max_results: int = 10) -> str:
+def paper_search(query: str, sources: str = "arxiv,semantic", max_results: int = 10) -> str:
     """Поиск научных статей: arXiv + Semantic Scholar (бесплатные API,
     без ключей). Возвращает статьи с годом/авторами/цитатами —
     первоисточники (tier 0), которых общий поиск почти не видит
     (паттерн индустрии: vertical index / arxiv-канал рядом с вебом).
     Кэш на сутки. Пример: paper_search("deep research agents")"""
-    return _call("paper_search", query=query, sources=sources,
-                 max_results=max_results)
+    return _call("paper_search", query=query, sources=sources, max_results=max_results)
 
 
 @mcp.tool()
@@ -243,10 +271,14 @@ def citation_report(camp_id: str, path: str = "") -> str:
 
 
 @mcp.tool()
-def research_start(topic: str, queries: list[str] | None = None,
-                   target_sources: int = 20, domains_limit: int = 2,
-                   feeds: list[str] | None = None,
-                   background: bool = True) -> str:
+def research_start(
+    topic: str,
+    queries: list[str] | None = None,
+    target_sources: int = 20,
+    domains_limit: int = 2,
+    feeds: list[str] | None = None,
+    background: bool = True,
+) -> str:
     """КАМПАНИЯ ресёрча: цель «N РАЗНЫХ сайтов» с счётчиком прогресса.
     Фон=True — охота уходит в отдельный процесс: лог + маркер done
     (~/.cache/camoufox-research/exports/<id>.json) — ждать маркер,
@@ -260,10 +292,16 @@ def research_start(topic: str, queries: list[str] | None = None,
     Перед стартом проверяет пульс крона сторожа — мёртвый крон
     предупредит, а не промолчит. Финальный отчёт автоархивируется
     (CAMOUFOX_REPORT_DIR, по умолчанию exports)."""
-    return _call("research_start", timeout=600, topic=topic,
-                 queries=queries, target_sources=target_sources,
-                 domains_limit=domains_limit, feeds=feeds,
-                 background=background)
+    return _call(
+        "research_start",
+        timeout=600,
+        topic=topic,
+        queries=queries,
+        target_sources=target_sources,
+        domains_limit=domains_limit,
+        feeds=feeds,
+        background=background,
+    )
 
 
 @mcp.tool()
@@ -288,8 +326,7 @@ def research_resume(camp_id: str, background: bool = False) -> str:
     running — откажет (двойной запуск = гонка). Нулевая волна (те же
     домены по кругу) = честный стоп. Синхронно по умолчанию; большую
     доборку — background=True (ждать маркер <id>.json)."""
-    return _call("research_resume", timeout=600, camp_id=camp_id,
-                 background=background)
+    return _call("research_resume", timeout=600, camp_id=camp_id, background=background)
 
 
 @mcp.tool()
@@ -300,21 +337,24 @@ def research_index(limit: int = 50, fmt: str = "md") -> str:
 
 
 @mcp.tool()
-def fetch_page(url: str, max_chars: int = 6000,
-               article_only: bool = False, delta: bool = False) -> str:
+def fetch_page(
+    url: str, max_chars: int = 6000, article_only: bool = False, delta: bool = False
+) -> str:
     """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на
     сутки. article_only=True — текст статьи (Trafilatura), fallback —
     весь body. delta=True — delta-чтение: если контент не изменился
     с прошлого раза, вернёт маркер '[delta: ...]' вместо текста
     (не тратим токены на повтор)."""
-    return _call("fetch_page", url=url, max_chars=max_chars,
-                 article_only=article_only, delta=delta)
+    return _call("fetch_page", url=url, max_chars=max_chars, article_only=article_only, delta=delta)
 
 
 @mcp.tool()
-def batch_fetch(urls: list[str], max_chars: int = 4000,
-                article_only: bool = False,
-                max_parallel: int | None = None) -> str:
+def batch_fetch(
+    urls: list[str],
+    max_chars: int = 4000,
+    article_only: bool = False,
+    max_parallel: int | None = None,
+) -> str:
     """Открывает НЕСКОЛЬКО URL в одном браузере — для глубокого ресёрча
     на 30-50 источников одним вызовом вместо серии холодных стартов.
     Кэш: уже посещённые URL возвращаются мгновенно, без браузера.
@@ -327,15 +367,20 @@ def batch_fetch(urls: list[str], max_chars: int = 4000,
     и баннеров. Пример:
     batch_fetch(urls=["https://docs.python.org/3/", "https://opencode.ai/docs/"],
                 max_chars=6000, article_only=True)"""
-    return _call("batch_fetch", timeout=600, urls=urls, max_chars=max_chars,
-                 article_only=article_only, max_parallel=max_parallel)
+    return _call(
+        "batch_fetch",
+        timeout=600,
+        urls=urls,
+        max_chars=max_chars,
+        article_only=article_only,
+        max_parallel=max_parallel,
+    )
 
 
 @mcp.tool()
 def extract_links(url: str, pattern: str = "", max_links: int = 20) -> str:
     """Собирает ссылки страницы (фильтр по подстроке pattern)."""
-    return _call("extract_links", url=url, pattern=pattern,
-                 max_links=max_links)
+    return _call("extract_links", url=url, pattern=pattern, max_links=max_links)
 
 
 @mcp.tool()
@@ -345,14 +390,21 @@ def browser_navigate(url: str, max_links: int = 10) -> str:
 
 
 @mcp.tool()
-def browser_click(url: str, selector: str = "", target_text: str = "",
-                  ref: str = "", max_links: int = 10) -> str:
+def browser_click(
+    url: str, selector: str = "", target_text: str = "", ref: str = "", max_links: int = 10
+) -> str:
     """Открывает URL и кликает по элементу: CSS-селектор (selector),
     текст ссылки/кнопки (target_text) или ref из snapshot (ref="3").
     Возвращает страницу после клика.
     Пример: browser_click(url, target_text="Продолжить")"""
-    return _call("browser_click", url=url, selector=selector,
-                 target_text=target_text, ref=ref, max_links=max_links)
+    return _call(
+        "browser_click",
+        url=url,
+        selector=selector,
+        target_text=target_text,
+        ref=ref,
+        max_links=max_links,
+    )
 
 
 @mcp.tool()
@@ -370,6 +422,7 @@ register(mcp, _call)
 
 # --- MCP Resources: данные для чтения «как файлы» (4-й примитив
 # протокола, MCP-канон 2026: tools + resources + prompts) ---
+
 
 @mcp.resource("camoufox://stats")
 def _res_stats() -> str:
@@ -398,52 +451,69 @@ def _res_info() -> str:
 
 # --- MCP Prompts: готовые рецепты для агента (шаблоны рабочих циклов) ---
 
+
 @mcp.prompt()
 def research_plan(topic: str) -> str:
     """Глубокий ресёрч темы: план «20+ источников, не топы»."""
-    return (f"Тема: {topic}\n\n"
-            "1. Разбей тему на 3-5 подзапросов (разные формулировки).\n"
-            "2. Вызови research(queries=[...], max_results_per_query=6, "
-            "target_domains=20, domains_limit=2, expand=True,\n"
-            "   terms_wave=True, quality_first=True, fetch_all=True, "
-            "as_json=True, max_chars=4000) — цель двадцать РАЗНЫХ\n"
-            "   доменов; доки/код/arXiv первыми; вторая волна из "
-            "термов первой; JSON для синтеза.\n"
-            "3. Сопоставь источники: общее, противоречия, пробелы.\n"
-            "4. Итог с цитатами источников.")
+    return (
+        f"Тема: {topic}\n\n"
+        "1. Разбей тему на 3-5 подзапросов (разные формулировки).\n"
+        "2. Вызови research(queries=[...], max_results_per_query=6, "
+        "target_domains=20, domains_limit=2, expand=True,\n"
+        "   terms_wave=True, quality_first=True, fetch_all=True, "
+        "as_json=True, max_chars=4000) — цель двадцать РАЗНЫХ\n"
+        "   доменов; доки/код/arXiv первыми; вторая волна из "
+        "термов первой; JSON для синтеза.\n"
+        "3. Сопоставь источники: общее, противоречия, пробелы.\n"
+        "4. Итог с цитатами источников."
+    )
 
 
 @mcp.prompt()
 def extract_schema(url: str, fields: str) -> str:
     """Извлечение полей со страницы: поля → JSON-схема → extract."""
-    return (f"URL: {url}\nНужные поля: {fields}\n\n"
-            "1. Составь JSON-схему: {\"поле\": \"css:.селектор\"} "
-            "(или xpath=//...).\n"
-            "2. extract(url=..., schema=...).\n"
-            "3. Если нужно сохранить: export(data=..., format='csv').")
+    return (
+        f"URL: {url}\nНужные поля: {fields}\n\n"
+        '1. Составь JSON-схему: {"поле": "css:.селектор"} '
+        "(или xpath=//...).\n"
+        "2. extract(url=..., schema=...).\n"
+        "3. Если нужно сохранить: export(data=..., format='csv')."
+    )
 
 
 @mcp.prompt()
 def monitor_page(url: str) -> str:
     """Мониторинг изменений страницы (delta + page_diff)."""
-    return (f"URL: {url}\n\n"
-            "1. fetch_page(url) — первое чтение (создаст кэш).\n"
-            "2. Следующая проверка: page_diff(url) — покажет изменения.\n"
-            "3. delta=True — не тратить токены на неизменный контент.")
+    return (
+        f"URL: {url}\n\n"
+        "1. fetch_page(url) — первое чтение (создаст кэш).\n"
+        "2. Следующая проверка: page_diff(url) — покажет изменения.\n"
+        "3. delta=True — не тратить токены на неизменный контент."
+    )
+
 
 def main():
     """Точка входа MCP-сервера (entry point: `camoufox-research`).
     Транспорты: stdio (по умолчанию), http (streamable), sse.
     Пример: camoufox-research --transport http --port 8833"""
     import argparse
+
     ap = argparse.ArgumentParser(description="camoufox-research MCP-сервер")
-    ap.add_argument("--transport", choices=["stdio", "http", "sse"],
-                    default="stdio", help="транспорт MCP (по умолчанию stdio)")
-    ap.add_argument("--host", default="127.0.0.1",
-                    help="адрес для http/sse (по умолчанию 127.0.0.1)")
-    ap.add_argument("--port", type=int,
-                    default=int(os.environ.get("CAMOUFOX_PORT", "8833")),
-                    help="порт для http/sse (или env CAMOUFOX_PORT)")
+    ap.add_argument(
+        "--transport",
+        choices=["stdio", "http", "sse"],
+        default="stdio",
+        help="транспорт MCP (по умолчанию stdio)",
+    )
+    ap.add_argument(
+        "--host", default="127.0.0.1", help="адрес для http/sse (по умолчанию 127.0.0.1)"
+    )
+    ap.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("CAMOUFOX_PORT", "8833")),
+        help="порт для http/sse (или env CAMOUFOX_PORT)",
+    )
     args = ap.parse_args()
     # TTL-уборка кэша при старте (паттерн cleanupPeriodDays, см. housekeep):
     # страницы/диффы/поиск > 30 дней, отчёты exports > 90 дней. Ошибки
@@ -451,6 +521,7 @@ def main():
     try:
         from camoufox_housekeep import cleanup
         from camoufox_campaign import _DB_PATH
+
         cleanup(_DB_PATH)
     except Exception:  # noqa: BLE001 — уборка бонус
         pass

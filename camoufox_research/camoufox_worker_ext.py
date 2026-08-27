@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # camoufox_worker_ext — вторая половина воркера (148 строк, канон FILE-SIZE.md)
 """Вторая половина воркера: ACTIONS, serve, main — зависит от core."""
-import hashlib
+
 import json
 import sys
 import time
@@ -13,7 +13,6 @@ try:
 except ImportError:
     import camoufox_worker_core as _core
 globals().update(_core.__dict__)
-
 
 
 # --- Session-режим: одна живая вкладка между командами (как человек) ---
@@ -45,39 +44,65 @@ except ImportError:
         research_index,
     )
 
-ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
-           "batch_fetch": batch_fetch, "research": research,
-           "paper_search": paper_search,
-           "research_start": research_start,
-           "research_status": research_status,
-           "research_report": research_report,
-           "research_digest": research_digest, "citation_pack": citation_pack,
-           "citation_report": citation_report,
-           "research_resume": research_resume,
-           "research_index": research_index,
-           "extract_links": extract_links, "browser_navigate": browser_navigate,
-           "browser_click": browser_click, "browser_type": browser_type,
-           "session_start": session_start, "session_navigate": session_navigate,
-           "session_click": session_click, "session_type": session_type,
-           "session_scroll": session_scroll, "session_links": session_links,
-           "session_text": session_text, "session_back": session_back,
-           "session_status": session_status, "session_end": session_end,
-           "snapshot": snapshot, "screenshot": screenshot,
-           "map_site": map_site, "crawl": crawl, "extract": extract,
-           "set_proxy": set_proxy, "profile_save": profile_save,
-           "profile_load": profile_load, "session_tabs": session_tabs,
-           "session_wait_for": session_wait_for, "session_eval": session_eval,
-           "session_key_press": session_key_press,
-           "session_select_option": session_select_option,
-           "session_resize": session_resize, "session_network": session_network,
-           "session_console": session_console, "session_block": session_block,
-           "session_unblock": session_unblock,
-           "session_download": session_download, "read_document": read_document,
-           "session_form_fill": session_form_fill, "stats": stats,
-           "sitemap": sitemap, "rss": rss, "check_links": check_links,
-           "export": export, "table_extract": table_extract,
-           "page_diff": page_diff, "cache_info": cache_info,
-           "session_upload": session_upload}
+ACTIONS = {
+    "web_search": web_search,
+    "fetch_page": fetch_page,
+    "batch_fetch": batch_fetch,
+    "research": research,
+    "paper_search": paper_search,
+    "research_start": research_start,
+    "research_status": research_status,
+    "research_report": research_report,
+    "research_digest": research_digest,
+    "citation_pack": citation_pack,
+    "citation_report": citation_report,
+    "research_resume": research_resume,
+    "research_index": research_index,
+    "extract_links": extract_links,
+    "browser_navigate": browser_navigate,
+    "browser_click": browser_click,
+    "browser_type": browser_type,
+    "session_start": session_start,
+    "session_navigate": session_navigate,
+    "session_click": session_click,
+    "session_type": session_type,
+    "session_scroll": session_scroll,
+    "session_links": session_links,
+    "session_text": session_text,
+    "session_back": session_back,
+    "session_status": session_status,
+    "session_end": session_end,
+    "snapshot": snapshot,
+    "screenshot": screenshot,
+    "map_site": map_site,
+    "crawl": crawl,
+    "extract": extract,
+    "set_proxy": set_proxy,
+    "profile_save": profile_save,
+    "profile_load": profile_load,
+    "session_tabs": session_tabs,
+    "session_wait_for": session_wait_for,
+    "session_eval": session_eval,
+    "session_key_press": session_key_press,
+    "session_select_option": session_select_option,
+    "session_resize": session_resize,
+    "session_network": session_network,
+    "session_console": session_console,
+    "session_block": session_block,
+    "session_unblock": session_unblock,
+    "session_download": session_download,
+    "read_document": read_document,
+    "session_form_fill": session_form_fill,
+    "stats": stats,
+    "sitemap": sitemap,
+    "rss": rss,
+    "check_links": check_links,
+    "export": export,
+    "table_extract": table_extract,
+    "page_diff": page_diff,
+    "cache_info": cache_info,
+    "session_upload": session_upload,
+}
 
 
 def _close_pages(browser):
@@ -100,7 +125,7 @@ def _serve():
     cam.start()
     _LIVE = (cam, cam.browser)
     init_session(lambda: _LIVE)  # session-модуль: доступ к живому браузеру
-    init_browser(lambda: _LIVE)   # browser-модуль: _browser_ctx для хелперов
+    init_browser(lambda: _LIVE)  # browser-модуль: _browser_ctx для хелперов
     print("[ready]", file=sys.stderr, flush=True)  # маркер готовности (канон)
     try:
         for line in sys.stdin:
@@ -112,22 +137,18 @@ def _serve():
                 action = req.get("action")
                 args = {k: v for k, v in req.items() if k != "action"}
                 if action not in ACTIONS:
-                    print(json.dumps({"error": f"нет действия {action}"}),
-                          flush=True)
+                    print(json.dumps({"error": f"нет действия {action}"}), flush=True)
                     continue
                 t0 = time.monotonic()
                 try:
                     result = ACTIONS[action](**args)
-                    _record(action, args, True, time.monotonic() - t0,
-                            result)
+                    _record(action, args, True, time.monotonic() - t0, result)
                     print(json.dumps({"result": result}), flush=True)
                 except Exception as e:  # noqa: BLE001 — одна команда не роняет сервер
                     _record(action, args, False, time.monotonic() - t0, str(e))
-                    print(json.dumps({"error": f"{type(e).__name__}: {e}"}),
-                          flush=True)
+                    print(json.dumps({"error": f"{type(e).__name__}: {e}"}), flush=True)
             except Exception as e:  # noqa: BLE001 — битая строка/не-JSON
-                print(json.dumps({"error": f"битая команда: {e}"}),
-                      flush=True)
+                print(json.dumps({"error": f"битая команда: {e}"}), flush=True)
             finally:
                 _close_pages(_LIVE[1])
     finally:

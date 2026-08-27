@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Тест TTL-уборки housekeep.cleanup: факт, не мнение."""
+
 import os
 import sqlite3
 import sys
@@ -79,7 +80,9 @@ class CleanupTest(unittest.TestCase):
                 self.assertTrue("pages:1" in msg and "exports:1" in msg)
                 con = sqlite3.connect(db)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM pages").fetchone()[0], 1)
-                self.assertEqual(con.execute("SELECT COUNT(*) FROM pages WHERE url='http://b'").fetchone()[0], 1)
+                self.assertEqual(
+                    con.execute("SELECT COUNT(*) FROM pages WHERE url='http://b'").fetchone()[0], 1
+                )
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM campaigns").fetchone()[0], 1)
                 con.close()
                 self.assertFalse(os.path.exists(os.path.join(ex, "old.md")))

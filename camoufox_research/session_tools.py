@@ -25,20 +25,25 @@ def register(mcp, call):
         return call("session_navigate", url=url, max_chars=max_chars)
 
     @mcp.tool()
-    def session_click(selector: str = "", target_text: str = "",
-                      ref: str = "", max_chars: int = 6000) -> str:
+    def session_click(
+        selector: str = "", target_text: str = "", ref: str = "", max_chars: int = 6000
+    ) -> str:
         """Клик на живой странице сессии: CSS-селектор (selector), текст
         ссылки (target_text) или ref из snapshot (ref="3").
         Возвращает текст ПОСЛЕ клика. Требует session_start."""
-        return call("session_click", selector=selector, target_text=target_text,
-                    ref=ref, max_chars=max_chars)
+        return call(
+            "session_click",
+            selector=selector,
+            target_text=target_text,
+            ref=ref,
+            max_chars=max_chars,
+        )
 
     @mcp.tool()
     def session_type(selector: str, text: str, max_chars: int = 6000) -> str:
         """Ввод в поле на живой странице сессии (CSS-селектор).
         Требует session_start."""
-        return call("session_type", selector=selector, text=text,
-                    max_chars=max_chars)
+        return call("session_type", selector=selector, text=text, max_chars=max_chars)
 
     @mcp.tool()
     def session_scroll(direction: str = "bottom", max_chars: int = 6000) -> str:
@@ -79,13 +84,11 @@ def register(mcp, call):
         return call("session_tabs", op=op, url=url, tab_id=tab_id)
 
     @mcp.tool()
-    def session_wait_for(text: str = "", selector: str = "",
-                         timeout: int = 15) -> str:
+    def session_wait_for(text: str = "", selector: str = "", timeout: int = 15) -> str:
         """Ждать на живой странице сессии появления текста (text) или
         элемента (selector). Вернёт «дождался»/«не дождался».
         Требует session_start."""
-        return call("session_wait_for", text=text, selector=selector,
-                    timeout=timeout)
+        return call("session_wait_for", text=text, selector=selector, timeout=timeout)
 
     @mcp.tool()
     def session_eval(expression: str) -> str:
@@ -101,14 +104,14 @@ def register(mcp, call):
         return call("snapshot", url=url, limit=limit)
 
     @mcp.tool()
-    def screenshot(url: str = "", selector: str = "", som: bool = False,
-                   full_page: bool = True) -> str:
+    def screenshot(
+        url: str = "", selector: str = "", som: bool = False, full_page: bool = True
+    ) -> str:
         """Скриншот в PNG: активная вкладка сессии (без url) или страница
         по url. selector — только элемент. som=True — Set-of-Mark: красные
         рамки с номерами на интерактивных элементах (ref совпадают со
         snapshot). Возвращает путь к файлу."""
-        return call("screenshot", url=url, selector=selector, som=som,
-                    full_page=full_page)
+        return call("screenshot", url=url, selector=selector, som=som, full_page=full_page)
 
     @mcp.tool()
     def map_site(url: str, max_links: int = 50, pattern: str = "") -> str:
@@ -117,15 +120,26 @@ def register(mcp, call):
         return call("map_site", url=url, max_links=max_links, pattern=pattern)
 
     @mcp.tool()
-    def crawl(url: str, max_pages: int = 10, max_depth: int = 2,
-              pattern: str = "", article_only: bool = True,
-              max_chars: int = 4000) -> str:
+    def crawl(
+        url: str,
+        max_pages: int = 10,
+        max_depth: int = 2,
+        pattern: str = "",
+        article_only: bool = True,
+        max_chars: int = 4000,
+    ) -> str:
         """BFS-обход сайта: стартовая страница + внутренние ссылки
         (depth <= max_depth, всего <= max_pages). Тексты с разделителями
         '--- URL:'. Паттерн Firecrawl crawl. Кэш: повторный обход дешёвый."""
-        return call("crawl", url=url, max_pages=max_pages, max_depth=max_depth,
-                    pattern=pattern, article_only=article_only,
-                    max_chars=max_chars)
+        return call(
+            "crawl",
+            url=url,
+            max_pages=max_pages,
+            max_depth=max_depth,
+            pattern=pattern,
+            article_only=article_only,
+            max_chars=max_chars,
+        )
 
     @mcp.tool()
     def extract(url: str, schema: str) -> str:
@@ -162,19 +176,16 @@ def register(mcp, call):
         return call("session_key_press", key=key, max_chars=max_chars)
 
     @mcp.tool()
-    def session_select_option(selector: str, value: str,
-                              max_chars: int = 6000) -> str:
+    def session_select_option(selector: str, value: str, max_chars: int = 6000) -> str:
         """Выбрать вариант в <select> по значению/метке/индексу.
         Требует session_start."""
-        return call("session_select_option", selector=selector, value=value,
-                    max_chars=max_chars)
+        return call("session_select_option", selector=selector, value=value, max_chars=max_chars)
 
     @mcp.tool()
     def session_resize(width: int, height: int, max_chars: int = 2000) -> str:
         """Изменить размер viewport активной вкладки (адаптивные сайты).
         Требует session_start."""
-        return call("session_resize", width=width, height=height,
-                    max_chars=max_chars)
+        return call("session_resize", width=width, height=height, max_chars=max_chars)
 
     @mcp.tool()
     def session_network(limit: int = 50) -> str:
@@ -202,13 +213,11 @@ def register(mcp, call):
         return call("session_unblock", pattern=pattern)
 
     @mcp.tool()
-    def session_download(url: str = "", selector: str = "",
-                         timeout: int = 30) -> str:
+    def session_download(url: str = "", selector: str = "", timeout: int = 30) -> str:
         """Скачать файл. url — прямая ссылка; selector — кликнуть и поймать
         download (кнопки «Скачать»). Сохраняет в
         ~/.cache/camoufox-research/downloads/. Возвращает путь."""
-        return call("session_download", url=url, selector=selector,
-                    timeout=timeout)
+        return call("session_download", url=url, selector=selector, timeout=timeout)
 
     @mcp.tool()
     def read_document(source: str, max_chars: int = 6000) -> str:
@@ -217,20 +226,17 @@ def register(mcp, call):
         return call("read_document", source=source, max_chars=max_chars)
 
     @mcp.tool()
-    def session_form_fill(fields: str, submit: str = "",
-                          max_chars: int = 6000) -> str:
+    def session_form_fill(fields: str, submit: str = "", max_chars: int = 6000) -> str:
         """Заполнить форму РАЗОМ: fields — JSON {"селектор": "значение"}.
         submit — селектор кнопки отправки (кликнет, если задан).
         Паттерн form filling. Требует session_start."""
-        return call("session_form_fill", fields=fields, submit=submit,
-                    max_chars=max_chars)
+        return call("session_form_fill", fields=fields, submit=submit, max_chars=max_chars)
 
     @mcp.tool()
     def session_upload(selector: str, path: str, max_chars: int = 6000) -> str:
         """Загрузить файл в форму: selector — input[type=file], path —
         локальный путь. Паттерн form file upload. Требует session_start."""
-        return call("session_upload", selector=selector, path=path,
-                    max_chars=max_chars)
+        return call("session_upload", selector=selector, path=path, max_chars=max_chars)
 
     @mcp.tool()
     def stats(limit: int = 20) -> str:
@@ -252,12 +258,18 @@ def register(mcp, call):
         return call("rss", url=url, limit=limit)
 
     @mcp.tool()
-    def check_links(url: str, max_links: int = 50, internal_only: bool = True,
-                    timeout: int = 15) -> str:
+    def check_links(
+        url: str, max_links: int = 50, internal_only: bool = True, timeout: int = 15
+    ) -> str:
         """Проверка битых ссылок: собрать ссылки страницы, проверить
         HTTP-статусы, отчёт «[404] URL». Паттерн broken link checkers."""
-        return call("check_links", url=url, max_links=max_links,
-                    internal_only=internal_only, timeout=timeout)
+        return call(
+            "check_links",
+            url=url,
+            max_links=max_links,
+            internal_only=internal_only,
+            timeout=timeout,
+        )
 
     @mcp.tool()
     def export(data: str, format: str = "json", path: str = "") -> str:
@@ -267,12 +279,10 @@ def register(mcp, call):
         return call("export", data=data, format=format, path=path)
 
     @mcp.tool()
-    def table_extract(url: str, selector: str = "table",
-                      max_tables: int = 5) -> str:
+    def table_extract(url: str, selector: str = "table", max_tables: int = 5) -> str:
         """HTML-таблицы страницы → CSV-текст (характеристики, прайсы,
         сравнения). Паттерн table export."""
-        return call("table_extract", url=url, selector=selector,
-                    max_tables=max_tables)
+        return call("table_extract", url=url, selector=selector, max_tables=max_tables)
 
     @mcp.tool()
     def page_diff(url: str, max_chars: int = 6000) -> str:

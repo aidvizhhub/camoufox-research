@@ -8,6 +8,7 @@
 (incomplete {'init','tools:N'} на всех Python). Счёт тулов НЕ хардкод —
 проверяем состав (web_search/session_start) и разумный минимум.
 """
+
 import json
 import os
 import subprocess
@@ -17,14 +18,26 @@ import time
 CMD = sys.argv[1:] or [os.environ.get("MCP_CMD", "camoufox-research")]
 
 REQUESTS = [
-    {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-     "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                "clientInfo": {"name": "ci", "version": "1"}},
-     "want": "init"},
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "ci", "version": "1"},
+        },
+        "want": "init",
+    },
     {"jsonrpc": "2.0", "method": "notifications/initialized"},
     {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "want": "tools"},
-    {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-     "params": {"name": "ping", "arguments": {}}, "want": "ping"},
+    {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {"name": "ping", "arguments": {}},
+        "want": "ping",
+    },
 ]
 
 TIMEOUT = 45
@@ -35,9 +48,14 @@ def run_once():
     Возвращает seen:set и число тулов (для отчёта)."""
     seen, ntools = set(), 0
     proc = subprocess.Popen(
-        CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
-        errors="replace")
+        CMD,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     try:
         for req in REQUESTS:
             want = req.pop("want", None)
@@ -70,8 +88,7 @@ def run_once():
                 ntools = len(names)
                 seen.add("tools")
             elif want == "ping":
-                txt = "".join(c.get("text", "")
-                              for c in got["result"]["content"])
+                txt = "".join(c.get("text", "") for c in got["result"]["content"])
                 assert "pong" in txt, got
                 seen.add("ping")
         return seen, ntools

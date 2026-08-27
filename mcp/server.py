@@ -6,6 +6,7 @@
 Установленный пакет запускается командой `camoufox-research`
 (см. pyproject.toml, [project.scripts]).
 """
+
 import os
 import sys
 

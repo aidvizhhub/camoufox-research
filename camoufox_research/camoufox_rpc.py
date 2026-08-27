@@ -17,6 +17,7 @@ Usage:
   camoufox_rpc.py --tool ping
   camoufox_rpc.py --tool batch_fetch --args '{"urls":["u1","u2"],"max_chars":3000}'
 """
+
 import argparse
 import json
 import os
@@ -41,12 +42,18 @@ def call_rpc(proc, req):
 
 def main():
     ap = argparse.ArgumentParser(description="JSON-RPC вызов camoufox MCP-сервера")
-    ap.add_argument("--tool", required=True, help="имя тула: ping/web_search/research/"
-                                                  "fetch_page/batch_fetch/browser_navigate/...")
+    ap.add_argument(
+        "--tool",
+        required=True,
+        help="имя тула: ping/web_search/research/fetch_page/batch_fetch/browser_navigate/...",
+    )
     ap.add_argument("--args", default="{}", help="JSON с аргументами тула")
     ap.add_argument("--timeout", type=int, default=300)
-    ap.add_argument("--python", default=sys.executable,
-                    help="интерпретатор для сервера (по умолчанию sys.executable)")
+    ap.add_argument(
+        "--python",
+        default=sys.executable,
+        help="интерпретатор для сервера (по умолчанию sys.executable)",
+    )
     args = ap.parse_args()
 
     if not os.path.exists(SERVER):
@@ -54,19 +61,38 @@ def main():
         return 2
 
     proc = subprocess.Popen(
-        [args.python, SERVER], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True, bufsize=1)
+        [args.python, SERVER],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
     try:
-        call_rpc(proc, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                        "params": {"protocolVersion": "2024-11-05",
-                                   "capabilities": {},
-                                   "clientInfo": {"name": "camoufox-rpc",
-                                                  "version": "1.0"}}})
+        call_rpc(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "camoufox-rpc", "version": "1.0"},
+                },
+            },
+        )
         proc.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
         proc.stdin.flush()
-        result = call_rpc(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                 "params": {"name": args.tool,
-                                            "arguments": json.loads(args.args)}})
+        result = call_rpc(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": args.tool, "arguments": json.loads(args.args)},
+            },
+        )
         if "error" in result:
             print(json.dumps(result["error"], ensure_ascii=False))
             return 1

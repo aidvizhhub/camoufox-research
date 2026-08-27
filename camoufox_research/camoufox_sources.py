@@ -10,13 +10,25 @@
 узнал в первой (термы/имена из сниппетов). Оба механизма — БЕЗ LLM:
 детерминированные эвристики, чтобы MCP-сервер не зависел от ключей.
 """
+
 import re
 from urllib.parse import urlparse
 
 # Домены 2-го уровня, где registrable domain = 3 компонента
 # (example.co.uk), для честного счётчика «разные источники».
-_TWO_PART_TLDS = {"co.uk", "co.jp", "co.kr", "co.in", "co.au", "com.au",
-                  "com.br", "com.mx", "com.tr", "org.uk", "net.au"}
+_TWO_PART_TLDS = {
+    "co.uk",
+    "co.jp",
+    "co.kr",
+    "co.in",
+    "co.au",
+    "com.au",
+    "com.br",
+    "com.mx",
+    "com.tr",
+    "org.uk",
+    "net.au",
+}
 
 
 def _reg_domain(url):
@@ -33,27 +45,69 @@ def _reg_domain(url):
         return ".".join(parts[-3:])
     return ".".join(parts[-2:]) if len(parts) >= 2 else netloc
 
+
 # --- Реестр качества доменов ------------------------------------------------
 # tier: 0 = первоисточник (доки/код/наука), 1 = надёжный тех,
 #       2 = форум/блог (полезно, но не эталон), 3 = мусор/реклама.
 # КЛЮЧ УТОЧНЯТЬ ЗДЕСЬ (паттерн gpt-researcher source ranking):
 # подстроки netloc, регистр не важен.
 
-_T0_TOP = ("arxiv.org", "github.com", "gitlab.com", "huggingface.co",
-           "readthedocs", "semanticscholar.org", "paperswithcode.com",
-           "deepwiki.com", "aclanthology.org", "openreview.net")
-_T0_TOP_DOMAINS = ("openai.com", "anthropic.com", "python.org",
-                   "mozilla.org", "firecrawl.dev", "langchain.com",
-                   "mistral.ai", "google.dev", "learn.microsoft.com")
+_T0_TOP = (
+    "arxiv.org",
+    "github.com",
+    "gitlab.com",
+    "huggingface.co",
+    "readthedocs",
+    "semanticscholar.org",
+    "paperswithcode.com",
+    "deepwiki.com",
+    "aclanthology.org",
+    "openreview.net",
+)
+_T0_TOP_DOMAINS = (
+    "openai.com",
+    "anthropic.com",
+    "python.org",
+    "mozilla.org",
+    "firecrawl.dev",
+    "langchain.com",
+    "mistral.ai",
+    "google.dev",
+    "learn.microsoft.com",
+)
 _T0_PREFIXES = ("docs.", "dev.", "developer.", "learn.", "research.")
-_T1_TOP = ("stackoverflow.com", "ieee.org", "acm.org", "springer.com",
-           "sciencedirect.com", "nature.com", "stripe.com", "aws.amazon.com")
+_T1_TOP = (
+    "stackoverflow.com",
+    "ieee.org",
+    "acm.org",
+    "springer.com",
+    "sciencedirect.com",
+    "nature.com",
+    "stripe.com",
+    "aws.amazon.com",
+)
 _T1_SUFFIXES = ("edu", "ac.uk", "gov")
-_T2_TOP = ("reddit.com", "news.ycombinator.com", "quora.com", "medium.com",
-           "dev.to", "hashnode.dev", "substack.com", "forum", "forums.",
-           "stackexchange.com")
-_T3_TOP = ("duckduckgo.com", "bing.com", "outbrain.com", "taboola.com",
-           "doubleclick.net", "googleadservices.com", "adsterra.com")
+_T2_TOP = (
+    "reddit.com",
+    "news.ycombinator.com",
+    "quora.com",
+    "medium.com",
+    "dev.to",
+    "hashnode.dev",
+    "substack.com",
+    "forum",
+    "forums.",
+    "stackexchange.com",
+)
+_T3_TOP = (
+    "duckduckgo.com",
+    "bing.com",
+    "outbrain.com",
+    "taboola.com",
+    "doubleclick.net",
+    "googleadservices.com",
+    "adsterra.com",
+)
 
 _LABELS = {0: "первоисточник", 1: "надёжный", 2: "форум/блог", 3: ""}
 
@@ -67,16 +121,15 @@ def domain_tier(url):
         return 3, ""
     if any(t in netloc for t in _T3_TOP):
         return 3, _LABELS[3]
-    if (any(t in netloc for t in _T2_TOP)
-            or netloc.startswith("forums.") or ".forum" in netloc):
+    if any(t in netloc for t in _T2_TOP) or netloc.startswith("forums.") or ".forum" in netloc:
         return 2, _LABELS[2]
-    if (any(t in netloc for t in _T0_TOP)
-            or any(netloc.endswith("." + s) or netloc == s
-                   for s in _T0_TOP_DOMAINS)
-            or any(netloc.startswith(p) for p in _T0_PREFIXES)):
+    if (
+        any(t in netloc for t in _T0_TOP)
+        or any(netloc.endswith("." + s) or netloc == s for s in _T0_TOP_DOMAINS)
+        or any(netloc.startswith(p) for p in _T0_PREFIXES)
+    ):
         return 0, _LABELS[0]
-    if (any(t in netloc for t in _T1_TOP)
-            or any(netloc.endswith("." + s) for s in _T1_SUFFIXES)):
+    if any(t in netloc for t in _T1_TOP) or any(netloc.endswith("." + s) for s in _T1_SUFFIXES):
         return 1, _LABELS[1]
     return 2, _LABELS[2]  # неизвестный домен = непроверенный блог
 
@@ -105,15 +158,88 @@ def rank_and_select(seen, domains_limit=0):
 # --- Термы для follow-up волны (Open Deep Research, без LLM) ---------------
 
 _STOP = {
-    "and", "the", "with", "from", "this", "that", "what", "which", "your",
-    "more", "best", "how", "why", "when", "where", "are", "for", "not",
-    "you", "can", "will", "have", "has", "its", "their", "they", "them",
-    "all", "one", "two", "out", "about", "into", "over", "than", "then",
-    "also", "but", "was", "were", "been", "being", "using", "use", "used",
-    "via", "per", "all", "each", "other", "some", "such", "any", "both",
-    "most", "much", "many", "new", "top", "good", "great", "like", "just",
-    "only", "see", "look", "here", "there", "these", "those", "на", "и",
-    "в", "с", "о", "не", "по", "для", "это", "как", "что", "при",
+    "and",
+    "the",
+    "with",
+    "from",
+    "this",
+    "that",
+    "what",
+    "which",
+    "your",
+    "more",
+    "best",
+    "how",
+    "why",
+    "when",
+    "where",
+    "are",
+    "for",
+    "not",
+    "you",
+    "can",
+    "will",
+    "have",
+    "has",
+    "its",
+    "their",
+    "they",
+    "them",
+    "all",
+    "one",
+    "two",
+    "out",
+    "about",
+    "into",
+    "over",
+    "than",
+    "then",
+    "also",
+    "but",
+    "was",
+    "were",
+    "been",
+    "being",
+    "using",
+    "use",
+    "used",
+    "via",
+    "per",
+    "all",
+    "each",
+    "other",
+    "some",
+    "such",
+    "any",
+    "both",
+    "most",
+    "much",
+    "many",
+    "new",
+    "top",
+    "good",
+    "great",
+    "like",
+    "just",
+    "only",
+    "see",
+    "look",
+    "here",
+    "there",
+    "these",
+    "those",
+    "на",
+    "и",
+    "в",
+    "с",
+    "о",
+    "не",
+    "по",
+    "для",
+    "это",
+    "как",
+    "что",
+    "при",
 }
 _MIN_LEN = 5
 _TERM_MAX = 5
@@ -140,14 +266,11 @@ def extract_terms(texts, base_queries):
     """
     corpus = " ".join(texts)
     # фразы из Capwords: "Deep Research Agents", "OpenAI Deep Research"
-    phrases = re.findall(
-        r"\b([A-Z][A-Za-z0-9]{2,}(?:[ -][A-Z][A-Za-z0-9]{2,}){1,3})\b",
-        corpus)
+    phrases = re.findall(r"\b([A-Z][A-Za-z0-9]{2,}(?:[ -][A-Z][A-Za-z0-9]{2,}){1,3})\b", corpus)
     words = re.findall(r"[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-]{3,}", corpus)
     base_tokens = set()
     for q in base_queries:
-        base_tokens |= {w.lower() for w in
-                        re.findall(r"[A-Za-z0-9]{3,}", q)}
+        base_tokens |= {w.lower() for w in re.findall(r"[A-Za-z0-9]{3,}", q)}
     freq = {}
     for w in words:
         lw = w.lower()
@@ -156,17 +279,30 @@ def extract_terms(texts, base_queries):
         if not re.search(r"[a-zA-Zа-яА-Я]", lw):
             continue
         freq[lw] = freq.get(lw, 0) + 1
-    rare = sorted((w for w, c in freq.items() if c <= 3),
-                  key=lambda w: (freq[w], len(w)), reverse=False)
+    rare = sorted(
+        (w for w, c in freq.items() if c <= 3), key=lambda w: (freq[w], len(w)), reverse=False
+    )
     out, seen_terms = [], set()
-    _PHRASE_STOP = {"This", "That", "The", "And", "What", "How", "Why",
-                    "You", "Your", "Are", "For", "With", "From"}
+    _PHRASE_STOP = {
+        "This",
+        "That",
+        "The",
+        "And",
+        "What",
+        "How",
+        "Why",
+        "You",
+        "Your",
+        "Are",
+        "For",
+        "With",
+        "From",
+    }
     for p in phrases:
         lp = p.lower()
         if any(t in lp for t in base_tokens) or lp in seen_terms:
             continue
-        if {w for w in p.replace("-", " ").split()
-                if w in _PHRASE_STOP}:
+        if {w for w in p.replace("-", " ").split() if w in _PHRASE_STOP}:
             continue  # «... Guide This» = артефакт заголовка, не терм
         out.append(p)
         seen_terms.add(lp)

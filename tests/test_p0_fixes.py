@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """P0-тесты: импорты + домены + термы — без браузера, <2с."""
+
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 REPO = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO)
+
 
 # --- импорты должны работать обоими путями ---
 class ImportShimTest(unittest.TestCase):
@@ -16,29 +16,34 @@ class ImportShimTest(unittest.TestCase):
         from camoufox_research.camoufox_campaign import start
         from camoufox_research.camoufox_fetch import research
         from camoufox_research.camoufox_sources import _reg_domain
+
         self.assertTrue(callable(start))
         self.assertTrue(callable(research))
         self.assertTrue(callable(_reg_domain))
 
     def test_worker_import_count(self):
         from camoufox_research.camoufox_worker import ACTIONS
+
         # 57 тулов на 0.18.1
         self.assertGreaterEqual(len(ACTIONS), 50)
 
     def test_bare_import_fallback(self):
         # имитация запуска файлом: добавляем каталог пакета в sys.path
         import importlib.util
+
         spec = importlib.util.spec_from_file_location(
-            "camoufox_campaign_bare",
-            str(Path(REPO) / "camoufox_research" / "camoufox_campaign.py"))
+            "camoufox_campaign_bare", str(Path(REPO) / "camoufox_research" / "camoufox_campaign.py")
+        )
         # просто проверяем что файл грузится без пакета в sys.modules
         # (шибка bare должна сработать)
         self.assertIsNotNone(spec)
+
 
 # --- _reg_domain ---
 class RegDomainTest(unittest.TestCase):
     def test_reg_domain_cases(self):
         from camoufox_research.camoufox_sources import _reg_domain
+
         self.assertEqual(_reg_domain("https://docs.python.org/3/library/os.html"), "python.org")
         self.assertEqual(_reg_domain("https://peps.python.org/pep-0008/"), "python.org")
         self.assertEqual(_reg_domain("https://www.example.com/path"), "example.com")
@@ -49,10 +54,12 @@ class RegDomainTest(unittest.TestCase):
         self.assertEqual(_reg_domain("https://github.com/user/repo"), "github.com")
         self.assertEqual(_reg_domain(""), "")
 
+
 # --- domain_tier ---
 class DomainTierTest(unittest.TestCase):
     def test_tiers(self):
         from camoufox_research.camoufox_sources import domain_tier
+
         self.assertEqual(domain_tier("https://arxiv.org/abs/1")[0], 0)
         self.assertEqual(domain_tier("https://github.com/a/b")[0], 0)
         self.assertEqual(domain_tier("https://docs.python.org")[0], 0)
@@ -61,10 +68,12 @@ class DomainTierTest(unittest.TestCase):
         self.assertEqual(domain_tier("https://duckduckgo.com/y.js?ad_domain=foo")[0], 3)
         self.assertEqual(domain_tier("https://unknown-blog.example.com")[0], 2)
 
+
 # --- rank_and_select ---
 class RankSelectTest(unittest.TestCase):
     def test_quality_first_order(self):
         from camoufox_research.camoufox_sources import rank_and_select
+
         seen = [
             (2, "blog", "https://medium.com/a", "s"),
             (0, "arxiv", "https://arxiv.org/abs/1", "s"),
@@ -78,6 +87,7 @@ class RankSelectTest(unittest.TestCase):
 
     def test_domains_limit(self):
         from camoufox_research.camoufox_sources import rank_and_select
+
         seen = [
             (0, "a", "https://github.com/a", "s"),
             (0, "b", "https://github.com/b", "s"),
@@ -90,10 +100,12 @@ class RankSelectTest(unittest.TestCase):
         self.assertEqual(len(gh), 2)
         self.assertEqual(len(out), 3)
 
+
 # --- extract_terms ---
 class ExtractTermsTest(unittest.TestCase):
     def test_extract_terms_basic(self):
         from camoufox_research.camoufox_sources import extract_terms
+
         texts = ["Deep Research Agents use OpenAI Deep Research and arxiv search"]
         terms = extract_terms(texts, ["deep research"])
         # должен вытащить именные фразы и редкие слова, но не слова из base
@@ -104,32 +116,39 @@ class ExtractTermsTest(unittest.TestCase):
 
     def test_extract_terms_limit(self):
         from camoufox_research.camoufox_sources import extract_terms
+
         texts = ["Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa"]
         terms = extract_terms(texts, ["base"])
         self.assertLessEqual(len(terms), 5)
+
 
 # --- _batch_texts ---
 class BatchTextsTest(unittest.TestCase):
     def test_batch_texts(self):
         from camoufox_research.camoufox_sources import _batch_texts
+
         batch = "--- URL: https://a.com\nhello world\n\n--- URL: https://b.com\nsecond text"
         out = _batch_texts(batch)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0]["url"], "https://a.com")
         self.assertEqual(out[0]["text"], "hello world")
 
+
 # --- _auto_workers ---
 class AutoWorkersTest(unittest.TestCase):
     def test_auto_workers_range(self):
         from camoufox_research.camoufox_fetch import _auto_workers
+
         w = _auto_workers()
         self.assertGreaterEqual(w, 1)
         self.assertLessEqual(w, 8)
+
 
 # --- _save_to_internet opt-in ---
 class SaveToInternetTest(unittest.TestCase):
     def test_disabled_by_default(self):
         from camoufox_research.camoufox_fetch import _save_to_internet
+
         # без env не должен писать в skills
         os.environ.pop("CAMOUFOX_SAVE_SKILLS", None)
         # не должен кидать исключение
@@ -140,6 +159,7 @@ class SaveToInternetTest(unittest.TestCase):
             _save_to_internet("https://example.com", "text")
         finally:
             os.environ.pop("CAMOUFOX_SAVE_SKILLS", None)
+
 
 # --- pyproject deps ---
 class PyprojectDepsTest(unittest.TestCase):
