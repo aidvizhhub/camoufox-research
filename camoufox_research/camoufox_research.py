@@ -96,7 +96,7 @@ def _res_health() -> str:
 
         ver = importlib.metadata.version("camoufox-research")
     except Exception:
-        ver = "0.18.1"
+        ver = "0.19.0"
     tools = len(mcp._tool_manager._tools)
     total_calls = sum(len(v) for v in _RATE_LIMIT.values())
     auth_status = "включён (CAMOUFOX_API_KEY)" if _AUTH_KEY else "выключен"
