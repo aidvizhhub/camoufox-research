@@ -39,3 +39,4 @@ Thumbs.db
 # --- Локальные конфиги ---
 configs/.env
 configs/local.*
+_site/
