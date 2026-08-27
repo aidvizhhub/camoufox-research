@@ -15,9 +15,9 @@ import tempfile
 import urllib.request
 
 try:
-    import camoufox_research.camoufox_browser as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
+    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
 except ImportError:
-    import camoufox_browser as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
+    import camoufox_browser_core as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
 
 _SUPPORTED = {".pdf", ".docx", ".xlsx"}
 

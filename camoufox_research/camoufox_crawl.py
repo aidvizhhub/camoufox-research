@@ -14,9 +14,9 @@ import time
 from urllib.parse import urlparse
 
 try:
-    import camoufox_research.camoufox_browser as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+    import camoufox_research.camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
 except ImportError:
-    import camoufox_browser as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
+    import camoufox_browser_core as _cb  # живая ссылка: _LIVE_PROVIDER меняется в serve
 
 try:
     from camoufox_research.camoufox_browser import (
