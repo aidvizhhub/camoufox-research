@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.10.0-green)
+![Version](https://img.shields.io/badge/version-0.11.0-green)
 
 ```
     AI Agent
@@ -126,6 +126,12 @@ research(
 paper_search("deep research agents")        # arXiv + Semantic Scholar
 research(queries=["..."], academic=True)   # adds tier-0 papers to the hunt
 ```
+
+**Digests & verified (`research_digest`, auto after background campaigns):**
+after the hunt the runner cuts short digests (title + first paragraph) for cheap
+synthesis and marks each source ✅ live / ❌ broken (verified citations gate,
+DEER / DeepResearch Bench pattern). The done-marker gains `digests / verified
+/ broken` fields; `research_report` shows the status column.
 
 For automation, `as_json=True` returns a JSON payload instead of a text dump:
 

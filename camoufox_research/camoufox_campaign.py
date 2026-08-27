@@ -84,6 +84,14 @@ def _db():
         if "feeds" not in cols:
             con.execute("ALTER TABLE campaigns ADD COLUMN feeds TEXT "
                         "DEFAULT '[]'")
+        scol = {r[1] for r in con.execute(
+            "PRAGMA table_info(campaign_sources)")}
+        if "digest" not in scol:  # выжимка (пост-обработка охоты)
+            con.execute("ALTER TABLE campaign_sources ADD COLUMN "
+                        "digest TEXT DEFAULT ''")
+        if "live" not in scol:  # verified: -1/1/0 (жив-или-кэш/битый)
+            con.execute("ALTER TABLE campaign_sources ADD COLUMN "
+                        "live INTEGER DEFAULT -1")
         _DDL_DONE = True
     return con
 
@@ -219,7 +227,7 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
             raw = research(queries=wq, max_results_per_query=10,
                            target_domains=target, domains_limit=dl,
                            terms_wave=True, quality_first=True,
-                           fetch_all=False, as_json=True)
+                           academic=True, fetch_all=False, as_json=True)
             payload = json.loads(raw) if isinstance(raw, str) else {}
             fresh, total, uniq, skipped = _ingest(camp_id, payload)
             notes.append(f"волна{i}:+{fresh} новых ({uniq}/{target} доменов)"
@@ -283,7 +291,7 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
             raw = research(queries=wq, max_results_per_query=10,
                            target_domains=target, domains_limit=dl,
                            terms_wave=True, quality_first=True,
-                           fetch_all=False, as_json=True)
+                           academic=True, fetch_all=False, as_json=True)
             payload = json.loads(raw) if isinstance(raw, str) else {}
             fresh, total, uniq, skipped = _ingest(camp_id, payload)
             notes.append(f"добор{i}:+{fresh} ({uniq}/{target} доменов)")
@@ -430,27 +438,32 @@ def report(camp_id, fmt="md"):
         if not topic_row:
             return f"ошибка: нет кампании {camp_id}"
         rows = con.execute(
-            "SELECT title,url,domain,tier,tier_label FROM campaign_sources "
-            "WHERE camp_id=? ORDER BY tier ASC, added_ts DESC",
-            (camp_id,)).fetchall()
+            "SELECT title,url,domain,tier,tier_label,live "
+            "FROM campaign_sources WHERE camp_id=? "
+            "ORDER BY tier ASC, added_ts DESC", (camp_id,)).fetchall()
     total, uniq = _counts(camp_id)
+    verified = sum(1 for r in rows if r[5] == 1)
     if fmt == "json":
         return json.dumps({
             "id": camp_id, "topic": topic_row[0],
             "status": topic_row[2], "sources": total,
             "unique_domains": uniq, "target": topic_row[1],
-            "items": [{"title": t, "url": u, "domain": d,
-                       "tier": ti, "tier_label": lb}
-                      for t, u, d, ti, lb in rows]},
+            "verified": verified,
+            "items": [{"title": t, "url": u, "domain": d, "tier": ti,
+                       "tier_label": lb,
+                       "status": {1: "жив", 0: "битый", -1: "?"}.get(li)}
+                      for t, u, d, ti, lb, li in rows]},
             ensure_ascii=False, indent=1)
     head = ([f"# Кампания: {topic_row[0]}",
              f"- id: {camp_id} · статус: {topic_row[2]}",
              f"- источников: {total}, разных сайтов: {uniq}/"
-             f"{topic_row[1]}", "", "| # | источник | домен | класс |",
-             "|---|---|---|---|"])
+             f"{topic_row[1]} · verified: {verified}",
+             "", "| # | источник | домен | класс | статус |",
+             "|---|---|---|---|---|"])
     body = "\n".join(
-        f"| {i} | [{(t or u)[:80]}]({u}) | {d} | {lb or 'класс ' + str(ti)} |"
-        for i, (t, u, d, ti, lb) in enumerate(rows, 1))
+        f"| {i} | [{(t or u)[:80]}]({u}) | {d} | {lb or 'класс ' + str(ti)}"
+        f" | {({1: '✅', 0: '❌', -1: '?'}[li])} |"
+        for i, (t, u, d, ti, lb, li) in enumerate(rows, 1))
     return "\n".join(head) + "\n" + body
 
 

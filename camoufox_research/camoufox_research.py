@@ -213,6 +213,17 @@ def paper_search(query: str, sources: str = "arxiv,semantic",
 
 
 @mcp.tool()
+def research_digest(camp_id: str, refresh: bool = True) -> str:
+    """Выжимки + верификация кампании: короткие пакеты
+    (заголовок + первый абзац, ~700 символов) для синтеза и статус
+    «жив/битый» каждого источника (гейт качества, паттерн DEER /
+    DeepResearch Bench: verified citations). refresh=True — собрать
+    выжимки и проверить живость заново (до 30 URL, параллельно);
+    у фоновой кампании всё уже заполнено — refresh не нужен."""
+    return _call("research_digest", camp_id=camp_id, refresh=refresh)
+
+
+@mcp.tool()
 def research_start(topic: str, queries: list[str] | None = None,
                    target_sources: int = 20, domains_limit: int = 2,
                    feeds: list[str] | None = None,
