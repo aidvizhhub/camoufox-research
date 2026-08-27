@@ -34,6 +34,44 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("camoufox-research")
 WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "camoufox_worker.py")
 
+# --- Production: healthcheck + rate-limit + auth (MCP Best Practices 9,11) ---
+_START_TIME = time.monotonic()
+_RATE_LIMIT: dict[str, list[float]] = {}
+_RATE_LIMIT_MAX = int(os.environ.get("CAMOUFOX_RATE_LIMIT", "60"))  # max calls/min global
+_RATE_LIMIT_WINDOW = 60.0
+_AUTH_KEY = os.environ.get("CAMOUFOX_API_KEY", "").strip()
+
+
+def _check_auth(kwargs: dict) -> str | None:
+    """Если CAMOUFOX_API_KEY задан — требуем api_key в kwargs, иначе 401."""
+    if not _AUTH_KEY:
+        return None
+    provided = str(kwargs.get("api_key", "")).strip() or str(kwargs.get("auth", "")).strip()
+    if provided != _AUTH_KEY:
+        return "ошибка: 401 Unauthorized — неверный api_key (задай CAMOUFOX_API_KEY env и передай api_key в вызов)"
+    return None
+
+
+def _check_rate_limit(action: str) -> str | None:
+    """Простой fixed-window: max _RATE_LIMIT_MAX вызовов в 60с, иначе 429."""
+    if _RATE_LIMIT_MAX <= 0:
+        return None
+    now = time.monotonic()
+    # чистим старые
+    for k in list(_RATE_LIMIT.keys()):
+        _RATE_LIMIT[k] = [t for t in _RATE_LIMIT[k] if now - t < _RATE_LIMIT_WINDOW]
+        if not _RATE_LIMIT[k]:
+            del _RATE_LIMIT[k]
+    # глобальный + per-action
+    total = sum(len(v) for v in _RATE_LIMIT.values())
+    if total >= _RATE_LIMIT_MAX:
+        return f"ошибка: 429 Too Many Requests — лимит {_RATE_LIMIT_MAX}/мин, подожди {int(_RATE_LIMIT_WINDOW - (now - min(min(v) for v in _RATE_LIMIT.values())))}с"
+    lst = _RATE_LIMIT.setdefault(action, [])
+    if len(lst) >= _RATE_LIMIT_MAX // 2:  # per-action половина глобального
+        return f"ошибка: 429 Too Many Requests — лимит для {action} {_RATE_LIMIT_MAX // 2}/мин"
+    lst.append(now)
+    return None
+
 # Живой воркер (serve-режим): браузер держится между вызовами.
 # Lock обязателен: FastMCP выполняет тулы в thread pool — без него
 # параллельные вызовы перемешают запросы/ответы на stdin/stdout.
@@ -119,6 +157,15 @@ def _parse(parsed):
 
 
 def _call(action, timeout=120, **kwargs):
+    # production gates
+    err = _check_auth(kwargs)
+    if err:
+        return err
+    kwargs.pop("api_key", None)
+    kwargs.pop("auth", None)
+    err = _check_rate_limit(action)
+    if err:
+        return err
     req = json.dumps({"action": action, **kwargs})
     with _worker_lock:
         try:
@@ -180,6 +227,7 @@ def research(
     quality_first: bool = False,
     as_json: bool = False,
     academic: bool = False,
+    llm_planner: bool = False,
 ) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
@@ -205,10 +253,13 @@ def research(
     - academic=True — вертикальный АКАДЕМИЧЕСКИЙ канал: arXiv +
       Semantic Scholar (бесплатные API, без ключей) — первоисточники
       (tier 0), которых DDG почти не видит (паттерн Exa vertical index).
+    - llm_planner=True — LLM (DeepSeek/Ollama) генерирует 10 follow-up
+      запросов как в gpt-researcher/STORM (Layer B, опционально, требует
+      DEEPSEEK_API_KEY или OLLAMA_HOST, иначе пропуск).
     Пример глубокого ресёрча: research(queries=["deep research
     agents"], target_domains=20, domains_limit=2, expand=True,
-    terms_wave=True, quality_first=True, academic=True, fetch_all=True,
-    as_json=True, max_results_per_query=6)
+    terms_wave=True, quality_first=True, academic=True, llm_planner=True,
+    fetch_all=True, as_json=True, max_results_per_query=6)
     Результат кэшируется на сутки."""
     return _call(
         "research",
@@ -227,6 +278,7 @@ def research(
         quality_first=quality_first,
         as_json=as_json,
         academic=academic,
+        llm_planner=llm_planner,
     )
 
 
@@ -278,6 +330,7 @@ def research_start(
     domains_limit: int = 2,
     feeds: list[str] | None = None,
     background: bool = True,
+    llm_planner: bool = False,
 ) -> str:
     """КАМПАНИЯ ресёрча: цель «N РАЗНЫХ сайтов» с счётчиком прогресса.
     Фон=True — охота уходит в отдельный процесс: лог + маркер done
@@ -291,7 +344,8 @@ def research_start(
     (работает даже при мёртвом DDG); queries можно опустить.
     Перед стартом проверяет пульс крона сторожа — мёртвый крон
     предупредит, а не промолчит. Финальный отчёт автоархивируется
-    (CAMOUFOX_REPORT_DIR, по умолчанию exports)."""
+    (CAMOUFOX_REPORT_DIR, по умолчанию exports).
+    llm_planner=True — Layer B, LLM (DeepSeek/Ollama) для 20+ вопросов [1]."""
     return _call(
         "research_start",
         timeout=600,
@@ -301,6 +355,7 @@ def research_start(
         domains_limit=domains_limit,
         feeds=feeds,
         background=background,
+        llm_planner=llm_planner,
     )
 
 
@@ -447,6 +502,26 @@ def _res_info() -> str:
     """Инфо о сервере: имя, число тулов, список."""
     tools = sorted(mcp._tool_manager._tools.keys())
     return f"camoufox-research MCP-сервер\nтулов: {len(tools)}\n" + " ".join(tools)
+
+
+@mcp.resource("camoufox://health")
+def _res_health() -> str:
+    """Healthcheck для production (MCP Best Practices 9,11): uptime, версия, rate-limit, auth."""
+    uptime = int(time.monotonic() - _START_TIME)
+    try:
+        import importlib.metadata
+
+        ver = importlib.metadata.version("camoufox-research")
+    except Exception:
+        ver = "0.18.1"
+    tools = len(mcp._tool_manager._tools)
+    total_calls = sum(len(v) for v in _RATE_LIMIT.values())
+    auth_status = "включён (CAMOUFOX_API_KEY)" if _AUTH_KEY else "выключен"
+    return (
+        f'{{"status":"ok","version":"{ver}","uptime_s":{uptime},'
+        f'"tools":{tools},"calls_last_min":{total_calls},'
+        f'"rate_limit_max_per_min":{_RATE_LIMIT_MAX},"auth":"{auth_status}"}}'
+    )
 
 
 # --- MCP Prompts: готовые рецепты для агента (шаблоны рабочих циклов) ---
