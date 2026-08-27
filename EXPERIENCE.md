@@ -420,3 +420,13 @@ env в обёртке запуска ~/.local/opt/camoufox-wrapper.sh, opencode.
 → строка ≤120 при лимите 120); YAML трёх workflow валиден.
 Грабля-повтор: тег v0.17.2 создался ДО бампа версии → CI собрал 0.17.1
 → PyPI 400 file-exists. Порядок железно: bump → push → потом тег/релиз.
+
+## Батч 13 — финал (27.08): OIDC ЗЕЛЁНЫЙ, токен выкинут из GitHub
+Двухэшелонная публикация: OIDC (continue-on-error) → токен-фолбэк при
+отказе (job.env HAS_TOKEN — гейт через secrets в step-if валидатор GHA
+НЕ принял, 0s parse-fail; перенесено в job-level env). Итог живого
+workflow_dispatch: ОБА шага зелёные, PyPI latest = 0.18.0 — trusted
+publisher совпал. Секрет API_TOKEN_PYPI удалён из GitHub; юзеру —
+revoke токена на pypi.org (сам). Грабли-повторы: (а) secrets в step-if
+— носить через job.env; (б) тег ДО бампа версии = 400 file-exists —
+порядок: bump → push → тег.
