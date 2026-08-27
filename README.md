@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.17.0-green)
+![Version](https://img.shields.io/badge/version-0.17.1-green)
 
 ```
     AI Agent
@@ -146,8 +146,9 @@ stripped; `research_digest(camp_id, refresh)` rebuilds old packs).
 (`exports/{camp_id}.cit.md`): verified digests numbered [1..N] + References.
 After a background campaign it's generated **automatically** (post_hunt) —
 the done-marker carries `cit_report` with the file path.
-**Memory note:** post_hunt also writes a summary line into the tribe memory
-(`CAMOUFOX_MEMORY_FILE` → `/run/media/admin1/DATA/BROboses/BRO.md` → cache):
+**Memory note:** post_hunt also writes a summary line into a memory file —
+`CAMOUFOX_MEMORY_FILE` if set (e.g. your own notes base), otherwise the
+auto-created `~/.cache/camoufox-research/memory.md`:
 topic, domains, verified, report path — the hunt isn't lost between sessions.
 
 For automation, `as_json=True` returns a JSON payload instead of a text dump:

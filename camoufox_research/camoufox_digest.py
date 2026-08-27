@@ -246,30 +246,38 @@ def research_digest(camp_id, refresh=True):
 
 
 def _memory_candidates():
-    """Кандидаты памяти ПЛЕМЕНИ, считаются в момент вызова (env юзера
-    может выставиться после импорта — юнит поймал 27.08)."""
+    """Кандидаты памяти, считаются в момент вызова (env юзера может
+    выставиться после импорта — юнит поймал 27.08). Прод-ответ: env
+    (машина-специфичное, напр. своя база заметок) → автосоздаваемый
+    файл в кэше. Личные пути в публичном коде ЗАПРЕЩЕНЫ (портативность,
+    закон 28): на этой машине путь к базе задаётся env-обёрткой запуска."""
     return (os.environ.get("CAMOUFOX_MEMORY_FILE", ""),
-            "/run/media/admin1/DATA/BROboses/BRO.md",
             str(Path.home() / ".cache" /
                 "camoufox-research" / "memory.md"))
 
 
 def _note_memory(text):
-    """Строка в память племени: первый СУЩЕСТВУЮЩИЙ путь из кандидатов
-    (env → бро-база этой машины → кэш). Чужой машине — тихий пропуск
-    (публичный тулкит: хардкод путей запрещён, закон 28)."""
+    """Строка в память: env-путь (если задан и жив) → кэш-файл, который
+    СОЗДАЁТСЯ при первом плюсе (прод-фикс 27.08: раньше фолбэк требовал
+    существующий путь и молча пропускался на чужой машине)."""
+    last_err = None
     for p in _memory_candidates():
         if not p:
             continue
         try:
-            p2 = os.path.expanduser(p)
-            if not os.path.exists(p2):
-                continue
+            p2 = Path(os.path.expanduser(p))
+            if not p2.exists():  # фолбэк-файл рождаем, а не пропускаем
+                p2.parent.mkdir(parents=True, exist_ok=True)
+                p2.touch()
             with open(p2, "a", encoding="utf-8") as fh:
                 fh.write(text + "\n")
-            return os.path.abspath(p2)
-        except Exception:  # noqa: BLE001 — память бонус, не охота
+            return str(p2.resolve())
+        except Exception as e:  # noqa: BLE001 — память бонус, не охота
+            last_err = e
             continue
+    if last_err:
+        print(f"[memory] ни один кандидат не подошёл: {last_err}",
+              file=sys.stderr, flush=True)
     return ""
 
 

@@ -379,3 +379,14 @@ printf '%s\n' '{"action":"ping"}' | /home/admin1/.venvs/camoufox-research/bin/py
 # 3. Живой MCP-вызов
 /home/admin1/.venvs/camoufox-research/bin/python camoufox_research/camoufox_rpc.py --tool ping
 ```
+
+## Прод-фикс памяти (27.08, после батчей 15-17) — сделано и проверено
+Юзер спросил: «какая бро-база в проде, где нет агентов?» — вскрылось:
+фолбэк _note_memory требовал СУЩЕСТВУЮЩИЙ путь → на чужой машине тихо
+пропускался (памяти нет), а в публичном коде/README торчал личный путь
+/run/media/admin1/... (закон 28). Фикс: кандидаты = env → кэш-файл
+~/.cache/camoufox-research/memory.md, фолбэк СОЗДАЁТСЯ при первом плюсе
+(mkdir+touch); личный путь вычищен из кода и README (на этой машине —
+env в обёртке запуска ~/.local/opt/camoufox-wrapper.sh, opencode.json
+ходит через неё). Юнит 4/4: прод-симуляция (файл рождён), env-приоритет,
+гейт «нет admin1/BROboses в пакете». v0.17.1.
