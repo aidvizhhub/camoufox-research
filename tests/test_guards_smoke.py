@@ -198,7 +198,7 @@ class BuildPagesTest(unittest.TestCase):
                 "# Проба\n\nТело отчёта.\n", encoding="utf-8"
             )
             out = Path(td) / "_site"
-            n = build(src, out)
+            n = build(src, out, "")  # base-путь RSS не нужен в тесте
             self.assertEqual(n, 1)
             html_body = (out / "index.html").read_text(encoding="utf-8")
             self.assertIn("тема проба", html_body)
