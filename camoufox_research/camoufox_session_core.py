@@ -9,6 +9,7 @@ import json
 import os
 import time
 from contextlib import suppress
+from typing import Any
 
 try:
     from camoufox_research.camoufox_browser import (
@@ -48,13 +49,13 @@ def get_session_page():
 
 _SESSION = None  # активная страница сессии (serve-режим)
 _SESSION_URL = None  # последний URL сессии (восстановление упавшей вкладки)
-_TABS = {}  # вкладки сессии: {tab_id(str): page} — session_tabs
+_TABS: dict[str, Any] = {}  # вкладки сессии: {tab_id(str): page} — session_tabs
 _NEXT_TAB = 1  # счётчик id вкладок
 
 # Наблюдение страницы (сеть + консоль): {id(page): {...}}
 # Паттерны stealth-browser-mcp (network inspection) и Playwright MCP
 # (console messages) — агент видит AJAX-запросы и ошибки JS.
-_WATCH = {}
+_WATCH: dict[int, dict[str, Any]] = {}
 _NET_LIMIT = 200
 _CONSOLE_LIMIT = 100
 
