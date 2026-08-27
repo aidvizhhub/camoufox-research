@@ -5,8 +5,8 @@
 """Session-режим: одна живая вкладка между командами (вынесено из
 camoufox_worker.py, canon/FILE-SIZE.md). Паттерны: agent-browser tab_gone,
 browser-use focus recovery — упавшая вкладка восстанавливается на last_url."""
+
 import json
-import os
 import time
 from contextlib import suppress
 from typing import Any
@@ -27,7 +27,6 @@ except ImportError:
         _click_ref,
         _goto,
         _page_links,
-        _som_overlay,
         _text,
         _wait_content,
     )
@@ -67,9 +66,12 @@ def _watch_page(page):
 
     def _on_response(resp):
         try:
-            rec = {"url": resp.url[:300], "status": resp.status,
-                   "method": resp.request.method,
-                   "type": resp.request.resource_type}
+            rec = {
+                "url": resp.url[:300],
+                "status": resp.status,
+                "method": resp.request.method,
+                "type": resp.request.resource_type,
+            }
             w = _WATCH.get(id(resp.request.frame.page))
             if w is None:
                 return
@@ -234,9 +236,9 @@ def session_status():
         return "сессия не начата"
     page = _SESSION
     try:
-        return json.dumps({"url": page.url, "title": page.title(),
-                           "closed": page.is_closed()},
-                          ensure_ascii=False)
+        return json.dumps(
+            {"url": page.url, "title": page.title(), "closed": page.is_closed()}, ensure_ascii=False
+        )
     except Exception as e:  # noqa: BLE001 — страница умерла
         return f"ошибка: {type(e).__name__}: {e}"
 
@@ -328,8 +330,7 @@ def session_wait_for(text="", selector="", timeout=15):
     while time.monotonic() < deadline:
         try:
             if selector and page.locator(selector).count() > 0:
-                return (f"дождался: селектор '{selector}' появился "
-                        f"(URL: {page.url})")
+                return f"дождался: селектор '{selector}' появился (URL: {page.url})"
             if text:
                 if text in page.inner_text("body"):
                     return f"дождался: текст '{text}' появился (URL: {page.url})"
@@ -348,5 +349,3 @@ def session_eval(expression):
         return json.dumps(result, ensure_ascii=False, default=str)[:12000]
     except Exception as e:  # noqa: BLE001 — ошибка JS — это результат
         return f"ошибка: {type(e).__name__}: {e}"
-
-

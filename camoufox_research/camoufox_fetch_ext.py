@@ -8,11 +8,12 @@ import sqlite3
 import time
 from pathlib import Path
 
-# Базовые утилиты — из core (один источник)
+# Базовые утилиты — из core (один источник, включая приватные _CACHE_DB etc.)
 try:
-    from camoufox_research.camoufox_fetch_core import *  # noqa: F401,F403
+    import camoufox_research.camoufox_fetch_core as _core
 except ImportError:
-    from camoufox_fetch_core import *  # noqa: F401,F403
+    import camoufox_fetch_core as _core
+globals().update(_core.__dict__)
 
 
 try:

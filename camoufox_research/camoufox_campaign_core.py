@@ -21,7 +21,10 @@ from pathlib import Path
 try:
     from camoufox_research.camoufox_cache import _CACHE_DB
 except ImportError:
-    from camoufox_cache import _CACHE_DB
+    try:
+        from camoufox_research.camoufox_cache import _CACHE_DB
+    except ImportError:
+        from camoufox_cache import _CACHE_DB
 
 # Override для тестов: временная база вместо домашнего кэша.
 _DB_PATH = os.environ.get("CAMOUFOX_CAMPAIGN_DB", _CACHE_DB)
@@ -91,7 +94,10 @@ def _db():
 
 def _reg_domain(url):
     """Регистрируемый домен (единый счётчик «разные сайты» — sources.py)."""
-    from camoufox_sources import _reg_domain as reg
+    try:
+        from camoufox_research.camoufox_sources import _reg_domain as reg
+    except ImportError:
+        from camoufox_sources import _reg_domain as reg
     return reg(url)
 
 
@@ -146,7 +152,10 @@ def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
     Path(done_path).write_text(
         json.dumps(marker, ensure_ascii=False, indent=1), encoding="utf-8")
     # автоархив отчёта + путь в маркер (housekeep: хоз-функции кампании)
-    from camoufox_housekeep import marker_update, save_report
+    try:
+        from camoufox_research.camoufox_housekeep import marker_update, save_report
+    except ImportError:
+        from camoufox_housekeep import marker_update, save_report
     saved = save_report(camp_id, topic, status, notes, report(camp_id))
     if saved:
         marker_update(done_path, "report", saved)
@@ -157,8 +166,14 @@ def _feed_leg(camp_id, feeds, notes):
     фиды живут). Форматы rss()/sitemap() детерминированы — парсим их."""
     if not feeds:
         return
-    from camoufox_crawl import rss, sitemap
-    from camoufox_sources import domain_tier, _reg_domain
+    try:
+        from camoufox_research.camoufox_crawl import rss, sitemap
+    except ImportError:
+        from camoufox_crawl import rss, sitemap
+    try:
+        from camoufox_research.camoufox_sources import domain_tier, _reg_domain
+    except ImportError:
+        from camoufox_sources import domain_tier, _reg_domain
     rows = []
     for f in feeds:
         try:
@@ -194,7 +209,10 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
          feeds=None):
     """Механическая охота: фиды → волны research() до цели. Недобор =
     честный partial: БЛЕФ «готово» ЗАПРЕЩЁН."""
-    from camoufox_fetch import research  # поздний импорт: тянет браузер
+    try:
+        from camoufox_research.camoufox_fetch import research  # поздний импорт: тянет браузер
+    except ImportError:
+        from camoufox_fetch import research  # поздний импорт: тянет браузер
     notes = []
     waves = [[*queries]]
     waves.append([q + s for q in queries for s in _ANGLE_SUFFIXES])

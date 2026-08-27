@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 # camoufox_worker_core_b — вторая половина core (175 строк, канон FILE-SIZE.md)
 """Вторая половина core: web_search, fetch_page, browser_* — зависит от a."""
+
 import hashlib
-import json
-import sys
 import time
-from contextlib import suppress
 
 try:
     import camoufox_research.camoufox_worker_core_a as _core
 except ImportError:
     import camoufox_worker_core_a as _core
 globals().update(_core.__dict__)
-
 
 
 # --- Кэш страниц (глубокий ресёрч: повторный fetch = мгновенно) ---
@@ -30,8 +27,7 @@ def web_search(query, max_results=10, pages=1, include_snippets=False):
     if cached is not None:
         return cached
     out = []
-    for i, (url, title, snippet) in enumerate(
-            _search_results(query, max_results, pages), 1):
+    for i, (url, title, snippet) in enumerate(_search_results(query, max_results, pages), 1):
         out.append(f"[{i}] {title.strip()}\n    {url}")
         if include_snippets and snippet:
             out.append(f"    {snippet.strip()[:200]}")
@@ -55,8 +51,7 @@ def fetch_page(url, max_chars=6000, article_only=False, delta=False):
     with _browser_ctx() as browser:
         page = browser.new_page()
         _goto(page, url)
-        text = (_article_text(page, _FETCH_LIMIT) if article_only
-                else _text(page, _FETCH_LIMIT))
+        text = _article_text(page, _FETCH_LIMIT) if article_only else _text(page, _FETCH_LIMIT)
     _cache_set(url, text, suffix)
     _save_to_internet(url, text)
     if delta:
@@ -65,10 +60,12 @@ def fetch_page(url, max_chars=6000, article_only=False, delta=False):
         h = hashlib.sha256(text.encode()).hexdigest()[:16]
         prev, prev_ts = _delta_get(url, suffix)
         if prev == h and prev_ts:
-            return (f"[delta: контент не изменился с "
-                    f"{time.strftime('%H:%M', time.localtime(prev_ts))} — "
-                    f"текст в кэше (fetch_page без delta), "
-                    f"{len(text)} символов]")
+            return (
+                f"[delta: контент не изменился с "
+                f"{time.strftime('%H:%M', time.localtime(prev_ts))} — "
+                f"текст в кэше (fetch_page без delta), "
+                f"{len(text)} символов]"
+            )
         _delta_set(url, h, suffix)
     return text[:max_chars]
 
@@ -78,7 +75,8 @@ def extract_links(url, pattern="", max_links=20):
         page = browser.new_page()
         _goto(page, url)
         hrefs = page.eval_on_selector_all(
-            "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))")
+            "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))"
+        )
         seen = []
         for h in hrefs:
             if pattern and pattern.lower() not in h.lower():
@@ -95,8 +93,7 @@ def browser_navigate(url, max_links=10):
         _goto(page, url)
         text = _text(page, 6000)
         links = _page_links(page, max_links)
-    return (text + "\n\nССЫЛКИ:\n" + "\n".join(links)
-            if links else text)
+    return text + "\n\nССЫЛКИ:\n" + "\n".join(links) if links else text
 
 
 def browser_click(url, selector="", target_text="", ref="", max_links=10):
@@ -117,8 +114,7 @@ def browser_click(url, selector="", target_text="", ref="", max_links=10):
         _wait_content(page)  # после клика: JS-страница может догружаться
         text = _text(page, 6000)
         links = _page_links(page, max_links)
-    return (text + "\n\nССЫЛКИ:\n" + "\n".join(links)
-            if links else text)
+    return text + "\n\nССЫЛКИ:\n" + "\n".join(links) if links else text
 
 
 def browser_type(url, selector, text):
@@ -137,15 +133,17 @@ def page_diff(url, max_chars=6000):
     Visualping change monitoring): старый текст — из кэша, новый —
     свежий fetch. Возвращает унифицированный дифф (+/- строки)."""
     import difflib
+
     old = _cache_get(url, "")
     if old is None:
-        return ("первого чтения нет: сначала fetch_page(url) — сохранит "
-                "кэш, потом page_diff покажет изменения")
+        return (
+            "первого чтения нет: сначала fetch_page(url) — сохранит "
+            "кэш, потом page_diff покажет изменения"
+        )
     new = fetch_page(url, max_chars=_FETCH_LIMIT)
     if new == old:
         return "без изменений"
-    lines = list(difflib.unified_diff(
-        old.splitlines(), new.splitlines(), lineterm="", n=1))
+    lines = list(difflib.unified_diff(old.splitlines(), new.splitlines(), lineterm="", n=1))
     plus = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
     minus = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
     diff = "\n".join(lines[:60])
@@ -165,8 +163,9 @@ def snapshot(url="", limit=30):
     else:
         body = _interactive_snapshot(get_session_page(), limit)
     n = len([ln for ln in body.splitlines() if ln.startswith("- ref:")])
-    return (f"интерактивных элементов: {n}\n{body}"
-            if body.strip() else "интерактивных элементов нет")
+    return (
+        f"интерактивных элементов: {n}\n{body}" if body.strip() else "интерактивных элементов нет"
+    )
 
 
 def set_proxy(proxy=""):

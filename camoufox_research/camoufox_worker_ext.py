@@ -7,11 +7,12 @@ import sys
 import time
 from contextlib import suppress
 
-# Все базовые Actions и утилиты — из core (один источник)
+# Все базовые Actions и утилиты — из core (включая приватные _LIVE etc.)
 try:
-    from camoufox_research.camoufox_worker_core import *  # noqa: F401,F403
+    import camoufox_research.camoufox_worker_core as _core
 except ImportError:
-    from camoufox_worker_core import *  # noqa: F401,F403
+    import camoufox_worker_core as _core
+globals().update(_core.__dict__)
 
 
 

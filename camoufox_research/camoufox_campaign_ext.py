@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# camoufox_campaign_ext — вторая половина кампаний (249 строк, канон FILE-SIZE.md)
+# camoufox_campaign_ext — вторая половина кампаний (262 строк, канон FILE-SIZE.md)
 """Вторая половина кампаний: resume, start, status, report — зависит от core."""
 import json
 import os
@@ -10,9 +10,10 @@ import uuid
 from pathlib import Path
 
 try:
-    from camoufox_research.camoufox_campaign_core import *  # noqa: F401,F403
+    import camoufox_research.camoufox_campaign_core as _core
 except ImportError:
-    from camoufox_campaign_core import *  # noqa: F401,F403
+    import camoufox_campaign_core as _core
+globals().update(_core.__dict__)
 
 def _paths(camp_id):
     """Пути (лог, done-маркер) — единые для start/resume/раннера."""
@@ -26,7 +27,10 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
     углов _RESUME_ROUNDS (повтор старых = те же домены), кап спирали —
     нулевая волна = стоп, UNIQUE-дедуп отсекает старьё. Фиды едим заново
     (могли обновиться)."""
-    from camoufox_fetch import research
+    try:
+        from camoufox_research.camoufox_fetch import research
+    except ImportError:
+        from camoufox_fetch import research
     notes = []
     try:
         uniq = _counts(camp_id)[1]
@@ -146,7 +150,10 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
                     f"(«{(running[1] or '')[:40]}») — закон одного инстанса: "
                     "1 кампания = 1 воркер = 1 браузер. Жди её маркер "
                     "research_status, потом запускай новую.")
-    from camoufox_housekeep import watchdog_note
+    try:
+        from camoufox_research.camoufox_housekeep import watchdog_note
+    except ImportError:
+        from camoufox_housekeep import watchdog_note
     note = watchdog_note()
     if background:
         with open(log_path, "wb") as lf:
@@ -253,7 +260,10 @@ def research_report(camp_id, fmt="md"):
 
 def research_index(limit=50, fmt="md"):
     """ACTION для воркера: сводка всех кампаний (housekeep.index)."""
-    from camoufox_housekeep import index
+    try:
+        from camoufox_research.camoufox_housekeep import index
+    except ImportError:
+        from camoufox_housekeep import index
     return index(_DB_PATH, limit, fmt)
 
 
