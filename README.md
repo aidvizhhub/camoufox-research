@@ -256,7 +256,7 @@ Check: `opencode mcp list` → `camoufox: connected`.
 | Live session | `session_start/navigate/click/type/scroll/links/text/back/status/end`, `session_tabs`, `session_wait_for`, `session_eval`, `session_key_press`, `session_select_option`, `session_resize`, `session_form_fill`, `session_upload` |
 | Network | `session_network`, `session_console`, `session_block`/`session_unblock` |
 | Files | `session_download`, `page_diff` |
-| Observability | `stats` (audit, masked), `cache_info` |
+| Observability | `stats` (audit, masked), `cache_info`, `research_index` (все кампании) |
 | Network config | `set_proxy`, `profile_save`/`profile_load` |
 | Service | `ping` |
 
@@ -285,6 +285,36 @@ camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
 - Сторож поиска (scripts/watchdog_search.py + cron) проверяет DDG
   реальным путём: провал → watchdog_ALERT; research_start проверяет
   пульс крона и предупреждает, если тот молчит.
+- Ларец не переполняется: `research_index` — сводка всех кампаний;
+  `scripts/campaign_cleanup.py` (dry-run по умолчанию, --yes) выметает
+  артефакты старше 30 дней. Отчёты .md метла не трогает.
+
+## Real output
+
+Так выглядит автоархив кампании (полный файл —
+[docs/example-report.md](docs/example-report.md); добыта ТОЛЬКО фидом
+hnrss.org, поисковик не вызывался):
+
+```
+# Кампания: hacker news frontpage
+- источников: 20, разных сайтов: 16/6        · статус: done
+
+| # | источник | домен | класс |
+|---|---|---|---|
+| 1 | [Confdiff – semantic diff for config files](github.com/…) | github.com | первоисточник |
+```
+
+## Publish to PyPI
+
+Имя свободно, упаковка проверена (`python -m build` + `twine check` —
+PASSED). Публикация — через Trusted Publishing (OIDC, без токенов):
+
+1. pypi.org → «Add a pending publisher»: owner `aidvizhhub`,
+   repo `camoufox-research`, workflow `release.yml`, environment `pypi`.
+2. На GitHub: Settings → Variables → `PYPI_PUBLISH = yes`.
+3. `gh release create v0.9.0 --title v0.9.0 --notes "..."` — workflow
+   соберёт и опубликует; дальше у всех: `pip install camoufox-research`.
+Без шага 1-2 джоб publish честно SKIP — CI не краснеет.
 
 - Browser lives in a separate worker process (sync, headless) — the MCP stdio
   server never blocks.

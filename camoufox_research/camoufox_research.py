@@ -247,6 +247,13 @@ def research_resume(camp_id: str, background: bool = False) -> str:
 
 
 @mcp.tool()
+def research_index(limit: int = 50, fmt: str = "md") -> str:
+    """Сводка ВСЕХ кампаний: id · тема · статус · домены/цель · когда
+    обновлена. md-таблица или json. Сырьё для «что мы уже охотили»."""
+    return _call("research_index", limit=limit, fmt=fmt)
+
+
+@mcp.tool()
 def fetch_page(url: str, max_chars: int = 6000,
                article_only: bool = False, delta: bool = False) -> str:
     """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на

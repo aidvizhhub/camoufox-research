@@ -98,3 +98,30 @@ def marker_update(done_path, key, value):
             json.dumps(mk, ensure_ascii=False, indent=1), encoding="utf-8")
     except Exception:  # noqa: BLE001 — маркер не критичен
         pass
+
+
+def index(db_path, limit=50, fmt="md"):
+    """Сводка всех кампаний: id · тема · статус · домены/цель · когда.
+    Сырьё для «покажи всех зверей охоты» без ручного sqlite."""
+    import sqlite3
+    con = sqlite3.connect(db_path)
+    rows = con.execute(
+        "SELECT c.id, c.topic, c.status, c.target_sources, c.updated_ts, "
+        "COUNT(DISTINCT s.domain) FROM campaigns c "
+        "LEFT JOIN campaign_sources s ON s.camp_id = c.id "
+        "GROUP BY c.id ORDER BY c.updated_ts DESC LIMIT ?", (limit,)).fetchall()
+    con.close()
+    if fmt == "json":
+        return json.dumps([
+            {"id": i, "topic": t, "status": st, "domains": u,
+             "target": tg,
+             "updated": time.strftime("%d.%m %H:%M", time.localtime(ts))}
+            for i, t, st, tg, ts, u in rows],
+            ensure_ascii=False, indent=1)
+    out = [f"кампаний: {len(rows)}", "",
+           "| id | тема | статус | домены/цель | обновлена |",
+           "|---|---|---|---|---|"]
+    out += [f"| {i} | {t[:40]} | {st} | {u}/{tg} | "
+            f"{time.strftime('%d.%m %H:%M', time.localtime(ts))} |"
+            for i, t, st, tg, ts, u in rows]
+    return "\n".join(out)

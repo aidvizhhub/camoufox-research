@@ -469,6 +469,12 @@ def research_report(camp_id, fmt="md"):
     return report(camp_id, fmt)
 
 
+def research_index(limit=50, fmt="md"):
+    """ACTION для воркера: сводка всех кампаний (housekeep.index)."""
+    from camoufox_housekeep import index
+    return index(_DB_PATH, limit, fmt)
+
+
 def research_resume(camp_id, background=False):
     """ACTION для воркера: доборка partial/failed кампании с места."""
     return resume(camp_id, background)

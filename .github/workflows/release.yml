@@ -1,0 +1,39 @@
+name: release
+
+# Публикация на PyPI через Trusted Publishing (OIDC, БЕЗ токенов в
+# секретах — индустрия-канон 2026). Пока юзер не привяжет проект на
+# pypi.org, джоб честно SKIP (vars.PYPI_PUBLISH != yes) — CI зелёный.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    if: vars.PYPI_PUBLISH == 'yes'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

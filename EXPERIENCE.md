@@ -224,6 +224,27 @@ research.
 доменами 2-го уровня (r1test.org, r2test.io), иначе uniq=1 и тест
 «падает» на верном коде.
 
+## Батч 12 (PyPI-готовность + витрина + метла, 27.08.2026) — сделано и проверено
+Тройка на ступень «промышленно» (v0.9.0):
+- PyPI: имя camoufox-research СВОБОДНО (pypi 404, проверено); pyproject
+  дотянут до publish-ready (license MIT + LICENSE файл, urls, authors,
+  classifiers 3.10–3.13, Development Status 4); build + twine check —
+  PASSED (sdist+wheel). Публикация = Trusted Publishing (OIDC, БЕЗ
+  токенов): .github/workflows/release.yml, джоб publish под vars-gate
+  PYPI_PUBLISH=yes — до привязки pending-publisher честно SKIP, CI не
+  краснеет. Юзеру 3 шага (README «Publish to PyPI»);
+- витрина: docs/example-report.md — РЕАЛЬНЫЙ автоархив (feeds-only
+  hnrss, 20 источников/16 доменов, 0 поисков) + README «Real output»;
+- метла+индекс: research_index (тул 53, housekeep.index — sql LEFT
+  JOIN, md/json) — сводка всех кампаний; scripts/campaign_cleanup.py —
+  dry-run по умолчанию, --days N, сносит ТОЛЬКО cmp_*.log/.json старше
+  порога, отчёты .md и свежак целы.
+Грабли пойманы сборкой (тест-сначала работает и тут): в pyproject
+dependencies оказалась ПОД [project.urls] → TOML отнёс её к urls
+(«project.urls.dependencies must be string») — таблицы объявлять ПОСЛЕ
+плоских ключей [project]. Вторая: сортировку плана метлы ожидал не ту —
+код прав (ASC по mtime = старые первыми), тест починен.
+
 ## Батч 5 (2 фичи) — сделано и проверено
 MCP Resources (camoufox://stats, //cache, //session, //info) + Prompts
 (research_plan, extract_schema, monitor_page) — 4-й примитив протокола;
