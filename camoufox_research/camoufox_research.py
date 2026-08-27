@@ -197,6 +197,37 @@ def research(queries: list[str], max_results_per_query: int = 5,
 
 
 @mcp.tool()
+def research_start(topic: str, queries: list[str] | None = None,
+                   target_sources: int = 20, domains_limit: int = 2,
+                   background: bool = True) -> str:
+    """КАМПАНИЯ ресёрча: цель «N РАЗНЫХ сайтов» с счётчиком прогресса.
+    Фон=True — охота уходит в отдельный процесс: лог + маркер done
+    (~/.cache/camoufox-research/exports/<id>.json) — ждать маркер,
+    не поллить. Состояние в sqlite: сколько уникальных доменов
+    реально собрано; угловые волны (лучшие практики/грабли/
+    альтернативы) добирают сами. Уникальных сайтов меньше цели →
+    честный статус partial. Синтез: research_report(id) → список
+    источников → batch_fetch по тем, что нужны текстом."""
+    return _call("research_start", timeout=600, topic=topic,
+                 queries=queries, target_sources=target_sources,
+                 domains_limit=domains_limit, background=background)
+
+
+@mcp.tool()
+def research_status(camp_id: str, limit: int = 6) -> str:
+    """Прогресс кампании: статус, счётчик разных сайтов vs цель,
+    топ источников по качеству (доки/код первыми)."""
+    return _call("research_status", camp_id=camp_id, limit=limit)
+
+
+@mcp.tool()
+def research_report(camp_id: str, fmt: str = "md") -> str:
+    """Отчёт кампании: список источников (титул/URL/домен/класс) в
+    md-таблице или json. Сырьё для синтеза с цитатами."""
+    return _call("research_report", camp_id=camp_id, fmt=fmt)
+
+
+@mcp.tool()
 def fetch_page(url: str, max_chars: int = 6000,
                article_only: bool = False, delta: bool = False) -> str:
     """Текст страницы без HTML-мусора (статьи, доки, README). Кэш на

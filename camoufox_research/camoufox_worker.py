@@ -372,8 +372,19 @@ def set_proxy(proxy=""):
 # ввод, клики) живёт, как у человека в одной вкладке. Требует --serve.
 # Индустрия: инстансы живут 30-45 мин, потом kill+restart (yomotherboard);
 # session_end/рестарт воркера — штатный способ сброса.
+# Поздний импорт кампаний: модуль тянет fetch-слой (браузер), но
+# сам браузер не стартует — безопасно и в serve, и в разовом вызове.
+from camoufox_campaign import (  # noqa: E402
+    research_start,
+    research_status,
+    research_report,
+)
+
 ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
            "batch_fetch": batch_fetch, "research": research,
+           "research_start": research_start,
+           "research_status": research_status,
+           "research_report": research_report,
            "extract_links": extract_links, "browser_navigate": browser_navigate,
            "browser_click": browser_click, "browser_type": browser_type,
            "session_start": session_start, "session_navigate": session_navigate,
