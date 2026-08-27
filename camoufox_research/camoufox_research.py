@@ -159,7 +159,8 @@ def research(queries: list[str], max_results_per_query: int = 5,
              expand: bool = False, fetch_all: bool = False,
              terms_wave: bool = False,
              quality_first: bool = False,
-             as_json: bool = False) -> str:
+             as_json: bool = False,
+             academic: bool = False) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
     подзапросы, паттерн gpt-researcher); сервер ищет по каждой,
@@ -181,10 +182,13 @@ def research(queries: list[str], max_results_per_query: int = 5,
     - as_json=True — машинный JSON: meta (счётчики, follow-up запросы),
       sources (title/url/domain/tier/tier_label/snippet), texts, notes.
       Идеален для автоматизации и синтеза агентом.
+    - academic=True — вертикальный АКАДЕМИЧЕСКИЙ канал: arXiv +
+      Semantic Scholar (бесплатные API, без ключей) — первоисточники
+      (tier 0), которых DDG почти не видит (паттерн Exa vertical index).
     Пример глубокого ресёрча: research(queries=["deep research
     agents"], target_domains=20, domains_limit=2, expand=True,
-    terms_wave=True, quality_first=True, fetch_all=True, as_json=True,
-    max_results_per_query=6)
+    terms_wave=True, quality_first=True, academic=True, fetch_all=True,
+    as_json=True, max_results_per_query=6)
     Результат кэшируется на сутки."""
     return _call("research", timeout=900, queries=queries,
                  max_results_per_query=max_results_per_query,
@@ -193,7 +197,19 @@ def research(queries: list[str], max_results_per_query: int = 5,
                  target_domains=target_domains, domains_limit=domains_limit,
                  expand=expand, fetch_all=fetch_all,
                  terms_wave=terms_wave, quality_first=quality_first,
-                 as_json=as_json)
+                 as_json=as_json, academic=academic)
+
+
+@mcp.tool()
+def paper_search(query: str, sources: str = "arxiv,semantic",
+                 max_results: int = 10) -> str:
+    """Поиск научных статей: arXiv + Semantic Scholar (бесплатные API,
+    без ключей). Возвращает статьи с годом/авторами/цитатами —
+    первоисточники (tier 0), которых общий поиск почти не видит
+    (паттерн индустрии: vertical index / arxiv-канал рядом с вебом).
+    Кэш на сутки. Пример: paper_search("deep research agents")"""
+    return _call("paper_search", query=query, sources=sources,
+                 max_results=max_results)
 
 
 @mcp.tool()

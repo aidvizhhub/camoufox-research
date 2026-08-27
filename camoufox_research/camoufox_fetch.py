@@ -254,30 +254,29 @@ from camoufox_sources import (  # noqa: E402
     extract_terms,
     rank_and_select,
 )
+from camoufox_academic import paper_rows  # noqa: E402
 
 def research(queries, max_results_per_query=5, fetch_top=0,
              article_only=True, max_chars=4000, max_parallel=None,
              target_domains=0, domains_limit=0, expand=False,
              fetch_all=False, terms_wave=False, quality_first=False,
-             as_json=False):
-    """Deep-поиск ОДНИМ вызовом: N запросов → дедуп URL со сниппетами →
-    опционально fetch. Глубокий режим (паттерны 27.08.2026):
-    target_domains — цель по РАЗНЫМ доменам (волны: база → термы →
-    пагинация, пока цель не набрана); domains_limit — макс K на домен;
-    expand — переформулировки «X comparison»/«X documentation»;
-    terms_wave — вторая волна из термов первой; quality_first — доки/
-    GitHub/arXiv первыми; fetch_all — тексты всех; as_json — машинный
-    JSON (meta/sources/texts/notes). По умолчанию всё выключено = старое
+             as_json=False, academic=False):
+    """Deep-поиск одним вызовом (паттерны 27.08.2026). Глубокий режим:
+    target_domains — цель по доменам (волны: база → термы → пагинация);
+    domains_limit — макс K на домен; expand — переформулировки;
+    terms_wave — волна из термов первой; quality_first — доки/arXiv
+    первыми; academic — arXiv+S2 канал; fetch_all — тексты всех;
+    as_json — машинный JSON. По умолчанию всё выключено = старое
     поведение. Кэш на сутки.
     """
     if not queries:
         return "ошибка: пустой список запросов"
     deep = (target_domains or domains_limit or expand or fetch_all
-            or terms_wave or quality_first)
+            or terms_wave or quality_first or academic)  # noqa: PLR0913
     cache_key = "r:" + hashlib.sha256(json.dumps(
         [queries, max_results_per_query, fetch_top, article_only,
          target_domains, domains_limit, expand, fetch_all,
-         terms_wave, quality_first, as_json],
+         terms_wave, quality_first, as_json, academic],
         ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
     try:
         with sqlite3.connect(_CACHE_DB) as con:
@@ -290,8 +289,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
         row = None
     qs = list(queries)
     if expand:
-        for q in queries:
-            qs += [q + s for s in _EXPAND_SUFFIXES]
+        qs += [q + s for q in queries for s in _EXPAND_SUFFIXES]
     # raw: list[(tier, title, url, snippet)] — полная добыча без отбора,
     # качество и лимит домена применяются в конце (rank_and_select).
     raw, seen_keys, dom_seen, log = [], set(), set(), []
@@ -319,6 +317,17 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 log.append(f"[пропущен запрос: {q}]")
 
     _wave(qs, 1)
+    acad = 0
+    if academic and not _have_goal():
+        for q in queries:  # вертикальный канал: первоисточники напрямую
+            if _have_goal():
+                break
+            try:
+                for title, url, snippet, meta in paper_rows(q, 4):
+                    _add(title, url, snippet)
+                    acad += 1
+            except Exception:  # noqa: BLE001 — академия упала: веб добьёт
+                log.append(f"[пропущен академический: {q}]")
     followup = []
     if terms_wave and target_domains and not _have_goal() and raw:
         texts = [f"{t} {s}" for _, t, u, s in raw if t or s]
@@ -339,8 +348,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
         source_rows.append({"title": title.strip(), "url": url,
                             "domain": _reg_domain(url), "tier": tier,
                             "tier_label": label,
-                            "snippet": (snippet.strip()[:200]
-                                        if snippet else "")})
+                            "snippet": snippet.strip()[:200] if snippet else ""})
     batch_text = None
     if fetch_all or (fetch_top > 0 and not fetch_all):
         urls = [u for _, u, _ in (sel if fetch_all else sel[:fetch_top])]
@@ -360,6 +368,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 "top_tier_sources": (sum(1 for tier, *_ in raw if tier == 0)
                                      if quality_first else None),
                 "followup_queries": followup or None,
+                "academic_sources": (acad if academic else None),
             },
             "sources": source_rows, "texts": texts, "notes": log,
         }
@@ -378,6 +387,8 @@ def research(queries, max_results_per_query=5, fetch_top=0,
                 t0 = sum(1 for tier, *rest in raw if tier == 0)
                 out.append(f"первоисточников: {t0} из {len(raw)}"
                            " (доки/код/наука первыми)")
+            if academic:
+                out.append(f"академических (arXiv/S2): {acad}")
         for i, row in enumerate(source_rows, 1):
             tl = f"; {row['tier_label']}" if row['tier_label'] else ""
             out.append(f"[{i}] {row['title']}\n    {row['url']}"

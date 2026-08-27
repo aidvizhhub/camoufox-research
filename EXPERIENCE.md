@@ -143,6 +143,29 @@ tier_label/snippet), texts ([{url,text}] из batch_fetch), notes.
 префикса, 3 кейса юнитом: 2 записи/1 запись/пустой текст); 4) fetch.py
 перевалил 500 строк — докстринг сжат, метка tier в одну строку (504).
 
+## Батч 10 (академический канал, 27.08.2026) — сделано и проверено
+Новый модуль camoufox_academic.py: arXiv API + Semantic Scholar API
+(бесплатные, без ключей) — vertical-канал первоисточников (tier 0),
+которых DDG почти не видит (паттерн Exa vertical index: публикации
+R@1 63.3% против 31.8% у общего поиска).
+- paper_search(query, sources="arxiv,semantic", max_results) — новый
+  тул 51→52: статьи с годом/авторами/цитатами;
+- research(academic=True) — академические ряды в общую добычу через
+  _add (реестр уже знает arxiv.org/semanticscholar.org = tier 0);
+- кэш сутки (таблица searches, ключи "acad*:..."), парсинг БЕЗ
+  браузера (urllib) — дешевле и не падает на headless.
+Проверено живым: arXiv all:"фраза" (кавычки = точная релевантность:
+AgentIR/SAGE/Total Recall QA вместо «Deep Learning and Computational
+Physics» без кавычек); paper_search 8 статей; research(academic=True):
+12 источников, 10 доменов (цель 6), academic_sources: 4, первый
+arvix.org, tiers [0,2].
+Грабли пойманы: 1) arXiv без кавычек = рой нерелевантных (all:только
+слова) — кавычки обязательны, проверено; 2) url http + v1-суффикс
+(дедуп с DDG рвался) — нормализация https + re.sub v\d+$; 3) S2 без
+ключа нестабилен (429 на весь мир, не по полям!) — 3 попытки × 4с,
+честный ноль (архив добирает); 4) кэш-запись принимала list —
+сериализация json (InterfaceError).
+
 ## Батч 9 (кампании ресёрча + фон-режим, 27.08.2026) — сделано и проверено
 Новый модуль camoufox_campaign.py + campaign_runner.py: цель «N РАЗНЫХ
 сайтов» со счётчиком прогресса, который сервер ПОМНИТ между вызовами

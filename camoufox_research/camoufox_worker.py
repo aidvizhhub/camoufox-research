@@ -60,6 +60,7 @@ from camoufox_fetch import (  # noqa: E402
     research,
     table_extract,
 )
+from camoufox_academic import paper_search  # noqa: E402
 from camoufox_session import (  # noqa: E402
     get_session_page,
     get_session_pages,
@@ -384,6 +385,7 @@ from camoufox_campaign import (  # noqa: E402
 
 ACTIONS = {"web_search": web_search, "fetch_page": fetch_page,
            "batch_fetch": batch_fetch, "research": research,
+           "paper_search": paper_search,
            "research_start": research_start,
            "research_status": research_status,
            "research_report": research_report,
