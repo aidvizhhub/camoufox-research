@@ -119,6 +119,17 @@ _MIN_LEN = 5
 _TERM_MAX = 5
 
 
+def _batch_texts(batch):
+    """'--- URL: u\\ntext\\n\\n--- URL: ...' → [{'url', 'text'}] (для JSON)."""
+    texts = []
+    for chunk in batch.strip().split("\n--- URL: "):
+        u, _, t = chunk.partition("\n")
+        u = u.strip().replace("--- URL: ", "", 1) if u else ""
+        if u:
+            texts.append({"url": u, "text": t.strip()})
+    return texts
+
+
 def extract_terms(texts, base_queries):
     """Редкие/именные термы из текстов первой волны → follow-up запросы.
 

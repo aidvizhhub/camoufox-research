@@ -27,7 +27,6 @@ from camoufox_cache import (
     _prefetch_text,
 )
 
-
 def _save_to_internet(url, text):
     """Persist fetched context without making persistence a fetch failure."""
     try:
@@ -108,8 +107,6 @@ def _auto_workers():
     except Exception:  # noqa: S110,BLE001 — не определилось: консервативно
         return 2
 
-
-
 def _fetch_one(url, max_chars, article_only):
     """Фетч одного URL ОТДЕЛЬНЫМ браузером — для параллельного батча
     (sync API не потокобезопасен: свой инстанс на поток, паттерн
@@ -130,7 +127,6 @@ def _fetch_one(url, max_chars, article_only):
         return url, t
     except Exception as e:  # noqa: BLE001 — один битый URL не роняет пул
         return url, f"[ошибка: {type(e).__name__}: {e}]"
-
 
 def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
     """Открывает НЕСКОЛЬКО URL в ОДНОМ браузере (один старт на все).
@@ -202,7 +198,6 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
         out.append(f"--- URL: {u}\n{t[:max_chars]}")
     return "\n\n".join(out)
 
-
 def extract(url, schema):
     """Извлечение по схеме (паттерн Firecrawl extract, без LLM):
     schema — JSON: {"поле": "css:.price"} или
@@ -248,44 +243,32 @@ def extract(url, schema):
                 out[field] = f"[ошибка: {type(e).__name__}: {e}]"
     return json.dumps(out, ensure_ascii=False, indent=2)
 
-
 # Шаблоны расширения запросов: переформулировки добавляют ДРУГИЕ домены
 # (паттерн query expansion, agentlist.top: 80% качества = запросы).
 _EXPAND_SUFFIXES = (" comparison", " documentation")
 
-
 from camoufox_sources import (  # noqa: E402
+    _batch_texts,
     _reg_domain,
     domain_tier,
     extract_terms,
     rank_and_select,
 )
 
-
 def research(queries, max_results_per_query=5, fetch_top=0,
              article_only=True, max_chars=4000, max_parallel=None,
              target_domains=0, domains_limit=0, expand=False,
-             fetch_all=False, terms_wave=False, quality_first=False):
-    """Deep-поиск ОДНИМ вызовом: N запросов → дедупликация URL со
-    сниппетами → опционально fetch источников. Паттерн индустрии
-    gpt-researcher quick_search: агент планирует подзапросы, воркер
-    собирает ранжированный список со сниппетами (отбор без fetch).
-
-    Глубокий режим «20+ источников, не топы» (ресёрч 27.08.2026):
-    - target_domains: цель по РАЗНЫМ доменам. Пока не набрали — волны:
-      1) базовые запросы (+expand); 2) follow-up из термов сниппетов
-      (terms_wave, Open Deep Research); 3) пагинация pages=2.
-    - domains_limit: не больше K источников с одного домена в отборе.
-    - expand: к каждому запросу переформулировки «X comparison»,
-      «X documentation» (query expansion). Итого запросов ×3.
-    - terms_wave: после первой волны извлечь редкие/именные термы из
-      сниппетов и искать по ним (вторая волна словами).
-    - quality_first: отбирать и ранжировать по качеству домена
-      (доки/GitHub/arXiv → форумы), паттерн gpt-researcher.
-    - fetch_all: тексты ВСЕХ отобранных; иначе fetch_top>0 — топ-N.
-
-    Совместимость: все новые параметры по умолчанию выключены — старое
-    поведение (топы). Кэш на сутки.
+             fetch_all=False, terms_wave=False, quality_first=False,
+             as_json=False):
+    """Deep-поиск ОДНИМ вызовом: N запросов → дедуп URL со сниппетами →
+    опционально fetch. Глубокий режим (паттерны 27.08.2026):
+    target_domains — цель по РАЗНЫМ доменам (волны: база → термы →
+    пагинация, пока цель не набрана); domains_limit — макс K на домен;
+    expand — переформулировки «X comparison»/«X documentation»;
+    terms_wave — вторая волна из термов первой; quality_first — доки/
+    GitHub/arXiv первыми; fetch_all — тексты всех; as_json — машинный
+    JSON (meta/sources/texts/notes). По умолчанию всё выключено = старое
+    поведение. Кэш на сутки.
     """
     if not queries:
         return "ошибка: пустой список запросов"
@@ -294,7 +277,7 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     cache_key = "r:" + hashlib.sha256(json.dumps(
         [queries, max_results_per_query, fetch_top, article_only,
          target_domains, domains_limit, expand, fetch_all,
-         terms_wave, quality_first],
+         terms_wave, quality_first, as_json],
         ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
     try:
         with sqlite3.connect(_CACHE_DB) as con:
@@ -350,34 +333,63 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     sel = rank_and_select(raw, domains_limit) if quality_first else [
         (t, u, s) for _, t, u, s in raw]
     sel_domains = {_reg_domain(u) for _, u, _ in sel}
-    out = [f"источников: {len(sel)}"]
-    if deep:
-        out.append(f"доменов: {len(sel_domains)}"
-                   + (f" (цель {target_domains})" if target_domains else "")
-                   + (f", лимит {domains_limit} на домен" if domains_limit else ""))
-        if expand:
-            out.append("запросов с расширением: "
-                       f"{len(qs)} вместо {len(queries)}")
-        if quality_first:
-            t0 = sum(1 for tier, *rest in raw if tier == 0)
-            out.append(f"первоисточников: {t0} из {len(raw)}"
-                       " (доки/код/наука первыми)")
-    for i, (title, url, snippet) in enumerate(sel, 1):
+    source_rows = []
+    for title, url, snippet in sel:
         tier, label = domain_tier(url)
-        out.append(f"[{i}] {title.strip()}\n    {url} ({_reg_domain(url)}"
-                   + (f"; {label})" if label else ")"))
-        if snippet:
-            out.append(f"    {snippet.strip()[:200]}")
+        source_rows.append({"title": title.strip(), "url": url,
+                            "domain": _reg_domain(url), "tier": tier,
+                            "tier_label": label,
+                            "snippet": (snippet.strip()[:200]
+                                        if snippet else "")})
+    batch_text = None
     if fetch_all or (fetch_top > 0 and not fetch_all):
         urls = [u for _, u, _ in (sel if fetch_all else sel[:fetch_top])]
         if urls:
+            batch_text = batch_fetch(urls, max_chars=max_chars,
+                                     article_only=article_only,
+                                     max_parallel=max_parallel)
+    if as_json:
+        texts = _batch_texts(batch_text) if batch_text is not None else []
+        payload = {
+            "meta": {
+                "sources": len(sel), "domains": len(sel_domains),
+                "target_domains": target_domains or None,
+                "queries": queries,
+                "queries_with_expand": len(qs) if expand else len(queries),
+                "initial_sources": len(raw),
+                "top_tier_sources": (sum(1 for tier, *_ in raw if tier == 0)
+                                     if quality_first else None),
+                "followup_queries": followup or None,
+            },
+            "sources": source_rows, "texts": texts, "notes": log,
+        }
+        result = json.dumps(payload, ensure_ascii=False, indent=1)
+    else:
+        out = [f"источников: {len(sel)}"]
+        if deep:
+            out.append(f"доменов: {len(sel_domains)}"
+                       + (f" (цель {target_domains})" if target_domains else "")
+                       + (f", лимит {domains_limit} на домен"
+                          if domains_limit else ""))
+            if expand:
+                out.append("запросов с расширением: "
+                           f"{len(qs)} вместо {len(queries)}")
+            if quality_first:
+                t0 = sum(1 for tier, *rest in raw if tier == 0)
+                out.append(f"первоисточников: {t0} из {len(raw)}"
+                           " (доки/код/наука первыми)")
+        for i, row in enumerate(source_rows, 1):
+            tl = f"; {row['tier_label']}" if row['tier_label'] else ""
+            out.append(f"[{i}] {row['title']}\n    {row['url']}"
+                       f" ({row['domain']}{tl})")
+            if row["snippet"]:
+                out.append(f"    {row['snippet']}")
+        if batch_text is not None:
             out.append("\n--- ТЕКСТЫ ИСТОЧНИКОВ ---")
-            out.append(batch_fetch(urls, max_chars=max_chars,
-                                   article_only=article_only,
-                                   max_parallel=max_parallel))
-    if log:
-        out.append("\n--- ЗАМЕТКИ ---\n" + "\n".join(log))
-    result = "\n".join(out)
+            out.append(batch_text)
+        if log:
+            out.append("\n--- ЗАМЕТКИ ---\n" + "\n".join(log))
+        result = "\n".join(out)
     try:
         with sqlite3.connect(_CACHE_DB) as con:
             con.execute(
@@ -389,13 +401,11 @@ def research(queries, max_results_per_query=5, fetch_top=0,
         pass
     return result
 
-
 # --- Экспорт результатов в файл (паттерн Web Scraper export:
 # CSV/JSON/Markdown — данные из extract/crawl сохраняются на диск) ---
 
 _EXPORT_DIR = os.path.join(os.path.expanduser("~"), ".cache",
                            "camoufox-research", "exports")
-
 
 def _write_csv(obj, path):
     import csv as _csv
@@ -409,7 +419,6 @@ def _write_csv(obj, path):
             w = _csv.writer(fh)
             for r in rows:
                 w.writerow(r if isinstance(r, (list, tuple)) else [r])
-
 
 def _write_md(obj, path):
     rows = obj if isinstance(obj, list) else [obj]
@@ -425,7 +434,6 @@ def _write_md(obj, path):
         lines.append("| " + " | ".join(str(r.get(k, "")) for k in keys) + " |")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
-
 
 def export(data, format="json", path=""):
     """Сохранить результат (из extract/crawl) в файл: JSON/CSV/Markdown.
@@ -453,9 +461,7 @@ def export(data, format="json", path=""):
         return f"ошибка записи: {type(e).__name__}: {e}"
     return f"сохранено: {path} ({os.path.getsize(path)} байт)"
 
-
 # --- HTML-таблицы → CSV (паттерн Web Scraper table export) ---
-
 
 def table_extract(url, selector="table", max_tables=5):
     """HTML-таблицы страницы → CSV-текст (паттерн Web Scraper/Ultimate

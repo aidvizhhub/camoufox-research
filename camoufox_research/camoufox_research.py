@@ -158,7 +158,8 @@ def research(queries: list[str], max_results_per_query: int = 5,
              target_domains: int = 0, domains_limit: int = 0,
              expand: bool = False, fetch_all: bool = False,
              terms_wave: bool = False,
-             quality_first: bool = False) -> str:
+             quality_first: bool = False,
+             as_json: bool = False) -> str:
     """Deep-поиск ОДНИМ вызовом — норматив «10 источников» за один ход.
     queries — несколько формулировок запроса (агент сам планирует
     подзапросы, паттерн gpt-researcher); сервер ищет по каждой,
@@ -177,9 +178,12 @@ def research(queries: list[str], max_results_per_query: int = 5,
     - quality_first=True — отбор по качеству домена: доки/GitHub/arXiv
       первыми, форумы вниз (паттерн gpt-researcher source ranking).
     - fetch_all=True — тексты ВСЕХ отобранных, а не топ-N.
+    - as_json=True — машинный JSON: meta (счётчики, follow-up запросы),
+      sources (title/url/domain/tier/tier_label/snippet), texts, notes.
+      Идеален для автоматизации и синтеза агентом.
     Пример глубокого ресёрча: research(queries=["deep research
     agents"], target_domains=20, domains_limit=2, expand=True,
-    terms_wave=True, quality_first=True, fetch_all=True,
+    terms_wave=True, quality_first=True, fetch_all=True, as_json=True,
     max_results_per_query=6)
     Результат кэшируется на сутки."""
     return _call("research", timeout=900, queries=queries,
@@ -188,7 +192,8 @@ def research(queries: list[str], max_results_per_query: int = 5,
                  max_chars=max_chars, max_parallel=max_parallel,
                  target_domains=target_domains, domains_limit=domains_limit,
                  expand=expand, fetch_all=fetch_all,
-                 terms_wave=terms_wave, quality_first=quality_first)
+                 terms_wave=terms_wave, quality_first=quality_first,
+                 as_json=as_json)
 
 
 @mcp.tool()
@@ -298,9 +303,9 @@ def research_plan(topic: str) -> str:
             "2. Вызови research(queries=[...], max_results_per_query=6, "
             "target_domains=20, domains_limit=2, expand=True,\n"
             "   terms_wave=True, quality_first=True, fetch_all=True, "
-            "max_chars=4000) — цель двадцать РАЗНЫХ\n"
+            "as_json=True, max_chars=4000) — цель двадцать РАЗНЫХ\n"
             "   доменов; доки/код/arXiv первыми; вторая волна из "
-            "термов первой.\n"
+            "термов первой; JSON для синтеза.\n"
             "3. Сопоставь источники: общее, противоречия, пробелы.\n"
             "4. Итог с цитатами источников.")
 

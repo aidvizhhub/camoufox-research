@@ -122,6 +122,19 @@ survey 2508.12752):
 Грабли пойманы: знак сортировки (tier по возрастанию, а не -tier) —
 сначала medium слетал вперёд; fix (it[1][0], it[0]).
 
+## Батч 8 (машинный JSON, 27.08.2026) — сделано и проверено
+research(as_json=True): машинный вывод для автоматизации —
+meta (sources/domains/target/queries/queries_with_expand/initial_sources/
+top_tier_sources/followup_queries), sources (title/url/domain/tier/
+tier_label/snippet), texts ([{url,text}] из batch_fetch), notes.
+Текстовый формат не тронут (else-ветка), кэш-ключ + as_json.
+Парсер batch-текста — _batch_texts в camoufox_sources.py (DRY).
+Грабли пойманы юнитом: 1) JSON-ветка ранний return мимо кэша — fixed
+(result единый поток); 2) текстовый блок вне else → NameError — fixed;
+3) split("--- URL: ") оставлял префикс на первом URL — fixed (срез
+префикса, 3 кейса юнитом: 2 записи/1 запись/пустой текст); 4) fetch.py
+перевалил 500 строк — докстринг сжат, метка tier в одну строку (504).
+
 ## Батч 5 (2 фичи) — сделано и проверено
 MCP Resources (camoufox://stats, //cache, //session, //info) + Prompts
 (research_plan, extract_schema, monitor_page) — 4-й примитив протокола;

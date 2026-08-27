@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
-![Version](https://img.shields.io/badge/version-0.4.0-green)
+![Version](https://img.shields.io/badge/version-0.5.0-green)
 
 ```
     AI Agent
@@ -115,7 +115,18 @@ research(
     terms_wave=True,       # 2nd wave built from rare terms of the 1st wave
     quality_first=True,    # docs / GitHub / arXiv first, forums last
     fetch_all=True,        # read text of every collected source
+    as_json=True,          # machine-readable: meta / sources / texts / notes
 )
+```
+
+For automation, `as_json=True` returns a JSON payload instead of a text dump:
+
+```json
+{"meta": {"sources": 31, "domains": 20, "followup_queries": ["JSON-RPC"]},
+ "sources": [{"title": "...", "url": "...", "domain": "arxiv.org",
+              "tier": 0, "tier_label": "первоисточник", "snippet": "..."}],
+ "texts": [{"url": "...", "text": "..."}],
+ "notes": []}
 ```
 
 How it works (industry patterns, researched 27.08.2026):
