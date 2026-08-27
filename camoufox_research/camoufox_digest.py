@@ -12,12 +12,14 @@ citations per report», DEER (arXiv 2512.17776) — верификация ци�
 проставляет статус жив/кэш/битый. Факты копятся в той же sqlite.
 """
 import json
+import os
 import re
 import sqlite3
 import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from camoufox_cache import _cache_get
 from camoufox_campaign import _DB_PATH, _EXPORT_DIR, _db
@@ -243,14 +245,46 @@ def research_digest(camp_id, refresh=True):
     return digest_report(camp_id)
 
 
+def _memory_candidates():
+    """Кандидаты памяти ПЛЕМЕНИ, считаются в момент вызова (env юзера
+    может выставиться после импорта — юнит поймал 27.08)."""
+    return (os.environ.get("CAMOUFOX_MEMORY_FILE", ""),
+            "/run/media/admin1/DATA/BROboses/BRO.md",
+            str(Path.home() / ".cache" /
+                "camoufox-research" / "memory.md"))
+
+
+def _note_memory(text):
+    """Строка в память племени: первый СУЩЕСТВУЮЩИЙ путь из кандидатов
+    (env → бро-база этой машины → кэш). Чужой машине — тихий пропуск
+    (публичный тулкит: хардкод путей запрещён, закон 28)."""
+    for p in _memory_candidates():
+        if not p:
+            continue
+        try:
+            p2 = os.path.expanduser(p)
+            if not os.path.exists(p2):
+                continue
+            with open(p2, "a", encoding="utf-8") as fh:
+                fh.write(text + "\n")
+            return os.path.abspath(p2)
+        except Exception:  # noqa: BLE001 — память бонус, не охота
+            continue
+    return ""
+
+
 def post_hunt(camp_id, log):
     """После финала охоты: выжимки + верификация + ОТЧЁТ НА ДИСК (всё в
     том же фоне). Маркер done.json дополняется полями digests/verified/
     cit_report — агент ждёт ЕГО же, новых маркеров не плодим."""
     digests, total = make_digest(camp_id, log)
     verified, broken = verify_sources(camp_id)
-    log(f"verified: {verified}/{total}" + (f", битых: {len(broken)}"
-                                           if broken else ""))
+    with _db() as con:
+        broken_total = con.execute(
+            "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? "
+            "AND live=0", (camp_id,)).fetchone()[0]
+    log(f"verified: {verified}/{total}" + (f", битых: {broken_total}"
+                                           if broken_total else ""))
     cit_report = ""
     try:
         cit_report = citation_report(camp_id)
@@ -258,5 +292,27 @@ def post_hunt(camp_id, log):
         cit_report = ""
     if not cit_report:
         log("cit-отчёт пропущен (пустые выжимки/verified)")
+    # Сводка в память племени: добыча охоты не теряется между сессиями
+    # (свой проверенный опыт важнее чужой статьи — канон 27.08).
+    try:
+        with _db() as con:
+            row = con.execute("SELECT topic, target_sources FROM campaigns "
+                              "WHERE id=?", (camp_id,)).fetchone()
+            uniq = con.execute(
+                "SELECT COUNT(DISTINCT domain) FROM campaign_sources "
+                "WHERE camp_id=?", (camp_id,)).fetchone()[0]
+        topic, target = (row[0], row[1]) if row else ("", 0)
+        note = (f"- {time.strftime('%d.%m.%Y')} (ресёрч-сводка {camp_id}): "
+                f"тема «{topic[:60]}» — доменов {uniq}/{target}, "
+                f"источников {total}, verified {verified}, "
+                f"битых {broken_total}, отчёт: "
+                f"{cit_report.splitlines()[0] if cit_report else 'нет'}")
+        memory_note = _note_memory(note)
+        if memory_note:
+            log(f"сводка в память: {memory_note}")
+    except Exception as e:  # noqa: BLE001 — память бонус
+        memory_note = ""
+        log(f"сводка пропущена: {type(e).__name__}")
     return {"digests": digests, "verified": verified,
-            "broken": len(broken), "cit_report": cit_report}
+            "broken": broken_total, "cit_report": cit_report,
+            "memory_note": memory_note}
