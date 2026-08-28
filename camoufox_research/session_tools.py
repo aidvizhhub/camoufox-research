@@ -160,17 +160,21 @@ def register(mcp, call):
         )
 
     @mcp.tool()
-    def extract(url: str, schema: str) -> str:
-        """Извлечение по схеме (Firecrawl extract, без LLM): schema — JSON
+    def extract(url: str, schema: str, llm: bool = False) -> str:
+        """Извлечение по схеме (Firecrawl extract): schema — JSON
         {"поле": "css:.price"} или {"поле": {"selector": ".price",
         "attr": "text|href|src"}}. Селекторы: CSS ("css:", ".price"),
         XPath ("//div[@class='x']" или "xpath=..."). Возвращает JSON.
-        КОГДА: нужны КОНКРЕТНЫЕ поля (цена, заголовок, ссылка) по
-        селекторам — стабильная структура страницы.
+        llm=True — извлечение ИЗ ТЕКСТА страницы (LLM): schema —
+        {"поле": подсказка} или {"поле": {"hint": "..."}}; работает, где
+        селекторы хрупкие; требует LLM (DeepSeek/Ollama), иначе честный
+        ответ «недоступен».
+        КОГДА: нужны КОНКРЕТНЫЕ поля при СТАБИЛЬНОЙ структуре (CSS/XPath);
+        структура неизвестна/меняется → llm=True.
         НЕ КОГДА: нужен сплошной текст → fetch_page / batch_fetch;
         нужны таблицы → table_extract; не знаешь селектор → snapshot
         сначала (найти элементы с ref)."""
-        return call("extract", url=url, schema=schema)
+        return call("extract", url=url, schema=schema, llm=llm)
 
     @mcp.tool()
     def set_proxy(proxy: str = "") -> str:

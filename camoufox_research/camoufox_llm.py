@@ -57,7 +57,9 @@ def llm_available() -> str:
     return ""
 
 
-def _call_deepseek(prompt: str, system: str = "") -> str:
+def _call_deepseek(
+    prompt: str, system: str = "", max_tokens: int = 800, temperature: float = 0.7
+) -> str:
     key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat").strip() or "deepseek-chat"
     if not key:
@@ -72,8 +74,8 @@ def _call_deepseek(prompt: str, system: str = "") -> str:
             },
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.7,
-        "max_tokens": 800,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
     }
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
@@ -87,8 +89,12 @@ def _call_deepseek(prompt: str, system: str = "") -> str:
         return body["choices"][0]["message"]["content"].strip()
 
 
-def _call_ollama(prompt: str, system: str = "") -> str:
-    host = os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip() or "http://localhost:11434"
+def _call_ollama(
+    prompt: str, system: str = "", max_tokens: int = 800, temperature: float = 0.7
+) -> str:
+    host = (
+        os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip() or "http://localhost:11434"
+    )
     model = os.environ.get("OLLAMA_MODEL", "llama3").strip() or "llama3"
     url = _OLLAMA_URL_TMPL.format(host=host.rstrip("/"))
     payload = {
@@ -98,6 +104,7 @@ def _call_ollama(prompt: str, system: str = "") -> str:
             {"role": "user", "content": prompt},
         ],
         "stream": False,
+        "options": {"temperature": temperature, "num_predict": max_tokens},
     }
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
@@ -109,6 +116,77 @@ def _call_ollama(prompt: str, system: str = "") -> str:
         if "message" in body:
             return body["message"]["content"].strip()
         return body.get("response", "").strip()
+
+
+def llm_chat(
+    prompt: str, system: str = "", max_tokens: int = 1500, temperature: float = 0.1
+) -> str | None:
+    """Универсальный вызов LLM (deepseek/ollama): raw ответ или None.
+
+    None = LLM недоступен (нет ключа/хоста) или запрос упал — вызывающий
+    отвечает честно («недоступен»), не падая (паттерн research_critic).
+    """
+    avail = llm_available()
+    if not avail:
+        return None
+    try:
+        if avail == "deepseek":
+            return _call_deepseek(prompt, system, max_tokens, temperature)
+        return _call_ollama(prompt, system, max_tokens, temperature)
+    except Exception:
+        return None
+
+
+def llm_extract_fields(text: str, spec: dict, max_text: int = 14000) -> str:
+    """LLM-извлечение полей из текста страницы (Firecrawl extract, llm-путь).
+
+    spec — JSON-схема: {"поле": подсказка} или {"поле": {"hint": ...}}.
+    Возвращает JSON-строку: {"поле": значение|null}; LLM недоступен или
+    ответ не JSON — честная ошибка (не блефуем данными).
+    """
+    if not spec:
+        return '{"ошибка": "пустая схема"}'
+    lines = []
+    for name, rule in spec.items():
+        hint = (
+            rule
+            if isinstance(rule, str)
+            else (rule.get("hint") or rule.get("selector") or "данные из текста")
+        )
+        lines.append(f'- "{name}": {hint}')
+    prompt = (
+        "Из текста веб-страницы извлеки значения полей по подсказкам.\n"
+        "Поля:\n" + "\n".join(lines) + "\n\n"
+        'Верни СТРОГО JSON-объект без пояснений: {"поле": "значение"}.\n'
+        "Если данных в тексте нет — значение null.\n"
+        f"=== ТЕКСТ СТРАНИЦЫ ===\n{text[:max_text]}"
+    )
+    system = (
+        "You are a precise data extractor. Return ONLY a JSON object with the "
+        "requested fields; values from the page text or null when absent."
+    )
+    raw = llm_chat(prompt, system)
+    if raw is None:
+        return '{"ошибка": "LLM недоступен: задай DEEPSEEK_API_KEY или OLLAMA_HOST/OLLAMA_MODEL"}'
+    s = raw.strip()
+    if "{" in s and "}" in s:
+        s = s[s.find("{") : s.rfind("}") + 1]
+    try:
+        data = json.loads(s)
+        if not isinstance(data, dict):
+            raise ValueError("не объект")
+    except Exception:
+        return json.dumps(
+            {"_ошибка": "LLM вернул не JSON", "сырьё": raw[:300]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    # гарантируем ВСЕ поля схемы (LLM мог выкинуть) + null для пустых
+    out = {}
+    for name in spec:
+        v = data.get(name)
+        out[name] = v if v not in (None, "") else None
+    return json.dumps(out, ensure_ascii=False, indent=2)
 
 
 def llm_plan_queries(queries: list[str], target_domains: int = 20) -> list[str]:
@@ -143,9 +221,7 @@ def llm_plan_queries(queries: list[str], target_domains: int = 20) -> list[str]:
             raw = _call_ollama(prompt, system)
         # парсим строки
         lines = [
-            ln.strip().strip("-•1234567890. ").strip()
-            for ln in raw.splitlines()
-            if ln.strip()
+            ln.strip().strip("-•1234567890. ").strip() for ln in raw.splitlines() if ln.strip()
         ]
         # фильтруем пустые, дубли, слишком длинные
         seen = {q.lower() for q in queries}

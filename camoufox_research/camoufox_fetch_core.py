@@ -3,6 +3,7 @@
 
 """Батч-фетч и research (вынесено из camoufox_worker.py, canon/FILE-SIZE.md):
 параллельный пул по ресурсам машины, rate-limit, deep-поиск одним вызовом."""
+
 import json
 import os
 import re
@@ -42,6 +43,7 @@ except ImportError:
         _prefetch_text,
     )
 
+
 def _save_to_internet(url, text):
     """Persist fetched context without making persistence a fetch failure.
 
@@ -56,9 +58,11 @@ def _save_to_internet(url, text):
         if str(skills_dir) not in sys.path:
             sys.path.insert(0, str(skills_dir))
         from skills_search import save_to_internet
+
         save_to_internet(url, url, text, "")
     except Exception:
         pass
+
 
 def _auto_workers():
     """Автоопределение числа параллельных браузеров по ресурсам машины.
@@ -84,8 +88,7 @@ def _auto_workers():
         elif sys.platform == "darwin":
             try:
                 # vm_stat: Pages free + inactive + speculative ≈ доступная
-                out = subprocess.check_output(
-                    ["vm_stat"], text=True, timeout=10).splitlines()
+                out = subprocess.check_output(["vm_stat"], text=True, timeout=10).splitlines()
                 vals = {}
                 for ln in out:
                     m = re.match(r"\s*(.+?):\s+(\d+)", ln)
@@ -99,11 +102,11 @@ def _auto_workers():
                 mem_bytes = None
             if not mem_bytes:
                 # Fallback: SC_PHYS_PAGES — вся физическая память
-                mem_bytes = ((os.sysconf("SC_PHYS_PAGES")
-                              * os.sysconf("SC_PAGE_SIZE")) // 2)
+                mem_bytes = (os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")) // 2
         elif sys.platform == "win32":
             try:
                 import ctypes
+
                 class _MemStat(ctypes.Structure):
                     _fields_ = [
                         ("dwLength", ctypes.c_ulong),
@@ -116,18 +119,18 @@ def _auto_workers():
                         ("ullAvailVirtual", ctypes.c_ulonglong),
                         ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
                     ]
+
                 ms = _MemStat()
                 ms.dwLength = ctypes.sizeof(_MemStat)
-                if ctypes.windll.kernel32.GlobalMemoryStatusEx(
-                        ctypes.byref(ms)):
+                if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(ms)):
                     mem_bytes = ms.ullAvailPhys
             except Exception:
                 pass
-        mem_w = (max(1, int((mem_bytes - 1.5 * 1024 ** 3) // (1024 ** 3)))
-                 if mem_bytes else 4)
+        mem_w = max(1, int((mem_bytes - 1.5 * 1024**3) // (1024**3))) if mem_bytes else 4
         return min(cpu_w, mem_w, 8)
     except Exception:
         return 2
+
 
 def _fetch_one(url, max_chars, article_only):
     """Фетч одного URL ОТДЕЛЬНЫМ браузером — для параллельного батча
@@ -143,12 +146,12 @@ def _fetch_one(url, max_chars, article_only):
         with _launch() as browser:
             page = browser.new_page()
             _goto(page, url)
-            t = (_article_text(page, _FETCH_LIMIT) if article_only
-                 else _text(page, _FETCH_LIMIT))
+            t = _article_text(page, _FETCH_LIMIT) if article_only else _text(page, _FETCH_LIMIT)
         _cache_set(url, t, suffix)
         return url, t
     except Exception as e:
         return url, f"[ошибка: {type(e).__name__}: {e}]"
+
 
 def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
     """Открывает НЕСКОЛЬКО URL в ОДНОМ браузере (один старт на все).
@@ -176,7 +179,7 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
             todo.append(u)
     if todo:
         if len(todo) >= 8:
-            workers = (max_parallel or _auto_workers())
+            workers = max_parallel or _auto_workers()
             # Per-host bounded concurrency (паттерн proxiesapi/Crawlee):
             # сколько бы ни было воркеров, на ОДИН домен — не больше 2
             # параллельных запросов (иначе мощная машина словит капчу
@@ -186,8 +189,7 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
 
             def _run(u):
                 with _sems_guard:
-                    sem = _domain_sems.setdefault(
-                        urlparse(u).netloc, threading.Semaphore(2))
+                    sem = _domain_sems.setdefault(urlparse(u).netloc, threading.Semaphore(2))
                 with sem:
                     time.sleep(0.4)  # rate limit между запросами
                     result = _fetch_one(u, max_chars, article_only)
@@ -205,8 +207,11 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
                 for i, u in enumerate(todo):
                     try:
                         _goto(page, u)
-                        t = (_article_text(page, _FETCH_LIMIT) if article_only
-                             else _text(page, _FETCH_LIMIT))
+                        t = (
+                            _article_text(page, _FETCH_LIMIT)
+                            if article_only
+                            else _text(page, _FETCH_LIMIT)
+                        )
                         _cache_set(u, t, suffix)
                         texts[u] = t
                         _save_to_internet(u, t)
@@ -220,20 +225,29 @@ def batch_fetch(urls, max_chars=4000, article_only=False, max_parallel=None):
         out.append(f"--- URL: {u}\n{t[:max_chars]}")
     return "\n\n".join(out)
 
-def extract(url, schema):
-    """Извлечение по схеме (паттерн Firecrawl extract, без LLM):
+
+def extract(url, schema, llm=False):
+    """Извлечение по схеме (паттерн Firecrawl extract):
+    без llm (по умолчанию) — селекторы CSS/XPath:
     schema — JSON: {"поле": "css:.price"} или
     {"поле": {"selector": ".price", "attr": "text|href|src"}}.
+    llm=True — LLM-извлечение ИЗ ТЕКСТА страницы (структура неизвестна/
+    меняется, селекторы не сходятся): schema — {"поле": подсказка}
+    или {"поле": {"hint": "..."}}; требует LLM (DeepSeek/Ollama).
     Возвращает JSON: поле → значение/список (до 5 совпадений)."""
     try:
         spec = json.loads(schema) if isinstance(schema, str) else schema
     except Exception:
-        return "ошибка: schema не JSON — нужен объект {\"поле\": \"селектор\"}"
+        return 'ошибка: schema не JSON — нужен объект {"поле": "селектор"}'
     if not isinstance(spec, dict) or not spec:
         return "ошибка: schema должна быть непустым JSON-объектом"
     with _browser_ctx() as browser:
         page = browser.new_page()
         _goto(page, url)
+        if llm:
+            from camoufox_research.camoufox_llm import llm_extract_fields
+
+            return llm_extract_fields(_text(page, 15000), spec)
         out = {}
         for field, rule in spec.items():
             if isinstance(rule, dict):
@@ -263,6 +277,7 @@ def extract(url, schema):
             except Exception as e:
                 out[field] = f"[ошибка: {type(e).__name__}: {e}]"
     return json.dumps(out, ensure_ascii=False, indent=2)
+
 
 # Шаблоны расширения запросов: переформулировки добавляют ДРУГИЕ домены
 # (паттерн query expansion, agentlist.top: 80% качества = запросы).
