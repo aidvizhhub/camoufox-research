@@ -308,7 +308,26 @@ def report(camp_id, fmt="md"):
         f"| {i} | [{(t or u)[:80]}]({u}) | {d} | {lb or 'класс ' + str(ti)}"
         f" | {({1: '✅', 0: '❌', -1: '?'}[li])} |"
         for i, (t, u, d, ti, lb, li) in enumerate(rows, 1))
-    return "\n".join(head) + "\n" + body
+    body_txt = "\n".join(head) + "\n" + body
+    # ФУТЕР-ПАСПОРТ (grounding, паттерн groundwork/web-research: «X of Y
+    # claims verified»): сколько источников реально живы И с текстом —
+    # то, на что можно ссылаться в отчёте (cit-пакет). Цифры из
+    # verified + digests — не «на глаз», а из БД.
+    with _db() as con:
+        row = con.execute(
+            "SELECT COUNT(*), SUM(CASE WHEN live=1 AND digest != '' "
+            "THEN 1 ELSE 0 END) FROM campaign_sources WHERE camp_id=?",
+            (camp_id,),
+        ).fetchone()
+    citable = row[1] or 0
+    body_txt += (
+        "\n\n---\n\n"
+        f"**Grounding-паспорт:** {citable}/{total} источников verified + "
+        f"с текстом (первоисточники: {sum(1 for r in rows if r[3] == 0)}) "
+        f"· битых: {total - verified if verified else '?'} · "
+        "цитаты в отчёте — только из живых (cit-пакет)."
+    )
+    return body_txt
 
 
 def research_start(topic, queries=None, target_sources=20, domains_limit=2,

@@ -324,3 +324,30 @@ class ReportFormatsTest(unittest.TestCase):
                     self.assertIn("xlsx сохранён", out)
                 finally:
                     ce._EXPORT_DIR = old
+
+
+class GroundingFooterTest(unittest.TestCase):
+    """28.08: grounding-футер «X of Y claims verified» в отчёте —
+    паттерн groundwork/web-research (число, не «на глаз»)."""
+
+    def test_report_has_footer(self):
+        # grounding-футер — в md-отчёте ЛЮБОЙ кампании (проверка на
+        # существующей без сети: отчёт считается из тестовой БД).
+        import camoufox_research.camoufox_campaign_ext as ce
+        import tempfile
+        from pathlib import Path
+
+        import camoufox_research.camoufox_campaign_core as cc
+
+        old_cc = cc._DB_PATH
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "c.db"
+            _mk_db(str(db))
+            cc._DB_PATH = str(db)
+            try:
+                from camoufox_research.camoufox_campaign import report
+
+                out = report("cmp_test", fmt="md")
+                self.assertIn("Grounding-паспорт", out)
+            finally:
+                cc._DB_PATH = old_cc
