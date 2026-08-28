@@ -34,6 +34,16 @@ def citation_report(camp_id, path=None):
     """Цитированный отчёт НА ДИСК: готовый MD-документ (выжимки verified
     ✅ источников с нумерацией [1..N] + раздел «Ссылки»). Возвращает путь
     и превью; без path — кладёт в exports/{camp_id}.cit.md."""
+    # COALESCING (28.08, индустрия: переиспользование): если cit-файл
+    # уже на диске И свеж (в пределах часа) — вернуть как есть, НЕ
+    # пересчитывать заново (было: пересбор на каждый вызов).
+    if not path:
+        existing = Path(_EXPORT_DIR) / f"{camp_id}.cit.md"
+        if existing.exists() and time.time() - existing.stat().st_mtime < 3600:
+            md = existing.read_text(encoding="utf-8")
+            n_blocks = md.count("## [")
+            return (f"отчёт из кэша: {existing}\n"
+                    f"источников с цитатами: {n_blocks} · символов: {len(md)}")
     pack = citation_pack(camp_id, autofix=False)
     if pack.startswith("ошибка") or "CIT-ПАКЕТ пуст" in pack:
         return pack

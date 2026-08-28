@@ -3,6 +3,7 @@
 """Вторая половина fetch: research, export, table_extract — зависит от core."""
 import hashlib
 import json
+import os
 import sqlite3
 import time
 import contextlib
@@ -118,11 +119,22 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     def _have_goal():
         return target_domains and len(dom_seen) >= target_domains
 
+    # BUDGET CEILING (28.08, канон mcp-agent strict_budget): жёсткий
+    # лимит ПОИСКОВЫХ вызовов на кампанию (default 40 = ~40 запросов
+    # DDG; индустрия: unbounded = финансовый риск). Достигнут — стоп
+    # с честным логом (не молча), кампания соберёт что есть.
+    max_calls = int(os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40"))
+    calls_made = [0]
+
     def _wave(query_list, pages):
         for q in query_list:
             if _have_goal():
                 return
+            if calls_made[0] >= max_calls:
+                log.append(f"[бюджет: {max_calls} вызовов исчерпан — стоп]")
+                return
             try:
+                calls_made[0] += 1
                 for url, title, snippet in _search_results(
                         q, max_results_per_query * pages, pages=pages):
                     _add(title, url, snippet)

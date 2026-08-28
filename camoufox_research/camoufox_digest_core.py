@@ -175,7 +175,9 @@ def verify_all(camp_id, batch=_MAX_VERIFY, max_age=86400):
     batching: много маленьких → один большой цикл). Возвращает
     (verified, broken_urls)."""
     verified, broken = 0, []
-    while True:
+    # КАП итераций (28.08, страховка от зависания): максимум 25 батчей
+    # (~750 URL при 30/батч) — даже если вечно живые, не вечный цикл.
+    for _ in range(25):
         rows_left = [r for r in _sources(camp_id)
                      if r[3] == -1 or (time.time() - r[4]) > max_age]
         if not rows_left:

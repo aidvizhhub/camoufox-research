@@ -17,7 +17,9 @@ LLM: DeepSeek (дешево) или Ollama (0₽) — тот же слой, чт
 """
 
 import json
+import os
 import re
+from pathlib import Path as _Path
 
 from camoufox_research.camoufox_llm import (
     llm_available,
@@ -101,6 +103,33 @@ def _split_llm_json(text):
 
 
 _CRITIC_CACHE: dict[str, dict] = {}  # camp_id → результат (кэш в памяти)
+_CRITIC_FILE = _Path(os.environ.get(
+    "CAMOUFOX_CACHE_DIR", str(_Path.home() / ".cache" / "camoufox-research")
+)) / "critic_cache.json"
+
+
+def _critic_load() -> dict:
+    """Кэш критика ИЗ ФАЙЛА (28.08: переживает рестарт воркера, как
+    tool_usage — не пересчитываем LLM при новом процессе)."""
+    try:
+        if _CRITIC_FILE.exists():
+            import json
+            return json.loads(_CRITIC_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _critic_save(data: dict) -> None:
+    try:
+        import json
+        _CRITIC_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _CRITIC_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass  # кэш — бонус, не роняем
+
+
+_CRITIC_CACHE.update(_critic_load())
 
 
 def critique(camp_id, top: int = _DEFAULT_N, use_cache: bool = True):
@@ -158,6 +187,7 @@ def critique(camp_id, top: int = _DEFAULT_N, use_cache: bool = True):
     }
     if use_cache:
         _CRITIC_CACHE[camp_id] = _res
+        _critic_save(_CRITIC_CACHE)
     return _res
 
 

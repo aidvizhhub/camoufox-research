@@ -381,8 +381,11 @@ class CriticTest(unittest.TestCase):
         os.environ.pop("OLLAMA_HOST", None)
         # llm_available могут читать env — форсируем пусто
         cc.llm_available = lambda: ""
+        # БЕЗ кэша (28.08: кэш-файл переживает рестарт — чистим, чтобы
+        # честно проверить «недоступен»; кэш — правильное поведение)
+        cc._CRITIC_CACHE.clear()
         try:
-            out = cc.critique("cmp_x")
+            out = cc.critique("cmp_x", use_cache=False)
             self.assertEqual(out, "критик недоступен: включи DEEPSEEK_API_KEY или OLLAMA_HOST")
         finally:
             if old_ds:
