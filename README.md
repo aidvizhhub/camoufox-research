@@ -387,6 +387,30 @@ carries `ttlMs`/`cacheScope` hints (24h, public; SEP-2549) — a 2026-era
 client may cache the list for a day; OpenTelemetry tracing is on by
 default (opentelemetry-api).
 
+## Diagnose from CLI («мёртв» MCP — быстрый ответ)
+
+`Unknown tool` — это обычно НЕ «тула нет», а сервер не пересоздан после
+смены кода. Живой диагноз одной командой (без клиента, read-only):
+
+```bash
+python scripts/mcp_probe.py            # человек-читаемо
+python scripts/mcp_probe.py --json     # машинно (мониторинг)
+# покажет: python/repo → caps → protocol → СКОЛЬКО тулов отдаёт tools/list →
+# версия пакета → пульс сторожа поиска
+```
+
+Что смотреть: `tools=N` маленький или рукопожатие ❌ → старый код в venv
+(pip-кэш колеса!) → переустановить принудительно:
+`pip install --force-reinstall --no-cache-dir git+https://github.com/aidvizhhub/camoufox-research.git@main`
+→ reconnect (API disconnect/connect, не kill).
+
+Второй уровень (интерактивный, индустриальный стандарт —
+[ресёрч 28.08: 21 домен]): **MCP Inspector** для пошагового теста
+тулов (`npx @modelcontextprotocol/inspector -- python -m camoufox_research.camoufox_research`),
+диагностический workflow из [mcp-for-beginners: Testing and Debugging](https://github.com/microsoft/mcp-for-beginners)
+и troubleshooting-гайды (mcpevals.io, genaiskills.io). Наш probe — быстрый
+read-only «кодекс-доктор» сервера; Inspector — когда нужен диалог с тулами.
+
 ## Transports
 
 `stdio` (default) · `streamable-http` (stateless — **primary for remote
