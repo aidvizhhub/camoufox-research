@@ -13,6 +13,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
 ![Version](https://img.shields.io/badge/version-0.19.0-green)
 ![Тулов](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aidvizhhub/camoufox-research/main/metrics/tools-badge.json)
+![Качество охоты](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aidvizhhub/camoufox-research/main/metrics/hunt-quality-badge.json)
 ![MAP@10]
 
 ```

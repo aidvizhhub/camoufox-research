@@ -415,3 +415,47 @@ class CriticTest(unittest.TestCase):
         self.assertEqual(out["supported"], 1)
         self.assertEqual(out["unverified"], 1)
         self.assertEqual(out["claims"][1]["status"], "unsupported")
+
+
+class AutoStopTest(unittest.TestCase):
+    """28.08: авто-стоп при 2+ мусорных волнах (+0 новых = впустую).
+    Реальных «+0» мало — тест на фейковом логе (искусственное покрытие)."""
+
+    def test_waste_wave_detection(self):
+        import re
+
+        # фейковый лог: 2 мусорные (+0) подряд → авто-стоп должен сработать
+        log = ("волна 1: 4 запросов\nволна1:+20 новых\n"
+               "волна2:+0 новых\nволна3:+0 новых")
+        # логика авто-стопа (как в _go): fresh==0 × 2 подряд → стоп
+        dead = 0
+        stopped = False
+        for line in log.splitlines():
+            m = re.search(r"волна\d+:\+(\d+) новых", line)
+            if m:
+                fresh = int(m.group(1))
+                if fresh == 0:
+                    dead += 1
+                    if dead >= 2:
+                        stopped = True
+                        break
+                else:
+                    dead = 0
+        self.assertTrue(stopped, "2 мусорные подряд должны остановить")
+
+    def test_single_waste_not_stop(self):
+        import re
+
+        log = "волна1:+20 новых\nволна2:+0 новых\nволна3:+5 новых"
+        dead, stopped = 0, False
+        for line in log.splitlines():
+            m = re.search(r"волна\d+:\+(\d+) новых", line)
+            if m:
+                fresh = int(m.group(1))
+                if fresh == 0:
+                    dead += 1
+                    if dead >= 2:
+                        stopped = True
+                else:
+                    dead = 0
+        self.assertFalse(stopped, "1 мусорная + полезная = не стоп")

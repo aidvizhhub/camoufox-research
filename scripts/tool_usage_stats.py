@@ -131,11 +131,29 @@ def main() -> int:
             total = len(rows)  # fallback: использованные (не идеал)
         color = "brightgreen" if total <= 40 else ("yellow" if total <= 60 else "red")
         Path(args.badge).parent.mkdir(parents=True, exist_ok=True)
+        # КАЧЕСТВО ОХОТЫ (28.08, индустрия): соотношение полезных волн
+        # к общим (мусорная = +0 новых доменов = вызов впустую).
+        _q = 100
+        try:
+            import re as _rq
+            _tot_w, _waste_w = 0, 0
+            _exp = Path(os.path.expanduser("~/.cache/camoufox-research/exports"))
+            for _lp in _exp.glob("*.log"):
+                _t = _lp.read_text(encoding="utf-8", errors="replace")
+                _w = _rq.findall(r"волна\d+:\+?\d+ новых", _t)
+                _tot_w += len(_w)
+                _waste_w += len(_rq.findall(r"волна\d+:\+0 новых", _t))
+            if _tot_w:
+                _q = int((_tot_w - _waste_w) / _tot_w * 100)
+        except Exception:
+            pass
+        Path(args.badge).parent.mkdir(parents=True, exist_ok=True)
         Path(args.badge).write_text(_j.dumps({
             "schemaVersion": 1, "label": "тулов", "message": str(total),
             "color": color, "total": total,
+            "hunt_quality": _q,  # % полезных волн
         }, ensure_ascii=False), encoding="utf-8")
-        print(f"бейдж сохранён: {args.badge} ({total} тулов сервера)")
+        print(f"бейдж сохранён: {args.badge} ({total} тулов, качество {_q}%)")
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(report + "\n", encoding="utf-8")
