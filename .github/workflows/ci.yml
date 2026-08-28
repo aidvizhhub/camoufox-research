@@ -76,3 +76,14 @@ jobs:
 
       - name: MCP stdio smoke (initialize + tools/list + ping)
         run: python .github/scripts/smoke_mcp.py
+
+      - name: Tool count audit
+        # 28.08: аудит числа тулов (context-pressure, arXiv 2602.18914 /
+        # 2605.05247: >40 = деградация). Число видно в логе; если
+        # CAMOUFOX_TOOL_HIDE задан — скрытые не считаются (verify ≥50).
+        run: |
+          COUNT=$(python -c "import sys; sys.path.insert(0,'.'); from camoufox_research.camoufox_research import mcp; print(len(mcp._tool_manager._tools))" 2>/dev/null || echo '?')
+          echo "tool-count: $COUNT"
+          if [ "$COUNT" != "?" ] && [ "$COUNT" -gt 60 ]; then
+            echo "⚠️  tool-count $COUNT > 60 — подумай о скрытии (usage-cut.py)"
+          fi

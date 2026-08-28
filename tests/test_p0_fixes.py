@@ -339,3 +339,29 @@ class UsageCutTest(unittest.TestCase):
         spec.loader.exec_module(mod)
         out = mod._marked_cut(cands)
         self.assertEqual(out, ["a"])  # только reviewed+cut
+
+
+class HiddenToolsTest(unittest.TestCase):
+    """28.08: скрытие тулов (CAMOUFOX_TOOL_HIDE) — verify-порог ≥50
+    не падает от -2 тулов; скрытое реально отсутствует в списке."""
+
+    def test_hidden_tools_removed(self):
+        import os
+        import asyncio
+
+        old = os.environ.get("CAMOUFOX_TOOL_HIDE")
+        os.environ["CAMOUFOX_TOOL_HIDE"] = "session_tabs,tool_hint"
+        try:
+            import importlib
+            import camoufox_research.camoufox_research as sr
+            importlib.reload(sr)  # пере-импорт: _apply_tool_filter сработает
+            tools = asyncio.run(sr.mcp.list_tools())
+            names = {t.name for t in tools}
+            self.assertNotIn("session_tabs", names)
+            self.assertNotIn("tool_hint", names)
+            self.assertGreaterEqual(len(names), 50)  # verify-порог держится
+        finally:
+            if old is None:
+                os.environ.pop("CAMOUFOX_TOOL_HIDE", None)
+            else:
+                os.environ["CAMOUFOX_TOOL_HIDE"] = old

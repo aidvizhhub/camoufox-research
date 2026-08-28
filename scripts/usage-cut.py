@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -80,12 +81,47 @@ def main() -> int:
                     help="вписать hide в config.env (без него — только показать)")
     ap.add_argument("--env", action="store_true",
                     help="вывести export-строку (для окружения воспроизводимости)")
+    ap.add_argument("--suggest", action="store_true",
+                    help="авто-пометка: тулы 60+ дней не звались -> "
+                         "reviewed=true, action=cut (БЕЗ ручной работы)")
+    ap.add_argument("--status", action="store_true",
+                    help="показать, что СКРЫТО сейчас (контроль, не перебор)")
     args = ap.parse_args()
 
     cands = _load_candidates()
     if not cands:
         print("кандидатов нет — нечего резать (метрика ещё не собирала 30+ дн)")
         return 0
+    if args.status:
+        hidden = _read_existing_hide()
+        if not hidden:
+            print("ничего не скрыто (CAMOUFOX_TOOL_HIDE пуст) — все тулы видны")
+            return 0
+        print(f"скрыто тулов: {len(hidden)}")
+        print("  " + ", ".join(sorted(hidden)))
+        # связь с кандидатами: кто из скрытых ещё числится кандидатом
+        still = [c["tool"] for c in cands if c["tool"] in hidden and c.get("reviewed")]
+        if still:
+            print(f"из них решены (reviewed): {len(still)}")
+        return 0
+    if args.suggest:
+        # авто-пометка (решение без ручной работы): 60+ дней мёртв
+        # = явно не нужен; последний word за человеком (reviewed можно
+        # снять — обратимо). Порог 60 (не 30): 30дн — кандидат, 60дн —
+        # решение (двойной цикл подтверждает).
+        marked = 0
+        for c in cands:
+            if c.get("last_days", 0) >= 60 and not c.get("reviewed"):
+                c["reviewed"] = True
+                c["action"] = "cut"
+                c["suggested_by"] = "usage-cut --suggest"
+                marked += 1
+        CANDIDATES.write_text(json.dumps(
+            {"updated": int(time.time()), "candidates": cands},
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"--suggest: помечено {marked} тулов (60+дн) → reviewed+cut в {CANDIDATES}")
+        if not marked:
+            print("  (нет тулов 60+дн — все ещё потенциально нужны)")
     cut = _marked_cut(cands)
     if not cut:
         print("нет тулов с reviewed=true + action=cut. Чтобы решить — отметь в JSON:")
