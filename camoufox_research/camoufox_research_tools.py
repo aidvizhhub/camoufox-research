@@ -242,13 +242,14 @@ def register(mcp, call):
         return f"для «{what}»: начни с research_start (общая охота) или web_search (быстрый поиск)"
 
     @mcp.tool()
-    def service_route(goal: str, query: str = "") -> str:
+    def service_route(goal: str, query: str = "", dry: bool = False) -> str:
         """СЕРВИС-РОУТЕР (авто-подбор, паттерн MegaAgent orchestration):
         НЕ подсказывает, а САМ вызывает нужный тул по цели.
-        goal — цель («поиск», «статьи», «мониторинг», «выжимки»);
-        query — параметр (тема/URL). Для «поиск» зовёт web_search,
-        «статьи» — paper_search, «мониторинг» — page_diff и т.д.
-        Возвращает РЕЗУЛЬТАТ тула (не совет) — цепочка сокращается."""
+        goal — цель («поиск», «статьи», «мониторинг», «выжимки»,
+        «таблицы», «цитаты», «сессия», «страница», «сниппет»,
+        «скриншот»); query — параметр (тема/URL/camp_id).
+        dry=True — только показать план (какой тул + аргументы),
+        БЕЗ вызова. Возвращает РЕЗУЛЬТАТ тула (не совет)."""
         _MAP: dict[str, tuple[str, dict]] = {
             "поиск": ("web_search", {"query": query or goal, "max_results": 10}),
             "стать": ("paper_search", {"query": query or goal, "max_results": 5}),
@@ -256,6 +257,12 @@ def register(mcp, call):
             "карта": ("map_site", {"url": query, "max_links": 30}),
             "выжимки": ("research_digest", {"camp_id": query}),
             "статьи": ("paper_search", {"query": query or goal, "max_results": 5}),
+            "таблиц": ("table_extract", {"url": query}),
+            "цитат": ("citation_pack", {"camp_id": query}),
+            "сесси": ("session_start", {"url": query, "max_chars": 4000}),
+            "страниц": ("fetch_page", {"url": query, "max_chars": 6000}),
+            "сниппет": ("extract_links", {"url": query, "max_links": 20}),
+            "скриншот": ("screenshot", {"url": query}),
         }
         g = goal.lower().strip()
         for k, (tool, params) in _MAP.items():
@@ -264,12 +271,30 @@ def register(mcp, call):
                     return "мониторинг: нужен URL (query=...)"
                 if tool == "research_digest" and not query:
                     return "выжимки: нужен camp_id (query=...)"
+                if dry:
+                    return f"dry: {tool}({', '.join(f'{k}={v}' for k, v in params.items())})"
                 try:
                     return call(tool, **params)
                 except Exception as e:
                     return f"роутер: {tool} упал ({type(e).__name__})"
         return ("цель не распознана. goals: поиск, статьи, мониторинг, "
-                "карта, выжимки + query=параметр")
+                "карта, выжимки, таблицы, цитаты, сессия, страница, "
+                "сниппет, скриншот + query=параметр")
+
+    @mcp.tool()
+    def tool_usage() -> str:
+        """МЕТРИКА использования (28.08): какие тулы РЕАЛЬНО зовутся
+        с момента старта воркера (счётчик в bridge._TOOL_USAGE).
+        Для решения «резать или нет» по факту, не по числу тулов.
+        Пусто = воркер стартовал недавно / зовётся через другой путь."""
+        try:
+            from camoufox_research.camoufox_research_bridge import _TOOL_USAGE
+            if not _TOOL_USAGE:
+                return "пока нет вызовов (счётчик с рестарта воркера)"
+            rows = sorted(_TOOL_USAGE.items(), key=lambda x: -x[1])
+            return "\n".join(f"  {n:3d}x  {t}" for t, n in rows[:20])
+        except Exception:
+            return "usage-счётчик недоступен (нет bridge)"
 
     @mcp.tool()
     def research_resume(camp_id: str, background: bool = False) -> str:

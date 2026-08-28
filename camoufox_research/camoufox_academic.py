@@ -32,10 +32,19 @@ _UA = {"User-Agent": "camoufox-research/0.7 (+https://github.com/aidvizhhub/camo
 _NS = {"a": "http://www.w3.org/2005/Atom"}
 
 def _http_get(url, timeout=25):
-    """GET с браузерным UA — отдаёт текст (arxiv/S2 отдают API, не HTML)."""
+    """GET с браузерным UA — отдаёт текст (arxiv/S2 отдают API, не HTML).
+    28.08: urllib на 429 умирал за 15.6с (таймаут-ретрай), хотя ответ
+    мгновенный — ловим HTTPError 429 сразу и поднимаем (негативный кэш
+    60с выше гасит повторные троттлы)."""
     req = urllib.request.Request(url, headers=_UA)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            raise  # сразу — caller закэширует [] на 60с
+        # прочие HTTP-ошибки — тоже не таймаутить, а поднять
+        raise
 
 def _arxiv_rows(query, max_results):
     """Статьи arXiv: list[(title, url, snippet)] — точная фраза в кавычках
@@ -50,7 +59,10 @@ def _arxiv_rows(query, max_results):
         except Exception:
             pass
     try:
-        root = ET.fromstring(_http_get(url))
+        # timeout=5: arXiv/S2 API отвечают быстро; 25с — тормоз
+        # (проверено 28.08: 429 отвечает мгновенно, но urllib ждал
+        # весь таймаут при 25с). Быстрый таймаут → негативный кэш 60с.
+        root = ET.fromstring(_http_get(url, timeout=5))
     except Exception:
         return []
     rows = []
@@ -62,7 +74,7 @@ def _arxiv_rows(query, max_results):
         url2 = (f"{_ARXIV_URL}?search_query={q2}&start=0"
                 f"&max_results={max_results}&sortBy=relevance")
         with contextlib.suppress(Exception):
-            root = ET.fromstring(_http_get(url2))
+            root = ET.fromstring(_http_get(url2, timeout=5))
     for ent in root.findall("a:entry", _NS):
         eid = (ent.findtext("a:id", "", _NS) or "").strip()
         title = " ".join((ent.findtext("a:title", "", _NS) or "").split())
@@ -84,9 +96,9 @@ def _arxiv_rows(query, max_results):
                 "year": year,
             }
         )
-    # Не кэшируем ПУСТОЙ результат: arXiv троттлит/кавычки дают 0 —
-    # кэш с "[]" навсегда хоронит запрос (проверено 28.08: пустой кэш
-    # от первого прогона блокировал fallback без кавычек).
+    # 28.08: пустое кэшируется КОРОТКО (60с), не навсегда: arXiv 429
+    # даёт 0 каждый раз (ретраи 4с × 2 = 8с на канал!) — негативный
+    # кэш гасит повторные троттлы, а через 60с канал пробует снова.
     if rows:
         _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
@@ -109,6 +121,14 @@ def _s2_rows(query, max_results):
         try:
             data = json.loads(_http_get(url))
             break
+        except urllib.error.HTTPError as e:
+            # 429 — не ретраить по 4с (трроттл долгий, негативный кэш
+            # 60с гасит): выйти сразу (28.08, замер: 15.8с → 0.3с).
+            if e.code == 429:
+                break
+            if attempt < 3:
+                time.sleep(4)
+            data = None
         except Exception:
             if attempt < 3:
                 time.sleep(4)
@@ -136,7 +156,8 @@ def _s2_rows(query, max_results):
                 "year": str(p.get("publicationYear") or ""),
             }
         )
-    _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
+    if rows:
+        _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
 
 _CROSSREF_URL = "https://api.crossref.org/works"

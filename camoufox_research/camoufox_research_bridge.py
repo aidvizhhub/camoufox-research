@@ -139,7 +139,14 @@ def _parse(parsed):
         return f"ошибка: {parsed['error']}"
     return parsed.get("result", "")
 
+# Счётчик вызовов тулов (usage-метрика 28.08): каждый реальный вызов
+# через _call инкрементится — tool_usage() читает для «какие тулы
+# реально зовутся». Сброс — перезапуск воркера (usage с этого запуска).
+_TOOL_USAGE: dict[str, int] = {}
+
+
 def _call(action, timeout=120, **kwargs):
+    _TOOL_USAGE[action] = _TOOL_USAGE.get(action, 0) + 1
     # production gates
     err = _check_auth(kwargs)
     if err:
