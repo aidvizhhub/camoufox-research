@@ -19,6 +19,7 @@ LLM: DeepSeek (дешево) или Ollama (0₽) — тот же слой, чт
 import json
 import os
 import re
+import time
 from pathlib import Path as _Path
 
 from camoufox_research.camoufox_llm import (
@@ -109,12 +110,14 @@ _CRITIC_FILE = _Path(os.environ.get(
 
 
 def _critic_load() -> dict:
-    """Кэш критика ИЗ ФАЙЛА (28.08: переживает рестарт воркера, как
-    tool_usage — не пересчитываем LLM при новом процессе)."""
+    """Кэш критика ИЗ ФАЙЛА (28.08: переживает рестарт воркера, TTL
+    24ч — после обновления кампании кэш протухает, LLM пересчитает)."""
     try:
         if _CRITIC_FILE.exists():
             import json
-            return json.loads(_CRITIC_FILE.read_text(encoding="utf-8"))
+            data = json.loads(_CRITIC_FILE.read_text(encoding="utf-8"))
+            return {k: v for k, v in data.items()
+                    if isinstance(v, dict) and time.time() - v.get("_ts", 0) < 86400}
     except Exception:
         pass
     return {}
@@ -186,6 +189,8 @@ def critique(camp_id, top: int = _DEFAULT_N, use_cache: bool = True):
         "raw": raw[:500],
     }
     if use_cache:
+        _res["_ts"] = time.time()  # TTL: сутки (28.08: вечный кэш —
+        # после обновления кампании критик оставался старым)
         _CRITIC_CACHE[camp_id] = _res
         _critic_save(_CRITIC_CACHE)
     return _res

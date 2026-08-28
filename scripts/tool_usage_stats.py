@@ -43,6 +43,17 @@ def _render(data, top_limit=20):
         rows.append((t, int(count), ago_d, buck))
     rows.sort(key=lambda x: -x[1])
     out = [f"вызовов всего: {sum(r[1] for r in rows)} · тулов: {len(rows)}\n"]
+    # БЮДЖЕТ (28.08): лимит касается ПОИСКОВЫХ вызовов (web_search/
+    # research_start — где CAMOUFOX_SEARCH_BUDGET действует в fetch),
+    # не всех тулов (иначе 1013 вызовов / 40 = мусор).
+    _b = os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40")
+    _search = {r[0]: r[1] for r in rows}
+    _calls = (_search.get("web_search", 0) + _search.get("research", 0)
+              + _search.get("research_start", 0))
+    _budget_n = int(_b) if _b else 40
+    _pct = int(_calls / _budget_n * 100) if _budget_n else 0
+    out.append(f"бюджет поиска: ~{_calls} вызовов / {_budget_n} (лимит) "
+               f"= {_pct}%" + (" · ⚠️ на пределе" if _pct > 80 else ""))
     out.append(f"{'вызовы':>7}  {'последний':>9}  {'период':>6}  тул")
     for t, count, ago, buck in rows[:top_limit]:
         ago_s = f"{ago:.0f}дн" if ago is not None else "?"

@@ -39,7 +39,16 @@ def citation_report(camp_id, path=None):
     # пересчитывать заново (было: пересбор на каждый вызов).
     if not path:
         existing = Path(_EXPORT_DIR) / f"{camp_id}.cit.md"
-        if existing.exists() and time.time() - existing.stat().st_mtime < 3600:
+        # СВЕЖЕСТЬ vs ОБНОВЛЕНИЕ КАМПАНИИ (28.08, риск: кампания
+        # обновилась (добор), cit остался старый). Сравниваем mtime
+        # cit с mtime лога кампании — лог новее = кампания обновлялась
+        # → cit игнорируем (пересчёт), иначе — кэш.
+        _log = Path(_EXPORT_DIR) / f"{camp_id}.log"
+        _cits_newer = existing.exists() and (
+            time.time() - existing.stat().st_mtime < 3600
+            and (not _log.exists() or existing.stat().st_mtime > _log.stat().st_mtime)
+        )
+        if _cits_newer:
             md = existing.read_text(encoding="utf-8")
             n_blocks = md.count("## [")
             return (f"отчёт из кэша: {existing}\n"

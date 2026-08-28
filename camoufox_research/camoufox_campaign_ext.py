@@ -207,6 +207,22 @@ def status(camp_id, limit=6):
            f"статус: {row[1]} · источников: {total} · разных сайтов: "
            f"{uniq}/{row[2]}" + (f" · заметка: {row[3]}" if row[3] else ""),
            "топ источников (качество первоё):"]
+    # БЮДЖЕТ поиска (28.08, индустрия strict_budget): лимит из env,
+    # расход — волны из лога кампании. Агент видит «осталось N/M» ДО
+    # старта следующей волны (не после).
+    try:
+        import os
+        budget = int(os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40"))
+        log_path = Path(_EXPORT_DIR) / f"{camp_id}.log"
+        used = 0
+        if log_path.exists():
+            import re as _re
+            used = len(_re.findall(r"волна\d*\+?\d+ новых|волна \d+: \d+ запросов",
+                                   log_path.read_text(encoding="utf-8", errors="replace")))
+        out.insert(2, f"бюджет поиска: использовано ~{used}/{budget} вызовов"
+                      + (" · ⚠️ близко к лимиту" if used >= budget * 0.8 else ""))
+    except Exception:
+        pass  # бюджет — бонус
     out += [f"  [{i}] {t or u}\n      {u} ({d}{'; ' + tl if tl else ''})"
             for i, (t, u, d, tl) in enumerate(head, 1)]
     return "\n".join(out)
