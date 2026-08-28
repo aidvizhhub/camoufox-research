@@ -129,3 +129,27 @@ publisher совпал. Секрет API_TOKEN_PYPI удалён из GitHub; ю
 revoke токена на pypi.org (сам). Грабли-повторы: (а) secrets в step-if
 — носить через job.env; (б) тег ДО бампа версии = 400 file-exists —
 порядок: bump → push → тег.
+
+## MCP SDK 2.0 — проверено 28.08.2026 (миграция v1→v2)
+
+21. **FastMCP → MCPServer** (`from mcp.server.mcpserver import MCPServer`);
+    `mcp.server.fastmcp` в v2 намеренно кидает ModuleNotFoundError с указателем
+    на миграционный гайд (py.sdk.modelcontextprotocol.io/v2/migration/).
+22. **Транспорт `http` → `streamable-http`** (`mcp.run(transport="streamable-http")`),
+    `sse` — legacy (12-мес окно). `list_tools()` остался ASYNC и в v2
+    (проверено интроспекцией; грепом по wheel легко принять `async def` за
+    sync — префикс обрезается).
+23. **`_tool_manager._tools` — та же приватная структура** (dict[str, Tool]),
+    `remove_tool` кидает ToolError (оборачиваем suppress). Совместимо v1/v2.
+24. **ttlMs настоящий**: `MCPServer(..., cache_hints={"tools/list": CacheHint(ttl_ms=..., scope="public")})`
+    (SEP-2549; `CacheableMethod` = Literal-строки "tools/list" и т.д.). Поле
+    `ttl_ms` есть ТОЛЬКО в модели протокола 2026-07-28 — легаси-клиент его
+    не получит (это норма, не баг). Проверка: Client(mode='auto') → list_tools
+    → `ttl_ms: 86400000`.
+25. **uv.lock обязателен**: смена пина в pyproject без `uv lock` = красный CI
+    («lockfile needs to be updated»). Правило: смена зависимостей → `uv lock`
+    → push.
+26. **pip кэш git-установки**: `pip install "git+...@main"` берёт колесо из
+    кэша → старый код в венве даже после пуша. Проверять грепом установленного
+    пакета (grep новой строки в site-packages); принудительно:
+    `--force-reinstall --no-cache-dir`.

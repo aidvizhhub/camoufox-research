@@ -382,16 +382,20 @@ camoufox-research --caps research,browser        # or env CAMOUFOX_CAPS
 Unknown group → warning; valid groups still activate. New tool without a
 group fails `tests/test_caps.py` (fail-fast).
 Tool order is frozen (sorted by name at startup) — stable prompt prefix
-(prompt-cache hygiene); `ttlMs`/`cacheScope` hints need the 2026-07-28
-SDK 2.0 (planned migration).
+(prompt-cache hygiene). On MCP SDK 2.x (spec 2026-07-28) `tools/list`
+carries `ttlMs`/`cacheScope` hints (24h, public; SEP-2549) — a 2026-era
+client may cache the list for a day; OpenTelemetry tracing is on by
+default (opentelemetry-api).
 
 ## Transports
 
-`stdio` (default), `http` (streamable-http, stateless — MCP 2026-07-28), `sse`
-(legacy, deprecated in the 2026-07-28 spec — kept for 12-month window):
+`stdio` (default) · `streamable-http` (stateless — **primary for remote
+prod**, MCP 2026-07-28) · `sse` (legacy — deprecated in the 2026-07-28
+spec, kept for the 12-month window):
 
 ```bash
-camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
+camoufox-research --transport http --port 8833   # 'http' = streamable-http
+CAMOUFOX_PORT=8833 camoufox-research --transport http   # or via env
 ```
 
 ## Behavior
