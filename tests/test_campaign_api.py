@@ -333,7 +333,6 @@ class GroundingFooterTest(unittest.TestCase):
     def test_report_has_footer(self):
         # grounding-футер — в md-отчёте ЛЮБОЙ кампании (проверка на
         # существующей без сети: отчёт считается из тестовой БД).
-        import camoufox_research.camoufox_campaign_ext as ce
         import tempfile
         from pathlib import Path
 
