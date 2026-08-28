@@ -249,7 +249,7 @@ def register(mcp, call):
         query — параметр (тема/URL). Для «поиск» зовёт web_search,
         «статьи» — paper_search, «мониторинг» — page_diff и т.д.
         Возвращает РЕЗУЛЬТАТ тула (не совет) — цепочка сокращается."""
-        _MAP = {
+        _MAP: dict[str, tuple[str, dict]] = {
             "поиск": ("web_search", {"query": query or goal, "max_results": 10}),
             "стать": ("paper_search", {"query": query or goal, "max_results": 5}),
             "мониторинг": ("page_diff", {"url": query, "max_chars": 4000}),
