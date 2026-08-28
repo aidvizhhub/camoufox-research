@@ -220,6 +220,9 @@ Old behavior is preserved: `target_domains=0, domains_limit=0, expand=False, fet
 
 ## Need a tool? Start here
 
+> Агент (а не человек)? Полное руководство «как пользоваться сервером» —
+> [docs/agent-usage.md](docs/agent-usage.md): реестр, циклы, границы, ловушки.
+
 | What you need | Tool |
 |---|---|
 | Find information | `web_search` |

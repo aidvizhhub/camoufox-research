@@ -77,6 +77,21 @@ jobs:
       - name: MCP stdio smoke (initialize + tools/list + ping)
         run: python .github/scripts/smoke_mcp.py
 
+      - name: MCP probe (диагноз + гейт «сервер отдаёт тулы»)
+        # 28.08: probe = живое рукопожатие из CLI (scripts/mcp_probe.py).
+        # Гейт: tools_count >= 50 — «Unknown tool» не вернётся, если сервер
+        # реально поднимается и регистрирует полный реестр.
+        run: |
+          python scripts/mcp_probe.py --json > probe.json
+          python - <<'PY'
+          import json
+          d = json.load(open("probe.json"))
+          h = d["handshake"]
+          print(f"protocol={h.get('protocol')} tools={h.get('tools_count')} caps={d.get('caps')}")
+          assert h.get("ok"), f"рукопожатие не удалось: {h.get('error')}"
+          assert h.get("tools_count", 0) >= 50, f"тулов мало: {h.get('tools_count')}"
+          PY
+
       - name: Guard-all (приватная добыча, 3-й слой после локального хука)
         # 28.08: локальный guard-all (pre-commit) может быть обойдён —
         # CI-версия догонит: research/*.md (приват) = стоп, секреты = стоп.
