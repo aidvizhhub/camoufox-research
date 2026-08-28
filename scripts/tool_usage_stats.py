@@ -19,6 +19,7 @@ import sys
 import time
 from pathlib import Path
 
+REPO = Path(__file__).resolve().parents[1]
 USAGE = Path(os.environ.get(
     "CAMOUFOX_CACHE_DIR", str(Path.home() / ".cache" / "camoufox-research")
 )) / "tool_usage.json"
@@ -62,6 +63,8 @@ def main() -> int:
                          "(следующий цикл берёт из файла, не пересчитывает)")
     ap.add_argument("--mermaid", default="",
                     help="сгенерить mermaid-бар (README-вставка) в файл")
+    ap.add_argument("--badge", default="",
+                    help="tools-badge.json: число тулов для README-бейджа")
     args = ap.parse_args()
     if not USAGE.exists():
         print(f"нет {USAGE} — ещё не было вызовов")
@@ -105,6 +108,23 @@ def main() -> int:
         Path(args.mermaid).parent.mkdir(parents=True, exist_ok=True)
         Path(args.mermaid).write_text("\n".join(mm) + "\n", encoding="utf-8")
         print(f"mermaid сохранён: {args.mermaid}")
+    if args.badge:
+        # ВСЕ тулы сервера (не только использованные) — иначе бейдж
+        # врал бы «12», когда реально 60 (28.08, грабли пойманы замером).
+        import json as _j
+        try:
+            sys.path.insert(0, str(REPO))
+            import camoufox_research.camoufox_research as _sr
+            total = len(_sr.mcp._tool_manager._tools)
+        except Exception:
+            total = len(rows)  # fallback: использованные (не идеал)
+        color = "brightgreen" if total <= 40 else ("yellow" if total <= 60 else "red")
+        Path(args.badge).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.badge).write_text(_j.dumps({
+            "schemaVersion": 1, "label": "тулов", "message": str(total),
+            "color": color, "total": total,
+        }, ensure_ascii=False), encoding="utf-8")
+        print(f"бейдж сохранён: {args.badge} ({total} тулов сервера)")
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(report + "\n", encoding="utf-8")

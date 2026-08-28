@@ -105,13 +105,14 @@ def main() -> int:
             print(f"из них решены (reviewed): {len(still)}")
         return 0
     if args.suggest:
-        # авто-пометка (решение без ручной работы): 60+ дней мёртв
-        # = явно не нужен; последний word за человеком (reviewed можно
-        # снять — обратимо). Порог 60 (не 30): 30дн — кандидат, 60дн —
-        # решение (двойной цикл подтверждает).
+        # авто-пометка (решение без ручной работы): порог из env
+        # USAGE_CUT_DAYS (60 по умолчанию), 30дн — кандидат, порог —
+        # подтверждённое решение (двойной цикл метрики). Отменимо:
+        # reviewed=false вернёт тул.
+        threshold = int(os.environ.get("USAGE_CUT_DAYS", "60"))
         marked = 0
         for c in cands:
-            if c.get("last_days", 0) >= 60 and not c.get("reviewed"):
+            if c.get("last_days", 0) >= threshold and not c.get("reviewed"):
                 c["reviewed"] = True
                 c["action"] = "cut"
                 c["suggested_by"] = "usage-cut --suggest"
@@ -119,7 +120,8 @@ def main() -> int:
         CANDIDATES.write_text(json.dumps(
             {"updated": int(time.time()), "candidates": cands},
             ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"--suggest: помечено {marked} тулов (60+дн) → reviewed+cut в {CANDIDATES}")
+        print(f"--suggest: помечено {marked} тулов ({threshold}+дн) → "
+              f"reviewed+cut в {CANDIDATES}")
         if not marked:
             print("  (нет тулов 60+дн — все ещё потенциально нужны)")
     cut = _marked_cut(cands)
