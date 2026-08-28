@@ -20,16 +20,11 @@ repos:
         args: [-q, -r, -lll]
   - repo: local
     hooks:
-      - id: priv-guard
-        name: приватная добыча/секреты в коммит (страж 28.08)
-        entry: bash scripts/git-pre-commit.sh
+      - id: guard-all
+        name: "страж: приватная добыча + секреты + gitleaks (один проход)"
+        entry: bash scripts/guard-all.sh
         language: system
         always_run: true
         verbose: true
-        pass_filenames: false
-      - id: gitleaks
-        name: "секрет-скан gitleaks (двухслойная: pre-commit и CI)"
-        entry: bash scripts/gitleaks-precommit.sh
-        language: system
         pass_filenames: false
         exclude: ^tests/

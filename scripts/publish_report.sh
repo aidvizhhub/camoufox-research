@@ -49,6 +49,16 @@ if [ -n "$DO_DRY" ]; then
   echo "   push:   $([ -n "$DO_PUSH" ] && echo 'ДА (--push)' || echo 'НЕТ (--public/локально)')"
   echo "   шаги:   скан секретов → копия в public/ → пересборка витрины"
   echo "            $([ -n "$DO_PUSH" ] && echo '→ коммит → git push' || echo '→ (git не тронут)')"
+  # дифф: уже на витрине? (28.08 — показываем, чтобы не дублировать)
+  if [ -f "$PUBLIC/$NAME" ]; then
+    if diff -q "$FILE" "$PUBLIC/$NAME" >/dev/null 2>&1; then
+      echo "   ⚠️  УЖЕ на витрине (идентичный копии) — дубль!"
+    else
+      echo "   ⚠️  УЖЕ на витрине, но ОТЛИЧАЕТСЯ — перезапишет"
+    fi
+  else
+    echo "   ✓ нет на витрине — добавится"
+  fi
   exit 0
 fi
 case "$NAME" in

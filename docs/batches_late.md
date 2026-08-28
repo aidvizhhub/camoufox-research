@@ -122,12 +122,12 @@ the-internet.herokuapp.com/upload). Итог: 48 тулов + 4 ресурса +
 
 ```bash
 # 1. Компиляция
-/home/admin1/.venvs/camoufox-research/bin/python -m py_compile camoufox_research/*.py
+<venv>/bin/python -m py_compile camoufox_research/*.py
 # 2. Serve-smoke: команды JSON-строками в stdin, EOF завершает воркер
-printf '%s\n' '{"action":"ping"}' | /home/admin1/.venvs/camoufox-research/bin/python \
+printf '%s\n' '{"action":"ping"}' | <venv>/bin/python \
   camoufox_research/camoufox_worker.py --serve
 # 3. Живой MCP-вызов
-/home/admin1/.venvs/camoufox-research/bin/python camoufox_research/camoufox_rpc.py --tool ping
+<venv>/bin/python camoufox_research/camoufox_rpc.py --tool ping
 ```
 
 ## Прод-фикс памяти (27.08, после батчей 15-17) — сделано и проверено
