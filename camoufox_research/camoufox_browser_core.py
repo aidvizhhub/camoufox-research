@@ -21,6 +21,7 @@ IS_NT = os.name == "nt"
 # применяется при следующем старте браузера (_launch).
 _PROXY = None
 
+
 def set_proxy(proxy: str = "") -> str:
     """Установить прокси для браузера (runtime). Форматы:
     'host:port', 'user:pass@host:port', 'socks5://host:port'.
@@ -28,6 +29,7 @@ def set_proxy(proxy: str = "") -> str:
     global _PROXY
     _PROXY = proxy or None
     return f"прокси: {_PROXY or 'выключен'}"
+
 
 def _proxy_conf():
     """Прокси-глобал → Playwright-конфиг Camoufox(proxy={...})."""
@@ -47,10 +49,12 @@ def _proxy_conf():
     except Exception:
         return None
 
+
 def init_browser(live_provider):
     """Воркер регистрирует живой браузер (serve-режим) для _browser_ctx."""
     global _LIVE_PROVIDER
     _LIVE_PROVIDER = live_provider
+
 
 def _browser_ctx():
     """Контекст браузера: живой (serve) или временный (разовый вызов)."""
@@ -58,6 +62,7 @@ def _browser_ctx():
     if live is not None:
         return nullcontext(live[1])
     return _launch()
+
 
 def _launch():
     """Запуск браузера с Windows-fallback.
@@ -74,6 +79,7 @@ def _launch():
             raise
         # Windows: headless упал — пробуем headed со скрытым окном
         return Camoufox(headless=False, windows_hide=True, proxy=_proxy_conf())
+
 
 def _wait_content(page, min_chars=300, max_wait=8):
     """Ждать, пока JS-страница НАПОЛНИТСЯ текстом (а не просто загрузится).
@@ -105,6 +111,7 @@ def _wait_content(page, min_chars=300, max_wait=8):
             with suppress(Exception):  # lazy/infinite scroll: подтянуть низ
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             page.wait_for_timeout(600)
+
 
 def _goto(page, url, tries=2, wait_ms=700):
     """goto с retry: одна попытка не должна ронять весь батч. Ждём
@@ -139,6 +146,59 @@ def _goto(page, url, tries=2, wait_ms=700):
                 time.sleep(2 * (attempt + 1))  # экспоненциальный backoff
     raise last
 
+
+_MIN_TEXT = 200  # короче считаем «пустым» (стена/ленивый JS) → рети
+
+
+def _lazy_scroll(page) -> None:
+    """Прогнать страницу скроллом до конца: ленивые блоки подгружаются
+    (lazy-load паттерн: картинки-заглушки, таблицы, карусели)."""
+    try:
+        page.evaluate(
+            "async () => { for (let y = 0; y <= document.body.scrollHeight; y += 800) "
+            "{ window.scrollTo(0, y); await new Promise(r => setTimeout(r, 120)); } "
+            "window.scrollTo(0, 0); }"
+        )
+        page.wait_for_timeout(600)
+    except Exception:
+        pass
+
+
+def _needs_retry(text: str) -> bool:
+    return len((text or "").strip()) < _MIN_TEXT
+
+
+def extract_retry(page, url, article_only, max_chars):
+    """Добыча текста + рети-политика для «пустых» (рост truth-recall):
+    попытка 1 — как раньше; текст короче _MIN_TEXT → скролл + повтор;
+    всё ещё пусто → перезаход (domcontentloaded) + сырой body без
+    trafilatura (последний шанс). Возвращает ЛУЧШИЙ текст."""
+
+    def _extract():
+        return _article_text(page, max_chars) if article_only else _text(page, max_chars)
+
+    text = _extract()
+    if not _needs_retry(text):
+        return text
+    _lazy_scroll(page)
+    text2 = _extract()
+    if len(text2 or "") > len(text or ""):
+        text = text2
+    if not _needs_retry(text):
+        return text
+    try:
+        with suppress(Exception):  # перезаход: могла быть временная гонка
+            page.goto(url, timeout=45000, wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            _lazy_scroll(page)
+        raw = _text(page, max_chars)
+        if len(raw or "") > len(text or ""):
+            text = raw
+    except Exception:
+        pass
+    return text or ""
+
+
 def _text(page, max_chars=6000):
     with suppress(Exception):  # тело может не успеть отрисоваться, это не ошибка
         page.wait_for_selector("body", timeout=8000)
@@ -146,6 +206,7 @@ def _text(page, max_chars=6000):
     text = page.inner_text("body")
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text[:max_chars]
+
 
 def _ddg_results(page):
     """Собрать (url, title, snippet) с текущей страницы DDG html.
@@ -166,6 +227,7 @@ def _ddg_results(page):
             out.append((u, t, s))
     return out
 
+
 def _ddg_next(page):
     """Перейти на следующую страницу DDG html: submit формы Next.
     Возвращает True, если переход выполнен."""
@@ -177,6 +239,7 @@ def _ddg_next(page):
         f.requestSubmit();
         return true;
     }""")
+
 
 def _search_results(query, max_results, pages=1):
     """Сырые результаты DDG: list[(title, url, snippet)] — общая функция
@@ -212,12 +275,14 @@ def _search_results(query, max_results, pages=1):
     if not results:
         try:
             from camoufox_research.camoufox_academic import paper_rows
+
             for title, url, snippet, _meta in paper_rows(query, max_results):
                 if (url, title) not in [(r[0], r[1]) for r in results]:
                     results.append((url, title, snippet))
         except Exception:
             pass  # академический канал тоже лёг — честно вернём []
     return results[:max_results]
+
 
 def _page_links(page, max_links=10):
     hrefs = page.eval_on_selector_all(
@@ -228,6 +293,7 @@ def _page_links(page, max_links=10):
         if h not in seen:
             seen.append(h)
     return seen[:max_links]
+
 
 def _article_text(page, max_chars):
     """Текст статьи через Trafilatura (без меню/баннеров). Fallback —

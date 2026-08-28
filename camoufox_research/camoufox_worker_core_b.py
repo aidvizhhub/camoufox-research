@@ -10,7 +10,7 @@ try:
     import camoufox_research.camoufox_worker_core_a as _core
 except ImportError:
     import camoufox_worker_core_a as _core
-globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
+globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith("__")})
 
 
 # --- Кэш страниц (глубокий ресёрч: повторный fetch = мгновенно) ---
@@ -52,7 +52,7 @@ def fetch_page(url, max_chars=6000, article_only=False, delta=False):
     with _browser_ctx() as browser:
         page = browser.new_page()
         _goto(page, url)
-        text = _article_text(page, _FETCH_LIMIT) if article_only else _text(page, _FETCH_LIMIT)
+        text = extract_retry(page, url, article_only, _FETCH_LIMIT)
     _cache_set(url, text, suffix)
     _save_to_internet(url, text)
     if delta:

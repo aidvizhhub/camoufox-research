@@ -23,9 +23,17 @@ try:
         _launch,
         _search_results,
         _text,
+        extract_retry,
     )
 except ImportError:
-    from camoufox_browser import _article_text, _browser_ctx, _goto, _launch, _text
+    from camoufox_browser import (
+        _article_text,
+        _browser_ctx,
+        _goto,
+        _launch,
+        _text,
+        extract_retry,
+    )
 try:
     from camoufox_research.camoufox_cache import (
         _CACHE_DB,
@@ -146,7 +154,7 @@ def _fetch_one(url, max_chars, article_only):
         with _launch() as browser:
             page = browser.new_page()
             _goto(page, url)
-            t = _article_text(page, _FETCH_LIMIT) if article_only else _text(page, _FETCH_LIMIT)
+            t = extract_retry(page, url, article_only, _FETCH_LIMIT)
         _cache_set(url, t, suffix)
         return url, t
     except Exception as e:
