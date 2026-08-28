@@ -27,6 +27,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
 
+      - name: Lock check + full-reinstall smoke
+        # Урок 28.08: чипсет-тесты верифицируют ЧАСТИ, а не ВЕСЬ цикл.
+        # Здесь — lock актуален (--check) + полная установка по uv.lock
+        # во временный .venv: разошёлся lock с pyproject — красный.
+        # Примечание: uv sync делает СВОЙ .venv в проекте, а не в
+        # переданном каталоге (проверено 28.08) — чистим его после.
+        run: |
+          pip install uv 2>&1 | tail -n 1
+          uv lock --check
+          uv sync --frozen --no-dev
+          .venv/bin/python -c "import camoufox_research.camoufox_research as s; n=len(s.mcp._tool_manager._tools); print('smoke tools:', n); assert n >= 50"
+          rm -rf .venv
+
       - name: Imports compile
         run: |
           python -m py_compile camoufox_research/*.py mcp/server.py

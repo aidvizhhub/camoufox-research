@@ -6,6 +6,7 @@ pip-команды. Полная переустановка — не юнит: �
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -104,3 +105,46 @@ class UpdateScriptTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BumpVersionTest(unittest.TestCase):
+    """bump_version: dry-run без записи, единство версий в 3 местах."""
+
+    def test_bump_logic(self):
+        sys.path.insert(0, str(Path(REPO) / "scripts"))
+        from bump_version import bump
+
+        self.assertEqual(bump("0.19.0", "patch"), "0.19.1")
+        self.assertEqual(bump("0.19.0", "minor"), "0.20.0")
+        self.assertEqual(bump("0.19.0", "major"), "1.0.0")
+
+    def test_version_unity_three_places(self):
+        """Версии СОВПАДАЮТ: pyproject == research.py == README-бейдж.
+        Ловушка: после авто-bump рассинхрон = ошибка (28.08)."""
+        sys.path.insert(0, str(Path(REPO) / "scripts"))
+        from bump_version import PYPROJECT, RESEARCH, README
+
+        py = re.search(r'^version = "(\d+\.\d+\.\d+)"',
+                       PYPROJECT.read_text(encoding="utf-8"), re.M)
+        rs = re.search(r'ver = "(\d+\.\d+\.\d+)"',
+                       RESEARCH.read_text(encoding="utf-8"))
+        rd = re.search(r"version-(\d+\.\d+\.\d+)-green",
+                       README.read_text(encoding="utf-8"))
+        self.assertTrue(py and rs and rd, "версия не найдена где-то")
+        self.assertEqual(py.group(1), rs.group(1), "pyproject != research.py")
+        self.assertEqual(py.group(1), rd.group(1), "pyproject != README бейдж")
+
+    def test_dry_run_no_write(self):
+        import subprocess
+
+        sys.path.insert(0, str(Path(REPO) / "scripts"))
+        r = subprocess.run(
+            [sys.executable, "scripts/bump_version.py", "--part", "patch", "--dry-run"],
+            capture_output=True, text=True, cwd=REPO,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("dry-run", r.stdout)
+        # версия не изменилась после dry-run
+        from bump_version import read_version
+
+        self.assertEqual(read_version().split(".")[::-1][0], "0")  # patch = .0

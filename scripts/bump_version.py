@@ -56,10 +56,17 @@ def write_version(new: str) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="bump версии в pyproject/research.py/README")
     ap.add_argument("--part", choices=["patch", "minor", "major"], default="minor")
+    ap.add_argument("--dry-run", action="store_true", help="показать план без записи")
     ap.add_argument("version", nargs="?", help="явная версия (например 0.25.0)")
     args = ap.parse_args()
     cur = read_version()
     new = args.version or bump(cur, args.part)
+    if args.dry_run:
+        print(f"🔍 dry-run: версия {cur} → {new}")
+        print(f"   правится: {PYPROJECT.name} (version), "
+              f"{RESEARCH.name} (health ver), {README.name} (бейдж view)")
+        print("   (без записи)")
+        return 0
     write_version(new)
     print(f"✅ версия {cur} → {new} (pyproject/research.py/README)")
     return 0
