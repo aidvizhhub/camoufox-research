@@ -184,8 +184,10 @@ class RelevancyRankTest(unittest.TestCase):
         from camoufox_research.camoufox_sources import rank_and_select
 
         seen = [
-            (0, "Python regex cookbook", "https://docs.python.org/3/howto/regex.html", "patterns"),
-            (0, "MCP security best practices", "https://github.com/org/mcp-security.md", "mcp security headers"),
+            (0, "Python regex cookbook",
+             "https://docs.python.org/3/howto/regex.html", "patterns"),
+            (0, "MCP security best practices",
+             "https://github.com/org/mcp-security.md", "mcp security headers"),
             (0, "Arxiv graphs paper", "https://arxiv.org/abs/1234", "graphs neural net"),
         ]
         out = rank_and_select(seen, 0, query="mcp security protocol")
