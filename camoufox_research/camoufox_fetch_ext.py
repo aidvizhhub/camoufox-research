@@ -146,7 +146,10 @@ def research(queries, max_results_per_query=5, fetch_top=0,
         _wave(qs, 2)
     if not raw:
         return "ничего не найдено по запросам"
-    sel = rank_and_select(raw, domains_limit) if quality_first else [
+    # query = общий контекст кампании (все запросы) — релевантность
+    # поверх tier (паттерн re-ranking, arXiv 2602.21456: +16% recall).
+    _q = " ".join(queries).lower()
+    sel = rank_and_select(raw, domains_limit, query=_q) if quality_first else [
         (t, u, s) for _, t, u, s in raw]
     sel_domains = {_reg_domain(u) for _, u, _ in sel}
     source_rows = []

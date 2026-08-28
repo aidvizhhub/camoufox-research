@@ -173,3 +173,30 @@ class PyprojectDepsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class RelevancyRankTest(unittest.TestCase):
+    """28.08: rank_and_select с query — релевантный источник выше
+    (паттерн re-ranking, arXiv 2602.21456: +16% recall/+20% accuracy).
+    Без query — старое поведение (обратная совместимость)."""
+
+    def test_relevance_ranks_query_first(self):
+        from camoufox_research.camoufox_sources import rank_and_select
+
+        seen = [
+            (0, "Python regex cookbook", "https://docs.python.org/3/howto/regex.html", "patterns"),
+            (0, "MCP security best practices", "https://github.com/org/mcp-security.md", "mcp security headers"),
+            (0, "Arxiv graphs paper", "https://arxiv.org/abs/1234", "graphs neural net"),
+        ]
+        out = rank_and_select(seen, 0, query="mcp security protocol")
+        self.assertTrue(out[0][1].startswith("https://github.com"), "релевантный не первый")
+
+    def test_no_query_preserves_order(self):
+        from camoufox_research.camoufox_sources import rank_and_select
+
+        seen = [
+            (0, "a", "https://github.com/a", "s"),
+            (0, "b", "https://docs.python.org/b", "s"),
+        ]
+        out = rank_and_select(seen, 0)
+        self.assertEqual(out[0][1], "https://github.com/a", "без query — порядок находки")

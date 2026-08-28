@@ -12,6 +12,8 @@
 Ядро: реестр доменов (tier) + ранжирование. Термы/стоп-слова — в _ext.
 """
 
+import re
+
 from urllib.parse import urlparse
 
 # Домены 2-го уровня, где registrable domain = 3 компонента
@@ -134,17 +136,51 @@ def domain_tier(url):
     return 2, _LABELS[2]  # неизвестный домен = непроверенный блог
 
 
-def rank_and_select(seen, domains_limit=0):
-    """Ранжирование по качеству, потом отбор с лимитом домена.
+def _relevance(query, title, url, snippet):
+    """Релевантность запросу: сколько слов запроса встречается в
+    title/url/snippet. Паттерн re-ranking (arXiv 2602.21456: +16% recall,
+    +20% accuracy против no-rerank; gpt-researcher source ranking).
+    Взвешивание: title (3x) > url (2x) > snippet (1x) — заголовок и
+    адрес говорят о теме точнее сниппета."""
+    if not query:
+        return 0.0
+    words = {w for w in re.findall(r"[\wа-яА-ЯёЁ-]+", query.lower())
+             if len(w) > 2}
+    if not words:
+        return 0.0
+    t = (title or "").lower()
+    u = (url or "").lower()
+    sn = (snippet or "").lower()
+    score = 0.0
+    for w in words:
+        if w in t:
+            score += 3.0
+        if w in u:
+            score += 2.0
+        if w in sn:
+            score += 1.0
+    return score
+
+
+def rank_and_select(seen, domains_limit=0, query=None):
+    """Ранжирование по качеству + релевантности, потом отбор.
 
     seen: list[(tier, title, url, snippet)] в порядке находки.
+    query: слова запроса для релевантности (контекст кампании); None —
+    старое поведение (чистый tier-порядок, обратная совместимость).
+
     Возвращает list[(title, url, snippet)]: сначала tier 0 (доки/код),
-    потом 1/2; внутри tier — порядок находки. domains_limit>0 — не
-    больше K с одного домена (берём самые качественные K).
+    потом 1/2; внутри равных — релевантность выше, потом порядок
+    находки (стабильная сортировка). domains_limit>0 — не больше K с
+    одного домена.
     """
     # tier по ВОЗРАСТАНИЮ (0 = первоисточник первым), внутри tier —
-    # порядок находки (стабильная сортировка).
-    ranked = sorted(enumerate(seen), key=lambda it: (it[1][0], it[0]))
+    # релевантность по убыванию, потом порядок находки (стабильно).
+    def key(it):
+        idx, (tier, title, url, snippet) = it
+        return (tier, -_relevance(query, title, url, snippet), idx)
+
+    ranked = sorted(enumerate(seen), key=key)
     out, dom = [], {}
     for _, (_, title, url, snippet) in ranked:
         d = _reg_domain(url)

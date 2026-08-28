@@ -200,7 +200,16 @@ def _search_results(query, max_results, pages=1):
             timeout=45000,
             wait_until="domcontentloaded",
         )
-        page.wait_for_timeout(1500)
+        # Ждём результаты, а не «спим»: DDG успевает отрисовать за
+        # 1500мс не всегда (медленная сеть) — selector-ожидание и
+        # быстрее (падает на 300мс при быстром ответе) и надёжнее.
+        try:
+            page.wait_for_selector(
+                "a.result__a, a[data-testid='result-title-a']",
+                timeout=8000,
+            )
+        except Exception:
+            pass  # капча/пустая выдача — _ddg_results вернёт []
         for p in range(max(1, pages)):
             for url, title, snippet in _ddg_results(page):
                 if url not in [r[0] for r in results]:
