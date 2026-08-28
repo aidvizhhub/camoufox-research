@@ -136,16 +136,22 @@ def domain_tier(url):
     return 2, _LABELS[2]  # неизвестный домен = непроверенный блог
 
 
-def _relevance(query, title, url, snippet):
-    """Релевантность запросу: сколько слов запроса встречается в
-    title/url/snippet. Паттерн re-ranking (arXiv 2602.21456: +16% recall,
-    +20% accuracy против no-rerank; gpt-researcher source ranking).
-    Взвешивание: title (3x) > url (2x) > snippet (1x) — заголовок и
-    адрес говорят о теме точнее сниппета."""
+def _relevance(query, title, url, snippet, idf=None):
+    """Релевантность запросу: BM25-подобный скоринг по редкости слова.
+
+    Не просто «слово встретилось», а ВЗВЕШИВАНИЕ по редкости: «security»
+    в 100 статьях = мало информации, «best-practices» в 5 = много
+    (классика IR, Robertson/Spärck BM25). idf — словарь слово→вес из
+    контекста выборки (см. _idf_index); None — старое поведение
+    (бинарные 3/2/1, обратная совместимость).
+
+    Поля: title (вес поля 3) > url (2) > snippet (1) — заголовок и
+    адрес говорят о теме точнее сниппета.
+    """
     if not query:
         return 0.0
-    words = {w for w in re.findall(r"[\wа-яА-ЯёЁ-]+", query.lower())
-             if len(w) > 2}
+    words = [w for w in re.findall(r"[\wа-яА-ЯёЁ-]+", query.lower())
+             if len(w) > 2]
     if not words:
         return 0.0
     t = (title or "").lower()
@@ -153,13 +159,36 @@ def _relevance(query, title, url, snippet):
     sn = (snippet or "").lower()
     score = 0.0
     for w in words:
+        w_weight = idf.get(w, 1.0) if idf else 1.0  # редкое слово = больше вес
         if w in t:
-            score += 3.0
+            score += 3.0 * w_weight
         if w in u:
-            score += 2.0
+            score += 2.0 * w_weight
         if w in sn:
-            score += 1.0
+            score += 1.0 * w_weight
     return score
+
+
+def _idf_index(seen):
+    """IDF-словарь по выборке: log(N/df) — редкость слова среди
+    источников одной кампании. Один проход, без внешних библиотек
+    (rank_bm25 не в зависимостях — не тянем лишнее)."""
+    idf = {}
+    docs = []
+    for _, title, url, snippet in seen:
+        doc = set()
+        for w in re.findall(r"[\wа-яА-ЯёЁ-]+",
+                            f"{(title or '')} {(url or '')} {(snippet or '')}".lower()):
+            if len(w) > 2:
+                doc.add(w)
+        docs.append(doc)
+        for w in doc:
+            idf[w] = idf.get(w, 0) + 1
+    n = len(docs) or 1
+    # IDF = log(1 + N/df) — классика Robertson: rare word = редкий =
+    # информативный. +1 чтобы слова с df=N (в каждом) не давали 0.
+    import math
+    return {w: 1.0 + math.log(n / max(df, 1)) for w, df in idf.items()}
 
 
 def rank_and_select(seen, domains_limit=0, query=None):
@@ -176,9 +205,11 @@ def rank_and_select(seen, domains_limit=0, query=None):
     """
     # tier по ВОЗРАСТАНИЮ (0 = первоисточник первым), внутри tier —
     # релевантность по убыванию, потом порядок находки (стабильно).
+    idf = _idf_index(seen) if query else None
+
     def key(it):
         idx, (tier, title, url, snippet) = it
-        return (tier, -_relevance(query, title, url, snippet), idx)
+        return (tier, -_relevance(query, title, url, snippet, idf), idx)
 
     ranked = sorted(enumerate(seen), key=key)
     out, dom = [], {}

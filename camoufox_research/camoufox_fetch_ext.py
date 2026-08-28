@@ -88,6 +88,22 @@ def research(queries, max_results_per_query=5, fetch_top=0,
     raw, seen_keys, dom_seen, log = [], set(), set(), []
 
     def _add(title, url, snippet):
+        if not url:
+            return
+        # Нормализация URL: один источник с ?utm/ref даёт 2 URL
+        # (проверено GTA 6: rockstargames.com с ?pubDate= дублирует).
+        # Стрипаем параметры отслеживания — дедуп честнее, хвост
+        # (якорь) оставляем как есть.
+        try:
+            from urllib.parse import urlsplit, urlunsplit
+            _sp = urlsplit(url)
+            if _sp.query:
+                keep = [p for p in _sp.query.split("&") if not p.lower().startswith(
+                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+                url = urlunsplit((_sp.scheme, _sp.netloc, _sp.path,
+                                  "&".join(keep), _sp.fragment))
+        except Exception:
+            pass  # кривой URL — оставляем как есть
         if not url or url in seen_keys:
             return
         seen_keys.add(url)

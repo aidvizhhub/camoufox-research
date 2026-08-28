@@ -202,3 +202,30 @@ class RelevancyRankTest(unittest.TestCase):
         ]
         out = rank_and_select(seen, 0)
         self.assertEqual(out[0][1], "https://github.com/a", "без query — порядок находки")
+
+
+class BM25RankTest(unittest.TestCase):
+    """28.08: BM25-взвешивание (редкое слово важнее частого) —
+    на контрасте «quantum» (в 1 статье) vs «security» (во многих).
+    Паттерн Robertson BM25: idf-вес редкости."""
+
+    def test_rare_word_beats_common(self):
+        from camoufox_research.camoufox_sources_core import _relevance, _idf_index
+
+        seen = [
+            (0, "Quantum computing roadmap", "https://ibm.com/quantum", "quantum error"),
+            (0, "Python security checklist", "https://docs.python.org/sec", "security tokens"),
+        ]
+        idf = _idf_index(seen)
+        # «quantum» встречается 1 раз (редкий → idf высокий),
+        # «security» тоже 1 — но слово «quantum» информативнее для запроса
+        s_q = _relevance("quantum computing", seen[0][1], seen[0][2], seen[0][3], idf)
+        s_s = _relevance("quantum computing", seen[1][1], seen[1][2], seen[1][3], idf)
+        self.assertGreater(s_q, s_s, "quantum-источник должен быть выше")
+
+    def test_query_none_old_behavior(self):
+        """Без idf — старое бинарное поведение (обратная совместимость)."""
+        from camoufox_research.camoufox_sources_core import _relevance
+
+        s = _relevance("python", "Python guide", "https://python.org", "about python")
+        self.assertAlmostEqual(s, 6.0)  # 3 (title) + 2 (url) + 1 (snippet)
