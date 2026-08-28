@@ -27,7 +27,10 @@ class FindVenvTest(unittest.TestCase):
             self.assertIn(".venvs/camoufox-research", py)
         else:
             self.assertEqual(py, sys.executable)
-        self.assertTrue(repo.endswith("camoufox-reasearch"))
+        # смысловой инвариант, не имя каталога: repo = проект со своим скриптом
+        self.assertTrue(
+            (Path(repo) / "scripts" / "mcp_probe.py").exists(), f"repo={repo} — не похоже на проект"
+        )
 
     def test_python_priority_over_venv(self):
         # существующий путь (несуществующий честно фолбэкнется на sys.executable)
