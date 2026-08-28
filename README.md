@@ -12,6 +12,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
 ![Version](https://img.shields.io/badge/version-0.19.0-green)
+![MAP@10](https://img.shields.io/badge/MAP%40_10-0.916-blue)
 
 ```
     AI Agent

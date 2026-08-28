@@ -241,18 +241,33 @@ class URLNormalizeTest(unittest.TestCase):
     gclid, остальное живёт."""
 
     def _norm(self, url):
+        # та же логика, что в _add (fetch_ext) — тест защищает прод
         from urllib.parse import urlsplit, urlunsplit
 
         sp = urlsplit(url)
         if sp.query:
-            keep = [p for p in sp.query.split("&") if not p.lower().startswith(
-                ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
-            return urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep), sp.fragment))
+            params = sp.query.split("&")
+            only_source = (len(params) == 1
+                           and params[0].lower().startswith("source="))
+            if only_source:
+                keep = params
+            else:
+                keep = [p for p in params if not p.lower().startswith(
+                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+            return urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep),
+                               sp.fragment))
         return url
 
     def test_tracking_stripped(self):
         u = "https://ex.com/post?a=1&utm_source=x&fbclid=y"
         self.assertEqual(self._norm(u), "https://ex.com/post?a=1")
+
+    def test_source_alone_kept(self):
+        # netflix-techblog: source=rss — ЕДИНСТВЕННЫЙ параметр = сам
+        # RSS-источник, не трекинг (28.08: 10 URL, все разные пути,
+        # связки не теряются — страховка на будущее для CMS).
+        u = "https://netflixtechblog.com/post-123?source=rss---42"
+        self.assertEqual(self._norm(u), "https://netflixtechblog.com/post-123?source=rss---42")
 
     def test_page2_kept(self):
         u = "https://ex.com/world/news?page=2"

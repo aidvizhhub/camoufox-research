@@ -63,9 +63,16 @@ def _norm(url):
         from urllib.parse import urlsplit, urlunsplit
         sp = urlsplit(url)
         if sp.query:
-            keep = [p for p in sp.query.split("&") if not p.lower().startswith(
-                ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
-            url = urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep), sp.fragment))
+            params = sp.query.split("&")
+            only_source = (len(params) == 1
+                           and params[0].lower().startswith("source="))
+            if only_source:
+                keep = params
+            else:
+                keep = [p for p in params if not p.lower().startswith(
+                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+            url = urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep),
+                              sp.fragment))
     except Exception:
         pass
     return url
@@ -113,6 +120,8 @@ def main() -> int:
     ap.add_argument("--compare", action="store_true", help="BM25 vs бинарное А/В")
     ap.add_argument("--min", type=int, default=0,
                     help="только кампании с N+ источниками (акцент на больших)")
+    ap.add_argument("--save", action="store_true",
+                    help="записать metrics/map.json (для бейджа README)")
     args = ap.parse_args()
 
     con = sqlite3.connect(DB)
@@ -150,10 +159,22 @@ def main() -> int:
     if n == 0:
         print("нет кампаний с cit-правдой (прогони post_hunt)")
         return 1
+    bm = acc_bm / n
+    bn = acc_bin / n
     print(f"\nИТОГ на {n} кампаниях:")
-    print(f"  BM25:      MAP@{args.top} = {acc_bm / n:.3f}")
-    print(f"  бинарный:  MAP@{args.top} = {acc_bin / n:.3f}")
-    print(f"  выигрыш BM25: +{(acc_bm - acc_bin) / n:.3f}")
+    print(f"  BM25:      MAP@{args.top} = {bm:.3f}")
+    print(f"  бинарный:  MAP@{args.top} = {bn:.3f}")
+    print(f"  выигрыш BM25: +{bm - bn:.3f}")
+    if args.save:
+        import json
+
+        m = Path(__file__).resolve().parents[1] / "metrics"
+        m.mkdir(exist_ok=True)
+        (m / "map.json").write_text(json.dumps(
+            {"map10": round(bm, 3), "binary": round(bn, 3),
+             "campaigns": n, "updated": __import__("time").strftime("%Y-%m-%d")},
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"  → сохранено: {m / 'map.json'} (для бейджа README)")
     return 0
 
 

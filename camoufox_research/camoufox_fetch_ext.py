@@ -98,8 +98,20 @@ def research(queries, max_results_per_query=5, fetch_top=0,
             from urllib.parse import urlsplit, urlunsplit
             _sp = urlsplit(url)
             if _sp.query:
-                keep = [p for p in _sp.query.split("&") if not p.lower().startswith(
-                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+                params = _sp.query.split("&")
+                # source=rss-xxx — ЕДИНСТВЕННЫЙ параметр у netflix-techblog
+                # и др. CMS: это НЕ трекинг, а сам RSS-источник (путь+source
+                # = конкретный фид). Резать только когда source= соседствует
+                # с др. трекингом (utm_/fbclid) — тогда это мусор.
+                only_source = (
+                    len(params) == 1 and params[0].lower().startswith("source=")
+                )
+                if only_source:
+                    keep = params  # связка пути+фида остаётся
+                else:
+                    keep = [p for p in params if not p.lower().startswith(
+                        ("utm_", "ref=", "source=", "pubdate=", "fbclid",
+                         "gclid"))]
                 url = urlunsplit((_sp.scheme, _sp.netloc, _sp.path,
                                   "&".join(keep), _sp.fragment))
         except Exception:
