@@ -327,6 +327,21 @@ def report(camp_id, fmt="md"):
         f"· битых: {total - verified if verified else '?'} · "
         "цитаты в отчёте — только из живых (cit-пакет)."
     )
+    # КРИТИК-футер (28.08, канон DCM): если LLM-ключ есть и критик уже
+    # прогнан — в отчёт попадает «X из Y утверждений подтверждено»
+    # (читатель сразу видит доверие, не только мы). НЕ блокирует отчёт.
+    try:
+        from camoufox_research.camoufox_critic import critique
+
+        _r = critique(camp_id)
+        if isinstance(_r, dict) and _r.get("checked"):
+            body_txt += (
+                f"\n\n**Критик (load-bearing):** {_r['supported']}/"
+                f"{_r['checked']} несущих утверждений подтверждено текстами "
+                f"· {_r['unverified']} требуют проверки человеком."
+            )
+    except Exception:
+        pass  # критик — бонус паспорта
     return body_txt
 
 
