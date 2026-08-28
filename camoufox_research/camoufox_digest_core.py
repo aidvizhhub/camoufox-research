@@ -168,6 +168,26 @@ def _url_alive(url):
         except Exception:
             return 0
 
+def verify_all(camp_id, batch=_MAX_VERIFY, max_age=86400):
+    """VERIFY ВСЕХ одним вызовом (батч-цикл, 28.08): verify_sources
+    режет лимитом 30/вызов — при 536 URL надо 18 волн. Здесь добор
+    волнами ПОКА есть непроверенные (auto-batch, паттерн индустрии
+    batching: много маленьких → один большой цикл). Возвращает
+    (verified, broken_urls)."""
+    verified, broken = 0, []
+    while True:
+        rows_left = [r for r in _sources(camp_id)
+                     if r[3] == -1 or (time.time() - r[4]) > max_age]
+        if not rows_left:
+            break
+        v, b = verify_sources(camp_id, limit=batch, max_age=max_age)
+        verified, broken = v, b
+        if len(b) == 0 and len(rows_left) > batch:
+            continue  # ещё есть непроверенные — следующий батч
+        break
+    return verified, broken
+
+
 def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
     """Счётчик verified: записывает live (1/0) в базу (до limit URL).
     Возвращает (verified, broken_urls). Параллельно — по 10 URL.

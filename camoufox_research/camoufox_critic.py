@@ -100,12 +100,20 @@ def _split_llm_json(text):
     return []
 
 
-def critique(camp_id, top: int = _DEFAULT_N):
+_CRITIC_CACHE: dict[str, dict] = {}  # camp_id → результат (кэш в памяти)
+
+
+def critique(camp_id, top: int = _DEFAULT_N, use_cache: bool = True):
     """КРИТИК: отчёт → LLM находит «несущие» утверждения и проверяет
     каждое против текста источников. Возвращает список вердиктов
     [{claim, status: supported|unsupported|unverifiable, why, source}].
 
-    Без LLM — возвращает честное «критик недоступен»."""
+    Без LLM — возвращает честное «критик недоступен».
+    use_cache — КЭШ в памяти (28.08: футер-спам при КАЖДОМ report()
+    звал LLM заново; один результат на кампанию — как в индустрии
+    batching/caching: считается один раз, дальше из памяти)."""
+    if use_cache and camp_id in _CRITIC_CACHE:
+        return _CRITIC_CACHE[camp_id]
     if not llm_available():
         return "критик недоступен: включи DEEPSEEK_API_KEY или OLLAMA_HOST"
     texts = _campaign_texts(camp_id)
@@ -139,7 +147,7 @@ def critique(camp_id, top: int = _DEFAULT_N):
     )
     raw = _llm_call(prompt, "You are a strict research critic. Output only JSON.")
     claims = _split_llm_json(raw)
-    return {
+    _res = {
         "camp_id": camp_id,
         "critic": llm_available(),
         "checked": len(claims),
@@ -148,6 +156,9 @@ def critique(camp_id, top: int = _DEFAULT_N):
         "claims": claims,
         "raw": raw[:500],
     }
+    if use_cache:
+        _CRITIC_CACHE[camp_id] = _res
+    return _res
 
 
 def load_bearing_report(camp_id, top: int = _DEFAULT_N):

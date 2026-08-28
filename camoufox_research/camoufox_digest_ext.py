@@ -112,7 +112,12 @@ def post_hunt(camp_id, log):
     том же фоне). Маркер done.json дополняется полями digests/verified/
     cit_report — агент ждёт ЕГО же, новых маркеров не плодим."""
     digests, total = make_digest(camp_id, log)
-    verified, _broken = verify_sources(camp_id)
+    # БАТЧ-ВЕРИФИКАЦИЯ (28.08): verify_all добором всех (не 30/вызов)
+    try:
+        from camoufox_research.camoufox_digest_core import verify_all
+        verified, _broken = verify_all(camp_id)
+    except Exception:
+        verified, _broken = verify_sources(camp_id)
     with _db() as con:
         broken_total = con.execute(
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=0", (camp_id,)
