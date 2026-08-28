@@ -239,6 +239,23 @@ def report(camp_id, fmt="md"):
                        "status": {1: "жив", 0: "битый", -1: "?"}.get(li)}
                       for t, u, d, ti, lb, li in rows]},
             ensure_ascii=False, indent=1)
+    if fmt == "csv":
+        # CSV добычи с verified-статусом (для отчётов с цитатами /
+        # таблиц в докладах; паттерн export csv в кауфми 28.08).
+        import csv as _csv
+        import io
+
+        buf = io.StringIO()
+        w = _csv.writer(buf)
+        w.writerow(["title", "url", "domain", "tier", "tier_label",
+                    "verified", "status"])
+        for t, u, d, ti, lb, li in rows:
+            w.writerow([
+                t or "", u, d, ti, lb or "",
+                1 if li == 1 else 0,
+                {1: "жив", 0: "битый", -1: "?"}.get(li, "?"),
+            ])
+        return buf.getvalue().strip()
     head = ([f"# Кампания: {topic_row[0]}",
              f"- id: {camp_id} · статус: {topic_row[2]}",
              (f"- источников: {total}, разных сайтов: {uniq}/"

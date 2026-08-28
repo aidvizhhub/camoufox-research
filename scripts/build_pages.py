@@ -71,8 +71,26 @@ pre{{background:#f6f6f6;padding:1rem;overflow-x:auto;border-radius:6px}}
 table{{border-collapse:collapse;width:100%}} th,td{{border:1px solid #ddd;
   padding:.4rem .6rem;text-align:left}}
 .meta{{color:#666;font-size:.9rem}}
+.filters{{margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap}}
+.filters button{{padding:.35rem .9rem;border:1px solid #ccc;border-radius:6px;
+  background:#f6f6f6;cursor:pointer}}
+.filters button.active{{background:#0645ad;color:#fff;border-color:#0645ad}}
+.report{{border-bottom:1px solid #eee;padding-bottom:.5rem}}
 </style></head><body>
+{filters}
 {body}
+<script>
+function v(filter) {{
+  const btn = document.querySelectorAll('.filters button');
+  btn.forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.report').forEach(r => {{
+    if (filter === 'all') {{ r.style.display = ''; return; }}
+    const has = r.dataset.state.includes(filter);
+    r.style.display = has ? '' : 'none';
+  }});
+}}
+</script>
 </body></html>"""
 
 
@@ -236,10 +254,14 @@ def build(src: Path, out_dir: Path, base: str) -> int:
         body_text = f.read_text(encoding="utf-8")
         cid = _camp_id_from_report(body_text)
         stat = _camp_verified(cid) if cid else "—"
-        parts.append(f"<h2 id='{f.stem}'>{html.escape(title)} "
+        # state для фильтра: "ok" если есть ✅, "bad" если есть ❌
+        state = "ok" if "✅" in stat else ("bad" if "❌" in stat else "na")
+        parts.append(f"<div class='report' data-state='{state}'>"
+                     f"<h2 id='{f.stem}'>{html.escape(title)} "
                      f"<span class='vstat'>{html.escape(stat)}</span></h2>")
         parts.append(f"<p class='meta'>{f.name}</p>")
         parts.append(md_to_html(body_text))
+        parts.append("</div>")
     index = src / "INDEX.md"
     if index.exists() and count == 0:
         parts.append(md_to_html(index.read_text(encoding="utf-8")))
@@ -248,7 +270,16 @@ def build(src: Path, out_dir: Path, base: str) -> int:
         f"<p class='meta'>отчётов: {count} · собрано автоматически ·"
         f" <a href='rss.xml'>📡 RSS-подписка</a></p>" + "\n".join(parts)
     )
-    (out_dir / "index.html").write_text(_PAGE.format(body=body), encoding="utf-8")
+    filters = (
+        "<div class='filters'><span>Фильтр:</span>"
+        "<button class='active' onclick=\"v('all')\">все</button>"
+        "<button onclick=\"v('ok')\">✅ живые</button>"
+        "<button onclick=\"v('bad')\">❌ битые</button>"
+        "</div>"
+    )
+    (out_dir / "index.html").write_text(
+        _PAGE.format(filters=filters, body=body), encoding="utf-8"
+    )
     n_rss = build_rss(src, out_dir, base)
     print(f"   rss.xml: {n_rss} записей")
     # стиль лежит в шаблоне, отдельный css не нужен (KISS)

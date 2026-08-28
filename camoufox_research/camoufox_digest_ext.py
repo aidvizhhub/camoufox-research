@@ -124,6 +124,24 @@ def post_hunt(camp_id, log):
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=0", (camp_id,)
         ).fetchone()[0]
     log(f"verified: {verified}/{total}" + (f", битых: {broken_total}" if broken_total else ""))
+    # Пере-сохранение автоархива ПОСЛЕ verify: в _finish отчёт пишется
+    # ДО верификации (все live=-1 → «verified: 0»). Здесь счёт живой
+    # (проверено 28.08: отчёт кампании показывал verified: 0 при
+    # реальных 27 живых). save_report идемпотентен (тот же файл).
+    try:
+        from camoufox_research.camoufox_campaign import report as _r2
+        from camoufox_research.camoufox_housekeep import save_report as _sr2
+
+        with _db() as con:
+            crow = con.execute(
+                "SELECT topic, target_sources, status FROM campaigns "
+                "WHERE id=?", (camp_id,)
+            ).fetchone()
+        if crow:
+            topic2 = crow[0]
+            _sr2(camp_id, topic2, crow[2], [], _r2(camp_id))
+    except Exception:
+        pass  # автоархив — бонус, не охота
     cit_report = ""
     try:
         cit_report = citation_report(camp_id)
