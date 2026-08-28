@@ -387,7 +387,8 @@ SDK 2.0 (planned migration).
 
 ## Transports
 
-`stdio` (default), `http`, `sse`:
+`stdio` (default), `http` (streamable-http, stateless — MCP 2026-07-28), `sse`
+(legacy, deprecated in the 2026-07-28 spec — kept for 12-month window):
 
 ```bash
 camoufox-research --transport http --port 8833   # or env CAMOUFOX_PORT
