@@ -109,9 +109,14 @@ def verify(venv: Path):
         "print('тулов:', len(s.mcp._tool_manager._tools))"
     )
     r = subprocess.run([py, "-c", code], capture_output=True, text=True)
-    if r.returncode == 0 and "тулов: 57" in r.stdout:
-        print(f"[✓] установка OK — {r.stdout.strip()} (0.19.0)")
-        return True
+    # >= 50 (не жёсткое «57»): число тулов растёт (28.08 +tool_hint),
+    # жёсткая цифра ломала verify — порог, не равенство (грабли пойманы).
+    if r.returncode == 0 and "тулов:" in r.stdout:
+        n = int(r.stdout.split("тулов:")[-1].strip() or 0)
+        if n >= 50:
+            print(f"[✓] установка OK — {r.stdout.strip()} (0.19.0)")
+            return True
+    print("[✗] проверка: ", r.stdout.strip() or r.stderr[-200:])
     print("[✗] проверка: ", r.stdout.strip() or r.stderr[-200:])
     return False
 

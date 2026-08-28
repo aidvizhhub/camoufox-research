@@ -182,6 +182,33 @@ def register(mcp, call):
         return call("research_report", camp_id=camp_id, fmt=fmt)
 
     @mcp.tool()
+    def tool_hint(what: str = "") -> str:
+        """РОУТЕР (паттерн MegaAgent-MCP): «для чего использовать какой
+        тул». what — действие/вопрос, например «анализ страницы»,
+        «мониторинг», «статьи». Отвечает каким тулом и почему — вместо
+        перебора 57 тулов вслепую. Сокращает выбор (индустрия: >40
+        тулов = −260% selection quality, роутинг решает)."""
+        _R = {
+            "поиск": ("web_search / research_start",
+                      "общий веб: web_search; глубокая охота на N сайтов — research_start"),
+            "стать": ("paper_search",
+                      "научные: arXiv/Semantic/Crossref/Wiki — первоисточники"),
+            "анализ страниц": ("fetch_page / extract", "текст: fetch_page; по схеме: extract"),
+            "мониторинг": ("research_start(feeds=) / page_diff", "следить за страницей: page_diff"),
+            "карта сайта": ("map_site / sitemap", "все URL сайта: map_site; sitemap.xml: sitemap"),
+            "выжимки": ("research_digest", "verified-источники с текстом: research_digest"),
+            "отчёт": ("research_report(fmt=)", "md/csv/xlsx/mermaid — итог кампании"),
+            "браузер": ("session_*", "живая сессия: session_start → navigate/click/type/text"),
+        }
+        if not what:
+            return ("для чего? примеры: поиск, статьи, анализ страниц, "
+                    "мониторинг, выжимки, отчёт, браузер")
+        for k, v in _R.items():
+            if k.lower() in what.lower():
+                return f"для «{what}» → {v[0]}: {v[1]}"
+        return f"для «{what}»: начни с research_start (общая охота) или web_search (быстрый поиск)"
+
+    @mcp.tool()
     def research_resume(camp_id: str, background: bool = False) -> str:
         """ДОБОРКА кампании с места (паттерн LangGraph resume): берёт
         partial/failed и добирает недостающие РАЗНЫЕ сайты свежими углами

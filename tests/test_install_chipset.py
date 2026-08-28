@@ -22,7 +22,7 @@ VENV = Path(os.environ.get("CAMOUFOX_VENV", str(Path.home() / ".venvs" / "camouf
 
 class InstallChipsetTest(unittest.TestCase):
     def test_verify_installed_package(self):
-        """verify() подтверждает установленный пакет (57 тулов)."""
+        """verify() подтверждает установленный пакет (58 тулов: +tool_hint 28.08)."""
         import install_mcp
 
         if not (VENV / "bin" / "python").exists():

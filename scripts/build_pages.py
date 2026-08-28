@@ -46,6 +46,34 @@ def _camp_verified(camp_id: str) -> str:
     except Exception:
         return "—"
 
+
+def _camp_pasport(camp_id: str) -> str:
+    """Grounding-паспорт для витрины: цитируемые (verified+текст),
+    первоисточники, битые — счёт из БД, не из статичного md
+    (28.08, паттерн groundwork «X of Y claims verified»)."""
+    try:
+        from camoufox_research.camoufox_campaign import _db
+
+        with _db() as con:
+            row = con.execute(
+                "SELECT COUNT(*), "
+                "SUM(CASE WHEN live=1 AND digest != '' THEN 1 ELSE 0 END), "
+                "SUM(CASE WHEN tier=0 THEN 1 ELSE 0 END), "
+                "SUM(CASE WHEN live=0 THEN 1 ELSE 0 END) "
+                "FROM campaign_sources WHERE camp_id=?", (camp_id,)
+            ).fetchone()
+        total = row[0] or 0
+        citable = row[1] or 0
+        primary = row[2] or 0
+        bad = row[3] or 0
+        if total == 0:
+            return ""
+        return (f" · **паспорт:** {citable}/{total} verified+текстом · "
+                f"первоисточников {primary} · битых {bad}")
+    except Exception:
+        return ""
+
+
 def _camp_id_from_report(text: str) -> str:
     """cmp_XXX из шапки автоархива («кампании cmp_…»)."""
     m = re.search(r"cmp_[0-9a-f]+_[0-9a-f]+", text)  # полный id: _6b00-хвост
@@ -249,9 +277,11 @@ def build(src: Path, out_dir: Path, base: str) -> int:
         stat = _camp_verified(cid) if cid else "—"
         # state для фильтра: "ok" если есть ✅, "bad" если есть ❌
         state = "ok" if "✅" in stat else ("bad" if "❌" in stat else "na")
+        pasport = _camp_pasport(cid) if cid else ""
         parts.append(f"<div class='report' data-state='{state}'>"
                      f"<h2 id='{f.stem}'>{html.escape(title)} "
-                     f"<span class='vstat'>{html.escape(stat)}</span></h2>")
+                     f"<span class='vstat'>{html.escape(stat)}</span></h2>"
+                     f"<p class='meta'>{pasport}</p>")  # паспорт свой, не юзерский
         parts.append(f"<p class='meta'>{f.name}</p>")
         parts.append(md_to_html(body_text))
         parts.append("</div>")

@@ -139,17 +139,99 @@ def _s2_rows(query, max_results):
     _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
 
-def paper_rows(query, max_results=8, sources="arxiv,semantic"):
+_CROSSREF_URL = "https://api.crossref.org/works"
+_WIKI_URL = "https://en.wikipedia.org/w/api.php"
+
+
+def _crossref_rows(query, max_results):
+    """Статьи Crossref (научные журналы, DOI): без ключа, mailto — вежливо.
+    Второй канал после arXiv 429 (проверено 28.08 — работает)."""
+    key = f"acadcrossref:{query}:{max_results}"
+    cached = _search_cache_get(key, 1, 1)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+    rows = []
+    try:
+        url = (f"{_CROSSREF_URL}?query={urllib.parse.quote(query)}"
+               f"&rows={max_results}&mailto=camoufox@example.com")
+        data = json.loads(_http_get(url))
+        for it in data.get("message", {}).get("items", [])[:max_results]:
+            title = " ".join((it.get("title") or [""])[0].split())
+            doi = it.get("DOI") or ""
+            if not title or not doi:
+                continue
+            year = (it.get("issued", {}).get("date-parts", [[None]])[0][0]) or ""
+            _ct = (it.get("container-title") or [""])[0][:60] or ""
+            rows.append({
+                "title": title,
+                "url": f"https://doi.org/{doi}",
+                "snippet": f"[{year}] {_ct}",
+                "authors": [(a.get("family") or "") for a in it.get("author", [])[:2]],
+                "year": str(year or ""),
+            })
+    except Exception:
+        pass
+    if rows:
+        _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
+    return rows
+
+
+def _wiki_rows(query, max_results):
+    """Wikipedia (энциклопедический обзор): бесплатный API, без ключа.
+    Третий канал — не научный, но живой обзор темы (28.08)."""
+    key = f"acadwiki:{query}:{max_results}"
+    cached = _search_cache_get(key, 1, 1)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+    rows = []
+    try:
+        url = (f"{_WIKI_URL}?action=query&list=search&srsearch="
+               f"{urllib.parse.quote(query)}&format=json&srlimit={max_results}")
+        data = json.loads(_http_get(url))
+        for h in data.get("query", {}).get("search", [])[:max_results]:
+            title = h.get("title") or ""
+            if not title:
+                continue
+            rows.append({
+                "title": title,
+                "url": f"https://en.wikipedia.org/wiki/"
+                        f"{urllib.parse.quote(title.replace(' ', '_'))}",
+                "snippet": h.get("snippet", "").replace(
+                    '<span class="searchmatch">', "").replace("</span>", "")[:260],
+                "authors": [],
+                "year": "",
+            })
+    except Exception:
+        pass
+    if rows:
+        _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
+    return rows
+
+
+def paper_rows(query, max_results=8, sources="arxiv,semantic,crossref,wiki"):
     """Сырьё для research/paper_search: list[(title, url, snippet, meta)].
 
     meta: {"source": "arxiv"|"semantic", "authors": [...], "year": ...}.
+    28.08: +crossref,+wiki — цепочка каналов (arXiv 429 → crossref → wiki).
     Дедуп по URL: arxiv.org/abs/X (arXiv) и arxiv.org/abs/X (S2) = один.
     """
     out, seen = [], set()
-    for src in ("arxiv", "semantic"):
+    _FETCH = {
+        "arxiv": _arxiv_rows,
+        "semantic": _s2_rows,
+        "crossref": _crossref_rows,
+        "wiki": _wiki_rows,
+    }
+    for src in ("arxiv", "semantic", "crossref", "wiki"):
         if src not in sources.lower():
             continue
-        rows = _arxiv_rows(query, max_results) if src == "arxiv" else _s2_rows(query, max_results)
+        rows = _FETCH[src](query, max_results)
         for r in rows:
             if not r.get("url") or r["url"] in seen:
                 continue
