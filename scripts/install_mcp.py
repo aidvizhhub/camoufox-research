@@ -19,6 +19,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -201,18 +202,33 @@ def main() -> int:
     write_env_config(venv)
     install_gitleaks()
     ok = verify(venv)
-    # АВТО-ХИТЧ (28.08): переподключение MCP в opencode2 САМО (не
-    # «переподключи руками»). Если не вышло — честная подсказка.
+    # АВТО-ХИТЧ (28.08): переподключение MCP в opencode2 САМО, вместо
+    # «переподключи руками». Порядок ВАЖЕН: сначала disconnect — сервис V2
+    # кэширует «Connection closed» навсегда, connect БЕЗ disconnect может
+    # не оживить (кампания 28.08: хитч молчал, статус висел «failed»).
+    # После connect — ПРОВЕРКА mcp list: returncode=0 ещё не значит
+    # «подключён» (тот же урок 28.08).
+    # ЗАПРЕЩЕНО (закон 35): НЕ убивать процессы camoufox-research руками
+    # «чтобы пересоздались» — сервис НЕ пересоздаёт их (баг V2), статус
+    # «closed» вечен. Единственный путь — API disconnect/connect; последний
+    # рубеж — «opencode2 service restart». Команды «mcp restart» НЕТ.
     try:
         import subprocess as _sp
-        _r = _sp.run(["opencode2", "api", "post", "/api/mcp/camoufox/connect"],
-                     capture_output=True, text=True, timeout=20)
-        if _r.returncode == 0:
-            print("[+] MCP переподключён в opencode2")
+        for _m in ("disconnect", "connect"):
+            _sp.run(["opencode2", "api", "post", f"/api/mcp/camoufox/{_m}"],
+                    capture_output=True, text=True, timeout=20)
+        time.sleep(3)  # сервису время пересоздать процесс и список тулов
+        _r = _sp.run(["opencode2", "mcp", "list"], capture_output=True,
+                     text=True, timeout=20)
+        if "camoufox" in _r.stdout and "connected" in _r.stdout:
+            print("[+] MCP переподключён и ПРОВЕРЕН: ✓ camoufox connected")
         else:
-            print("[!] переподключи вручную: opencode2 mcp restart camoufox")
+            print("[!] connect выполнен, но статус не «connected» —")
+            print("    последний рубеж: opencode2 service restart")
     except Exception as _e:
         print(f"[!] переподключи вручную (auto-fail {type(_e).__name__})")
+        print("    команды: opencode2 api post /api/mcp/camoufox/disconnect;")
+        print("              opencode2 api post /api/mcp/camoufox/connect")
     return 0 if ok else 1
 
 if __name__ == "__main__":
