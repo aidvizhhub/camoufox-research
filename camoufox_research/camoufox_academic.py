@@ -119,7 +119,9 @@ def _s2_rows(query, max_results):
     data = None
     for attempt in (1, 2, 3):
         try:
-            data = json.loads(_http_get(url))
+            # Semantic: медленный (200 отдаёт за ~5с, замер 28.08) —
+            # 10с таймаут (5с резал бы живые ответы на грани).
+            data = json.loads(_http_get(url, timeout=10))
             break
         except urllib.error.HTTPError as e:
             # 429 — не ретраить по 4с (трроттл долгий, негативный кэш
@@ -181,7 +183,7 @@ def _crossref_rows(query, max_results):
         # Вежливость: Crossref x-rate-limit-limit=3/1s (проверено
         # 28.08) — 1с пауза, чтобы 4 канала не толкались локтями.
         time.sleep(1)
-        data = json.loads(_http_get(url))
+        data = json.loads(_http_get(url, timeout=8))
         for it in data.get("message", {}).get("items", [])[:max_results]:
             title = " ".join((it.get("title") or [""])[0].split())
             doi = it.get("DOI") or ""
@@ -217,7 +219,7 @@ def _wiki_rows(query, max_results):
     try:
         url = (f"{_WIKI_URL}?action=query&list=search&srsearch="
                f"{urllib.parse.quote(query)}&format=json&srlimit={max_results}")
-        data = json.loads(_http_get(url))
+        data = json.loads(_http_get(url, timeout=8))
         for h in data.get("query", {}).get("search", [])[:max_results]:
             title = h.get("title") or ""
             if not title:

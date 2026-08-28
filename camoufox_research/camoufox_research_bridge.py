@@ -9,6 +9,7 @@ production-гейты (auth/rate-limit) + живой воркер-процесс
 смешивать с TextIOWrapper — дедлок, проверено 08.2026). Lock обязателен:
 FastMCP выполняет тулы в thread pool."""
 
+from pathlib import Path as _Path
 import json
 import os
 import queue
@@ -141,12 +142,36 @@ def _parse(parsed):
 
 # Счётчик вызовов тулов (usage-метрика 28.08): каждый реальный вызов
 # через _call инкрементится — tool_usage() читает для «какие тулы
-# реально зовутся». Сброс — перезапуск воркера (usage с этого запуска).
-_TOOL_USAGE: dict[str, int] = {}
+# реально зовутся». Персистентно: JSON в кэше (загрузка при импорте,
+# запись при каждом инкременте) — переживает рестарт воркера.
+_USAGE_FILE = _Path.home() / ".cache" / "camoufox-research" / "tool_usage.json"
+
+
+def _usage_load() -> dict[str, int]:
+    try:
+        if _USAGE_FILE.exists():
+            import json
+            return json.loads(_USAGE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _usage_save(data: dict[str, int]) -> None:
+    try:
+        import json
+        _USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _USAGE_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass  # метрика — бонус, не роняем вызов
+
+
+_TOOL_USAGE: dict[str, int] = _usage_load()
 
 
 def _call(action, timeout=120, **kwargs):
     _TOOL_USAGE[action] = _TOOL_USAGE.get(action, 0) + 1
+    _usage_save(_TOOL_USAGE)
     # production gates
     err = _check_auth(kwargs)
     if err:
