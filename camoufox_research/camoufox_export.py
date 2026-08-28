@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Экспорт результатов (вырезано из camoufox_fetch_ext.py, canon
 FILE-SIZE.md): CSV/JSON/Markdown на диск + HTML-таблицы → CSV.
@@ -19,7 +18,6 @@ _EXPORT_DIR = os.path.join(
     os.path.expanduser("~"), ".cache", "camoufox-research", "exports"
 )
 
-
 def _write_csv(obj, path):
     import csv as _csv
 
@@ -33,7 +31,6 @@ def _write_csv(obj, path):
             w = _csv.writer(fh)
             for r in rows:
                 w.writerow(r if isinstance(r, (list, tuple)) else [r])
-
 
 def _write_md(obj, path):
     rows = obj if isinstance(obj, list) else [obj]
@@ -50,7 +47,6 @@ def _write_md(obj, path):
         lines.append("| " + " | ".join(str(r.get(k, "")) for k in keys) + " |")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
-
 
 def export(data, format="json", path=""):
     """Сохранить результат (из extract/crawl) в файл: JSON/CSV/Markdown.
@@ -78,9 +74,7 @@ def export(data, format="json", path=""):
         return f"ошибка записи: {type(e).__name__}: {e}"
     return f"сохранено: {path} ({os.path.getsize(path)} байт)"
 
-
 # --- HTML-таблицы → CSV (паттерн Web Scraper table export) ---
-
 
 def table_extract(url, selector="table", max_tables=5):
     """HTML-таблицы страницы → CSV-текст (паттерн Web Scraper/Ultimate

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Принадлежит сообществу AGGG [AGENT OS] · канал: t.me/aidvizhenie · админ: @hilartem · гиг: t.me/aidvizh_hub
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# Принадлежит сообществу AGGG [AGENT OS] · канал: t.me/aidvizhenie · админ: @hilartem · гиг: t.me...
 
 """Обновление/диагностика Camoufox (анти-детект браузер) на любой ОС.
 
@@ -33,7 +32,6 @@ sys.path.insert(
 from pathlib import Path
 
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _compat  # единый кроссплатформенный модуль
@@ -42,15 +40,12 @@ _compat.fix_encoding()
 
 IS_NT = _compat.IS_NT
 
-
 def _py():
     """Интерпретатор для pip/fetch: текущий venv или системный python."""
     return str(_compat.venv_python() if _compat.venv_python().exists() else Path(sys.executable))
 
-
 def _run(cmd, **kw):
     return subprocess.run(cmd, capture_output=True, text=True, check=False, **kw)
-
 
 def check_python_source():
     """Windows: Python из MS Store сандбоксит AppData\\Local (баг #282)."""
@@ -65,7 +60,6 @@ def check_python_source():
         )
     return True, f"OK: {exe}"
 
-
 def check_vc_redist():
     """Windows: VC++ Redistributable (баг #650: без CRT — spawn UNKNOWN)."""
     if not IS_NT:
@@ -79,7 +73,6 @@ def check_vc_redist():
         "установите с learn.microsoft.com (vc_redist.x64.exe), "
         "иначе camoufox.exe не стартует."
     )
-
 
 def check_install_dir():
     """Windows: путь установки вне AppData\\Local (баг #624: AppContainer
@@ -111,7 +104,6 @@ def check_install_dir():
         return False, f"CAMOUFOX_INSTALL_DIR внутри AppData: {p}"
     return True, f"OK: CAMOUFOX_INSTALL_DIR={p}"
 
-
 def fetch_browser(py, check_only):
     if check_only:
         return True, "пропущено (--check)"
@@ -121,7 +113,6 @@ def fetch_browser(py, check_only):
         return False, f"fetch не удался: {r.stderr.strip()[-300:]}"
     return True, "браузер скачан/обновлён"
 
-
 def upgrade_package(py, check_only):
     if check_only:
         return True, "пропущено (--check)"
@@ -130,7 +121,6 @@ def upgrade_package(py, check_only):
     if r.returncode != 0:
         return False, f"pip не удался: {r.stderr.strip()[-300:]}"
     return True, "pip-пакет обновлён"
-
 
 def main():
     ap = argparse.ArgumentParser(
@@ -173,9 +163,8 @@ def main():
     print("\nвсё ок")
     return 0
 
-
 if __name__ == "__main__":
     sys.exit(main())
 
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+

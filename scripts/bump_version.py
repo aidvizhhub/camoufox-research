@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Авто-bump версии: 0.19.0 → 0.20.0 (patch/minor/major) в трёх местах.
 
@@ -21,13 +20,11 @@ PYPROJECT = REPO / "pyproject.toml"
 RESEARCH = REPO / "camoufox_research" / "camoufox_research.py"
 README = REPO / "README.md"
 
-
 def read_version() -> str:
     m = re.search(r'^version = "(\d+\.\d+\.\d+)"', PYPROJECT.read_text(encoding="utf-8"), re.M)
     if not m:
         raise SystemExit("версия не найдена в pyproject.toml")
     return m.group(1)
-
 
 def bump(cur: str, part: str) -> str:
     major, minor, patch = (int(x) for x in cur.split("."))
@@ -36,7 +33,6 @@ def bump(cur: str, part: str) -> str:
     if part == "minor":
         return f"{major}.{minor + 1}.0"
     return f"{major}.{minor}.{patch + 1}"
-
 
 def write_version(new: str) -> None:
     # pyproject — источник
@@ -51,7 +47,6 @@ def write_version(new: str) -> None:
     s = README.read_text(encoding="utf-8")
     s = re.sub(r"version-\d+\.\d+\.\d+-green", f"version-{new}-green", s, count=1)
     README.write_text(s, encoding="utf-8")
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="bump версии в pyproject/research.py/README")
@@ -70,7 +65,6 @@ def main() -> int:
     write_version(new)
     print(f"✅ версия {cur} → {new} (pyproject/research.py/README)")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

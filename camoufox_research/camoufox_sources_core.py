@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Реестр качества доменов + извлечение термов для follow-up волны.
 
@@ -32,7 +31,6 @@ _TWO_PART_TLDS = {
     "net.au",
 }
 
-
 def _reg_domain(url):
     """Регистрируемый домен: example.com из www.example.com/поддоменов.
     docs.python.org и peps.python.org считаются одним источником —
@@ -46,7 +44,6 @@ def _reg_domain(url):
     if len(parts) > 2 and ".".join(parts[-2:]) in _TWO_PART_TLDS:
         return ".".join(parts[-3:])
     return ".".join(parts[-2:]) if len(parts) >= 2 else netloc
-
 
 # --- Реестр качества доменов ------------------------------------------------
 # tier: 0 = первоисточник (доки/код/наука), 1 = надёжный тех,
@@ -113,7 +110,6 @@ _T3_TOP = (
 
 _LABELS = {0: "первоисточник", 1: "надёжный", 2: "форум/блог", 3: ""}
 
-
 def domain_tier(url):
     """(tier, метка) домена URL: 0 = доки/код/arXiv ...
     docs.python.org → 0 «первоисточник», reddit.com → 2 «форум/блог».
@@ -134,7 +130,6 @@ def domain_tier(url):
     if any(t in netloc for t in _T1_TOP) or any(netloc.endswith("." + s) for s in _T1_SUFFIXES):
         return 1, _LABELS[1]
     return 2, _LABELS[2]  # неизвестный домен = непроверенный блог
-
 
 def _relevance(query, title, url, snippet, idf=None):
     """Релевантность запросу: BM25-подобный скоринг по редкости слова.
@@ -168,7 +163,6 @@ def _relevance(query, title, url, snippet, idf=None):
             score += 1.0 * w_weight
     return score
 
-
 def _idf_index(seen):
     """IDF-словарь по выборке: log(N/df) — редкость слова среди
     источников одной кампании. Один проход, без внешних библиотек
@@ -189,7 +183,6 @@ def _idf_index(seen):
     # информативный. +1 чтобы слова с df=N (в каждом) не давали 0.
     import math
     return {w: 1.0 + math.log(n / max(df, 1)) for w, df in idf.items()}
-
 
 def rank_and_select(seen, domains_limit=0, query=None):
     """Ранжирование по качеству + релевантности, потом отбор.
@@ -220,5 +213,4 @@ def rank_and_select(seen, domains_limit=0, query=None):
         dom[d] = dom.get(d, 0) + 1
         out.append((title, url, snippet))
     return out
-
 

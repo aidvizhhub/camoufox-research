@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Чипсет установки кауфми-MCP в opencode ИЗ ГИТА (схема 28.08).
 
@@ -27,7 +26,6 @@ GIT_URL = "https://github.com/aidvizhhub/camoufox-research.git"
 OPENCODE_CFG = Path.home() / ".config" / "opencode" / "opencode.json"
 MCP_NAME = "camoufox"
 
-
 def run(cmd, env=None, check=True):
     """Команда с живым выводом; check=False — не падать на ненулевом rc."""
     print("  $", " ".join(cmd) if isinstance(cmd, list) else cmd)
@@ -35,7 +33,6 @@ def run(cmd, env=None, check=True):
     if check and r.returncode != 0:
         raise RuntimeError(f"команда упала (rc={r.returncode}): {cmd}")
     return r
-
 
 def ensure_repo():
     """Репо локально? Нет — clone. Да — pull (ff-only)."""
@@ -46,14 +43,12 @@ def ensure_repo():
     print("[1] репо есть — git pull")
     run(["git", "-C", str(REPO), "pull", "--ff-only", "origin", "main"], check=False)
 
-
 def ensure_venv(venv: Path):
     """venv нет — создать."""
     if not (venv / "bin" / "python").exists():
         print(f"[2] venv нет — создаю {venv}")
         venv.mkdir(parents=True, exist_ok=True)
         run([sys.executable, "-m", "venv", str(venv)])
-
 
 def install_package(venv: Path, reinstall: bool):
     """pip install git+…@main (без editable). --reinstall — force."""
@@ -64,16 +59,13 @@ def install_package(venv: Path, reinstall: bool):
     print("[3] pip install из git (схема «с гита» 28.08)")
     run(cmd, check=False)
 
-
 def fetch_browser(venv: Path):
     """Браузер Camoufox — один раз (если нет)."""
     py = str(venv / "bin" / "python")
     print("[4] браузер: python -m camoufox fetch (пропущу, если есть)")
     run([py, "-m", "camoufox", "fetch"], check=False)
 
-
 CAMOUFOX_CACHE = Path.home() / ".cache" / "camoufox-research"
-
 
 def write_env_config(venv: Path):
     """~/.cache/camoufox-research/config.env — ЕДИНСТВЕННОЕ место с
@@ -90,7 +82,6 @@ def write_env_config(venv: Path):
     path = CAMOUFOX_CACHE / "config.env"
     path.write_text(body, encoding="utf-8")
     print(f"[5+] пути в {path} (читают camo-publish/крон)")
-
 
 def write_mcp_config(venv: Path):
     """Прописать MCP в opencode.json, если секции нет."""
@@ -110,7 +101,6 @@ def write_mcp_config(venv: Path):
     OPENCODE_CFG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[5] MCP '{MCP_NAME}' прописан в {OPENCODE_CFG}")
 
-
 def verify(venv: Path):
     """Импорт + число тулов."""
     py = str(venv / "bin" / "python")
@@ -124,7 +114,6 @@ def verify(venv: Path):
         return True
     print("[✗] проверка: ", r.stdout.strip() or r.stderr[-200:])
     return False
-
 
 def _print_config(venv: Path) -> int:
     """--print: показать РЕАЛЬНЫЕ пути (config.env) одной командой —
@@ -141,7 +130,6 @@ def _print_config(venv: Path) -> int:
         print(f"  (config.env ещё нет: {cfg} — запусти установку)")
     print(f"  {'VENV (по умолчанию)':20s}= {venv}")
     return 0
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="установка кауфми-MCP из git в opencode")
@@ -162,7 +150,6 @@ def main() -> int:
     ok = verify(venv)
     print("\n[+] переподключи MCP: opencode2 api post /api/mcp/camoufox/connect")
     return 0 if ok else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

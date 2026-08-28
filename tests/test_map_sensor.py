@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """MAP-сенсор: качество ранжирования МЕРЯЕТСЯ, а не на глаз.
 
@@ -22,7 +21,6 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 
 class MapSensorTest(unittest.TestCase):
     """Сенсор: переставь источники-фикстуру — и тест падает ДО того,
@@ -68,7 +66,6 @@ class MapSensorTest(unittest.TestCase):
                       f"релевантный не первый: {titles}")
         self.assertEqual(titles[-1], "C random",
                          f"нерелевантный не последний: {titles}")
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

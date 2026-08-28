@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Витрина добычи: research/ → статический сайт (GitHub Pages).
 
@@ -47,16 +46,13 @@ def _camp_verified(camp_id: str) -> str:
     except Exception:
         return "—"
 
-
 def _camp_id_from_report(text: str) -> str:
     """cmp_XXX из шапки автоархива («кампании cmp_…»)."""
     m = re.search(r"cmp_[0-9a-f]+_[0-9a-f]+", text)  # полный id: _6b00-хвост
     return m.group(0) if m else ""
 
-
 def _build(content: str) -> str:  # для совместимости со старым вызовом
     return content
-
 
 _PAGE = """<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
@@ -92,7 +88,6 @@ function v(filter) {{
 }}
 </script>
 </body></html>"""
-
 
 def md_to_html(md: str) -> str:
     """Минимальный md→HTML (stdlib): заголовки, таблицы, списки, код,
@@ -182,7 +177,6 @@ def md_to_html(md: str) -> str:
         out.append("</code></pre>")
     return "\n".join(out)
 
-
 def build_rss(src: Path, out_dir: Path, base: str) -> int:
     """src/*.md → out_dir/rss.xml (RSS 2.0, stdlib). Отчёт = item:
     title из имени файла, link = base#файл, pubDate из даты в имени."""
@@ -241,7 +235,6 @@ def build_rss(src: Path, out_dir: Path, base: str) -> int:
     (out_dir / "rss.xml").write_text(xml, encoding="utf-8")
     return len(items)
 
-
 def build(src: Path, out_dir: Path, base: str) -> int:
     """src/*.md → out_dir/index.html (+ rss.xml). Возвращает число файлов."""
     _refresh_report_index(src)  # INDEX актуален перед сборкой
@@ -285,7 +278,6 @@ def build(src: Path, out_dir: Path, base: str) -> int:
     # стиль лежит в шаблоне, отдельный css не нужен (KISS)
     return count
 
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="витрина research/ → статический сайт")
     # Дефолт — кэш research/ (добыча живёт в кэше с 28.08, репо чист).
@@ -303,7 +295,6 @@ def main() -> int:
     n = build(Path(args.src), Path(args.out), args.base)
     print(f"✅ сайт собран: {Path(args.out) / 'index.html'} (отчётов: {n})")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

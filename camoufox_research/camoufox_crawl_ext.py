@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Проверка битых ссылок (вырезано из camoufox_crawl.py, canon
 FILE-SIZE.md); BFS/фиды сайта — в _core."""
@@ -15,7 +14,6 @@ try:
     from camoufox_research.camoufox_crawl_core import _UA, _page_hrefs, _same_domain
 except ImportError:
     from camoufox_crawl_core import _UA, _page_hrefs, _same_domain
-
 
 def check_links(url, max_links=50, internal_only=True, timeout=15):
     """Проверка битых ссылок (паттерн Screaming Frog/TinyUtils):

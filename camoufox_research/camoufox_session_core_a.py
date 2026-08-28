@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Session-режим: инфраструктура (вырезано из camoufox_session_core.py,
 canon FILE-SIZE.md): регистрация живого браузера, вкладки, наблюдение
@@ -27,18 +26,15 @@ except ImportError:
 
 _LIVE_PROVIDER = None
 
-
 def init_session(live_provider):
     """Воркер регистрирует доступ к живому браузеру (serve-режим)."""
     global _LIVE_PROVIDER
     _LIVE_PROVIDER = live_provider
 
-
 def get_session_page():
     """Текущая страница сессии (или None) — для _close_pages воркера:
     страницу сессии НЕ закрывать между командами."""
     return _SESSION
-
 
 _SESSION = None  # активная страница сессии (serve-режим)
 _SESSION_URL = None  # последний URL сессии (восстановление упавшей вкладки)
@@ -51,7 +47,6 @@ _NEXT_TAB = 1  # счётчик id вкладок
 _WATCH: dict[int, dict[str, Any]] = {}
 _NET_LIMIT = 200
 _CONSOLE_LIMIT = 100
-
 
 def _watch_page(page):
     """Навесить наблюдателей сети/консоли на страницу сессии."""
@@ -97,10 +92,8 @@ def _watch_page(page):
             ),
         )
 
-
 def _unwatch_page(page):
     _WATCH.pop(id(page), None)
-
 
 def get_session_pages():
     """Все живые вкладки сессии — _close_pages воркера их НЕ закрывает."""
@@ -108,7 +101,6 @@ def get_session_pages():
     if _SESSION is not None:
         pages.add(_SESSION)
     return pages
-
 
 def _session_page():
     """Фокусная страница сессии; создаёт/восстанавливает. Паттерны:

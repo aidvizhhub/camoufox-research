@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателя; новые версии могут не выйти; связь с админом — только в Телеграме.
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
+# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная с...
 
 """Дозорные темы: раз в неделю кампании сами добирают НОВОЕ по фидам.
 
@@ -21,6 +21,7 @@ Cron (пример): 3 11 * * 1  (понедельник 11:03)
 import argparse
 import json
 import os
+import contextlib
 import sys
 from pathlib import Path
 
@@ -28,13 +29,10 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "camoufox_research")
 )
 
-try:
+with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:
-    pass
 
 import camoufox_campaign as cc
-
 
 def default_config_path():
     env = os.environ.get("CAMOUFOX_WATCH_CONFIG", "")
@@ -45,7 +43,6 @@ def default_config_path():
         return str(near_repo)
     return str(Path.home() / ".cache" / "camoufox-research" / "watch_topics.json")
 
-
 def find_last_by_topic(topic):
     """Последняя кампания с ТОЙ ЖЕ темой (дозор продолжает её, не плодит)."""
     with cc._db() as con:
@@ -53,7 +50,6 @@ def find_last_by_topic(topic):
             "SELECT id FROM campaigns WHERE topic=? ORDER BY updated_ts DESC LIMIT 1", (topic,)
         ).fetchone()
     return row[0] if row else None
-
 
 def main():
     ap = argparse.ArgumentParser(description="дозор тем по фидам")
@@ -63,7 +59,8 @@ def main():
     if not os.path.exists(args.config):
         print(f"конфига нет: {args.config} — заполни по configs/watch_topics.example.json")
         return
-    topics = json.load(open(args.config, encoding="utf-8"))
+    with open(args.config, encoding="utf-8") as fh:
+        topics = json.load(fh)
     for t in topics:
         topic = t.get("topic", "").strip()
         if not topic:
@@ -87,7 +84,6 @@ def main():
                     background=False,
                 ).splitlines()[0]
             )
-
 
 if __name__ == "__main__":
     main()

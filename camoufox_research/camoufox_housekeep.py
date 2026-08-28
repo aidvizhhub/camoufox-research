@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Домашнее хозяйство кампаний: автоархив отчётов + пульс крона сторожа.
 
@@ -26,7 +25,6 @@ import contextlib
 # 3) фолбэк — exports кэша (старое поведение, если работаем вне репо).
 _REPORT_DIR = os.environ.get("CAMOUFOX_REPORT_DIR", "")
 
-
 def _report_dir() -> Path:
     """Куда писать отчёты: env → кэш research/ → exports.
 
@@ -45,12 +43,10 @@ _WLOG = os.environ.get(
     "CAMOUFOX_WATCHDOG_LOG", str(Path.home() / ".cache/camoufox-research/watchdog.log")
 )
 
-
 def _slug(topic):
     """Тема → безопасное имя файла: «YYYY-MM-DD-<slug>.md»."""
     s = re.sub(r"\s+", "-", re.sub(r'[\\/:*?"<>|]+', " ", topic).strip().lower())
     return s[:60] or "campaign"
-
 
 def _refresh_report_index(d: Path) -> None:
     """Оглавление отчётов: research/INDEX.md — список «дата · тема · файл»
@@ -78,7 +74,6 @@ def _refresh_report_index(d: Path) -> None:
     except Exception:
         pass
 
-
 def save_report(camp_id, topic, status, notes, report_md):
     """Автоархив отчёта кампании. Пишем done и partial (partial — тоже
     результат, честно помечен в шапке). Ошибки НЕ роняют охоту."""
@@ -95,7 +90,6 @@ def save_report(camp_id, topic, status, notes, report_md):
         return str(path)
     except Exception:
         return None
-
 
 def watchdog_note():
     """Пульс крона сторожа: возраст последнего «ok» в логе.
@@ -136,7 +130,6 @@ def watchdog_note():
         return ""
     return ""
 
-
 def post_pack(camp_id, log_path, done_path):
     """Единый пост-цикл кампании: выжимки + верификация + cit-отчёт +
     строка памяти; поля дописываются в тот же done-маркер. Ошибки не
@@ -157,7 +150,6 @@ def post_pack(camp_id, log_path, done_path):
         _log_line(log_path, f"выжимки пропущены: {type(e).__name__}")
         return {}
 
-
 def _log_line(log_path, msg):
     """Строка в лог кампании (общая с campaign-модулем запись)."""
     try:
@@ -165,7 +157,6 @@ def _log_line(log_path, msg):
             fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
     except Exception:
         pass
-
 
 def marker_update(done_path, key, value):
     """Дописать поле в done-маркер (отчёт-путь) — маркер уже рождён."""
@@ -175,7 +166,6 @@ def marker_update(done_path, key, value):
         Path(done_path).write_text(json.dumps(mk, ensure_ascii=False, indent=1), encoding="utf-8")
     except Exception:
         pass
-
 
 def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=False):
     """TTL-уборка кэша при старте (паттерн cleanupPeriodDays у Claude Code).
@@ -260,7 +250,6 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
     ):
         _log_line(_WLOG, f"cleanup: {msg}")
     return msg
-
 
 def index(db_path, limit=50, fmt="md"):
     """Сводка всех кампаний: id · тема · статус · домены/цель · когда.

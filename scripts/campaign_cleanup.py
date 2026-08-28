@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Метла ларца кампаний: старые артефакты охоты — вон.
 
@@ -25,7 +24,6 @@ sys.path.insert(
 )
 from camoufox_campaign import _EXPORT_DIR
 
-
 def plan(directory, days):
     """Список артефактов старше порога: [Path]. Чистые правила, без магии."""
     cut = time.time() - days * 86400
@@ -42,7 +40,6 @@ def plan(directory, days):
         ):
             old.append(f)
     return sorted(old, key=lambda p: p.stat().st_mtime)
-
 
 def main():
     ap = argparse.ArgumentParser(description="метла артефактов кампаний")
@@ -69,7 +66,6 @@ def main():
     if args.yes:
         for f in old:
             f.unlink()
-
 
 if __name__ == "__main__":
     main()

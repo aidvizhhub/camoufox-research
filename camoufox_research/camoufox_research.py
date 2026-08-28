@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """MCP-сервер веб-ресёрча на Camoufox (анти-детект Firefox). Тонкий каркас
 (canon/FILE-SIZE.md): мост к воркеру — camoufox_research_bridge, тулы —
@@ -47,45 +46,37 @@ from camoufox_research.session_tools import register as register_session
 
 mcp = FastMCP("camoufox-research")
 
-
 @mcp.tool()
 def ping() -> str:
     """Проверка связи: возвращает pong."""
     return "pong"
 
-
 register_research(mcp, _call)
 register_session(mcp, _call)
 
-
 # --- MCP Resources: данные для чтения «как файлы» (4-й примитив
 # протокола, MCP-канон 2026: tools + resources + prompts) ---
-
 
 @mcp.resource("camoufox://stats")
 def _res_stats() -> str:
     """Статистика вызовов тулов (audit, секреты замаскированы)."""
     return _call("stats", limit=50)
 
-
 @mcp.resource("camoufox://cache")
 def _res_cache() -> str:
     """Инфо о кэше: размер БД, записи (pages/searches/deltas), TTL."""
     return _call("cache_info")
-
 
 @mcp.resource("camoufox://session")
 def _res_session() -> str:
     """Состояние живой сессии: URL, заголовок, жива ли вкладка."""
     return _call("session_status")
 
-
 @mcp.resource("camoufox://info")
 def _res_info() -> str:
     """Инфо о сервере: имя, число тулов, список."""
     tools = sorted(mcp._tool_manager._tools.keys())
     return f"camoufox-research MCP-сервер\nтулов: {len(tools)}\n" + " ".join(tools)
-
 
 @mcp.resource("camoufox://health")
 def _res_health() -> str:
@@ -106,9 +97,7 @@ def _res_health() -> str:
         f'"rate_limit_max_per_min":{_RATE_LIMIT_MAX},"auth":"{auth_status}"}}'
     )
 
-
 # --- MCP Prompts: готовые рецепты для агента (шаблоны рабочих циклов) ---
-
 
 @mcp.prompt()
 def research_plan(topic: str) -> str:
@@ -126,7 +115,6 @@ def research_plan(topic: str) -> str:
         "4. Итог с цитатами источников."
     )
 
-
 @mcp.prompt()
 def extract_schema(url: str, fields: str) -> str:
     """Извлечение полей со страницы: поля → JSON-схема → extract."""
@@ -138,7 +126,6 @@ def extract_schema(url: str, fields: str) -> str:
         "3. Если нужно сохранить: export(data=..., format='csv')."
     )
 
-
 @mcp.prompt()
 def monitor_page(url: str) -> str:
     """Мониторинг изменений страницы (delta + page_diff)."""
@@ -148,7 +135,6 @@ def monitor_page(url: str) -> str:
         "2. Следующая проверка: page_diff(url) — покажет изменения.\n"
         "3. delta=True — не тратить токены на неизменный контент."
     )
-
 
 # --- Фильтр тулов: контекст-инженерия (аудит 28.08.2026) ---
 # 57 тулов > порога ~20: модель деградирует, контекст переполнен.
@@ -173,9 +159,7 @@ def _apply_tool_filter() -> None:
 
     _run()
 
-
 _apply_tool_filter()
-
 
 def main():
     """Точка входа MCP-сервера (entry point: `camoufox-research`).
@@ -216,7 +200,6 @@ def main():
         mcp.run(transport="http", host=args.host, port=args.port)
     else:
         mcp.run(transport="sse", host=args.host, port=args.port)
-
 
 if __name__ == "__main__":
     main()

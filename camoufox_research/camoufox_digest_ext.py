@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Расширение выжимок: отчёт на диск, память племени, пост-цикл охоты.
 Вырезано из camoufox_digest.py (390→ core 259 + ext 131, canon
@@ -30,7 +29,6 @@ except ImportError:
         make_digest,
         verify_sources,
     )
-
 
 def citation_report(camp_id, path=None):
     """Цитированный отчёт НА ДИСК: готовый MD-документ (выжимки verified
@@ -66,7 +64,6 @@ def citation_report(camp_id, path=None):
         fh.write(md)
     return f"отчёт сохранён: {path}\nисточников с цитатами: {len(blocks)} · символов: {len(md)}"
 
-
 def research_digest(camp_id, refresh=True, max_age=86400):
     """ACTION для воркера: выжимки + верификация + пакет для синтеза.
     max_age — свежесть verified в секундах (0 = проверить всё заново,
@@ -75,7 +72,6 @@ def research_digest(camp_id, refresh=True, max_age=86400):
         make_digest(camp_id)
         verify_sources(camp_id, max_age=max_age)
     return digest_report(camp_id)
-
 
 def _memory_candidates():
     """Кандидаты памяти, считаются в момент вызова (env юзера может
@@ -87,7 +83,6 @@ def _memory_candidates():
         os.environ.get("CAMOUFOX_MEMORY_FILE", ""),
         str(Path.home() / ".cache" / "camoufox-research" / "memory.md"),
     )
-
 
 def _note_memory(text):
     """Строка в память: env-путь (если задан и жив) → кэш-файл, который
@@ -111,7 +106,6 @@ def _note_memory(text):
     if last_err:
         print(f"[memory] ни один кандидат не подошёл: {last_err}", file=sys.stderr, flush=True)
     return ""
-
 
 def post_hunt(camp_id, log):
     """После финала охоты: выжимки + верификация + ОТЧЁТ НА ДИСК (всё в
@@ -186,7 +180,6 @@ def post_hunt(camp_id, log):
         "cit_report": cit_report,
         "memory_note": memory_note,
     }
-
 
 def digest_report(camp_id):
     """Пакет для синтеза: выжимки всех источников (title + первый абзац).

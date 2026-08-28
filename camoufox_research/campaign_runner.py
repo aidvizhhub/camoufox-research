@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Фон-раннер кампании ресёрча: ОТДЕЛЬНЫЙ процесс с логом и done-маркером.
 
@@ -27,7 +26,6 @@ try:
     import camoufox_research.camoufox_campaign as cc
 except ImportError:
     import camoufox_campaign as cc
-
 
 def main():
     ap = argparse.ArgumentParser(description="фон-охота кампании ресёрча")
@@ -80,7 +78,6 @@ def main():
     with cc._db() as con:
         st = con.execute("SELECT status FROM campaigns WHERE id=?", (args.id,)).fetchone()
     print(f"[campaign] {args.id} → {st[0]} за {time.monotonic() - t0:.0f}с")
-
 
 if __name__ == "__main__":
     main()

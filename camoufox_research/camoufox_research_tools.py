@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Исследовательские тулы MCP (вынесено из camoufox_research.py, canon
 FILE-SIZE.md): register(mcp, call) добавляет research*/fetch/extract-тулы
 (паттерн session_tools). Сессионные тулы — в session_tools."""
-
 
 def register(mcp, call):
     @mcp.tool()

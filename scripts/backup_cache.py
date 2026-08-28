@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Бэкап добычи охоты: кэш-research → архив zstd с ротацией.
 
@@ -42,10 +41,8 @@ _BACKUP_DIR = Path(os.environ.get(
     "CAMOUFOX_BACKUP_DIR", str(Path.home() / ".backups" / "camoufox-research")
 ))
 
-
 def _archive_name() -> str:
     return f"camoufox-research-{time.strftime('%Y%m%d-%H%M%S')}.tar.zst"
-
 
 def _files_to_backup(cache: Path) -> list:
     """Добыча: research/ (с .md и .cit), cache.db, memory.md."""
@@ -59,7 +56,6 @@ def _files_to_backup(cache: Path) -> list:
             items.append(f)
     return items
 
-
 def _rotate(backup_dir: Path, keep: int) -> int:
     """Старые архивы — вон; возвращаем сколько удалили."""
     archives = sorted(backup_dir.glob("camoufox-research-*.tar.zst"))
@@ -71,7 +67,6 @@ def _rotate(backup_dir: Path, keep: int) -> int:
         except OSError:
             continue
     return drops
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="бэкап добычи охоты (zstd, ротация)")
@@ -102,7 +97,6 @@ def main() -> int:
     drops = _rotate(_BACKUP_DIR, args.keep)
     print(f"✅ бэкап: {arc.name} ({size_mb:.1f}М), удалено старых: {drops}")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Академический канал: arXiv API + Semantic Scholar API (бесплатные, без ключей).
 
@@ -31,13 +30,11 @@ _S2_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 _UA = {"User-Agent": "camoufox-research/0.7 (+https://github.com/aidvizhhub/camoufox-research)"}
 _NS = {"a": "http://www.w3.org/2005/Atom"}
 
-
 def _http_get(url, timeout=25):
     """GET с браузерным UA — отдаёт текст (arxiv/S2 отдают API, не HTML)."""
     req = urllib.request.Request(url, headers=_UA)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read().decode("utf-8", errors="replace")
-
 
 def _arxiv_rows(query, max_results):
     """Статьи arXiv: list[(title, url, snippet)] — точная фраза в кавычках
@@ -56,6 +53,17 @@ def _arxiv_rows(query, max_results):
     except Exception:
         return []
     rows = []
+    # 28.08: кавычки точной фразы лишние на 2+ словах — arXiv отдал
+    # ПУСТО (проверено: all:"mcp protocol security" = 0 записей,
+    # all:mcp security = 4). Если кавычки пусты — повторяем без них.
+    if not root.findall("a:entry", _NS):
+        q2 = urllib.parse.quote(query)
+        url2 = (f"{_ARXIV_URL}?search_query={q2}&start=0"
+                f"&max_results={max_results}&sortBy=relevance")
+        try:
+            root = ET.fromstring(_http_get(url2))
+        except Exception:
+            pass
     for ent in root.findall("a:entry", _NS):
         eid = (ent.findtext("a:id", "", _NS) or "").strip()
         title = " ".join((ent.findtext("a:title", "", _NS) or "").split())
@@ -77,9 +85,12 @@ def _arxiv_rows(query, max_results):
                 "year": year,
             }
         )
-    _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
+    # Не кэшируем ПУСТОЙ результат: arXiv троттлит/кавычки дают 0 —
+    # кэш с "[]" навсегда хоронит запрос (проверено 28.08: пустой кэш
+    # от первого прогона блокировал fallback без кавычек).
+    if rows:
+        _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
-
 
 def _s2_rows(query, max_results):
     """Статьи Semantic Scholar: тот же список записей (JSON API).
@@ -129,7 +140,6 @@ def _s2_rows(query, max_results):
     _search_cache_set(key, json.dumps(rows, ensure_ascii=False), 1, 1)
     return rows
 
-
 def paper_rows(query, max_results=8, sources="arxiv,semantic"):
     """Сырьё для research/paper_search: list[(title, url, snippet, meta)].
 
@@ -154,7 +164,6 @@ def paper_rows(query, max_results=8, sources="arxiv,semantic"):
                 )
             )
     return out
-
 
 def paper_search(query, sources="arxiv,semantic", max_results=10):
     """Поиск научных статей: arXiv + Semantic Scholar (бесплатные).

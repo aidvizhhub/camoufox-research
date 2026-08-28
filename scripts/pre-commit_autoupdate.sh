@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
+  # noqa: E501
 
 # pre-commit autoupdate — раз в месяц (пины линтеров). Переносимо:
 # repo из config.env/env/авто, python из config.env/env. Ошибки не

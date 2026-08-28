@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Выжимки источников кампании + счётчик verified (жив/в кэше).
 
@@ -90,7 +89,6 @@ _MENU_PHRASES = (
     "terms of service",
 )
 
-
 def _digest_clean(body):
     """Срезать меню из выжимки: короткие junk-строки (len<=40) вон +
     меню-фразы из любой строки (GitHub склеивает меню в длинную строку —
@@ -101,7 +99,6 @@ def _digest_clean(body):
     for phrase in _MENU_PHRASES:
         text = re.sub(re.escape(phrase), "", text, flags=re.IGNORECASE)
     return re.sub(r"\s{2,}", " ", text)[:_DIGEST_CHARS]
-
 
 def _sources(camp_id, only_empty_digest=False):
     """Строки кампании: (url, title, digest, live, verified_ts)."""
@@ -116,7 +113,6 @@ def _sources(camp_id, only_empty_digest=False):
             (camp_id,),
         ).fetchall()
     return rows
-
 
 def make_digest(camp_id, log=None, force=False):
     """Выжимки: title + первые _DIGEST_CHARS текста (меню-строки срезаны
@@ -156,7 +152,6 @@ def make_digest(camp_id, log=None, force=False):
             log(f"выжимки: {done}/{len(rows)} готово")
     return done, len(_sources(camp_id))
 
-
 def _url_alive(url):
     """1 = жив (200 или в кэше страниц), 0 = битый/недоступен."""
     if _cache_get(url) is not None:
@@ -172,7 +167,6 @@ def _url_alive(url):
                 return 1 if 200 <= resp.status < 400 else 0
         except Exception:
             return 0
-
 
 def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
     """Счётчик verified: записывает live (1/0) в базу (до limit URL).
@@ -209,7 +203,6 @@ def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
         ).fetchone()[0]
     return verified, broken
 
-
 def digest_report(camp_id):
     """Пакет для синтеза: выжимки всех источников (title + первый абзац).
     Агент пишет отчёт с меньшими затратами токенов — паттерн «выжимки на
@@ -223,7 +216,6 @@ def digest_report(camp_id):
     if not out:
         return f"ошибка: нет источников кампании {camp_id}"
     return f"источников: {total}\n" + "\n".join(out)
-
 
 def citation_pack(camp_id, autofix=True):
     """CIT-ПАКЕТ для синтеза: только verified ✅ источники с выжимками.

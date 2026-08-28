@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Session-режим: действия (вырезано из camoufox_session_core.py, canon
 FILE-SIZE.md): session_* тулы + вкладки + wait/eval. Инфраструктура —
@@ -42,7 +41,6 @@ except ImportError:
 # атрибуты модуля, не копии) — иначе в serve рассинхрон вкладок
 # (проверено 27.08.2026): session_tabs op=new не увидит новые вкладки.
 
-
 def session_start(url="", max_chars=6000):
     """Начать сессию: открыть URL в постоянной вкладке (или пустую)."""
     page = _session_page()
@@ -51,14 +49,12 @@ def session_start(url="", max_chars=6000):
         _core._SESSION_URL = url
     return _text(page, max_chars)
 
-
 def session_navigate(url, max_chars=6000):
     """Переход на URL в ТЕКУЩЕЙ вкладке (без новой страницы)."""
     page = _session_page()
     _goto(page, url)
     _core._SESSION_URL = url
     return _text(page, max_chars)
-
 
 def session_click(selector="", target_text="", ref="", max_chars=6000):
     """Клик на живой странице: CSS-селектор, текст ссылки/кнопки или
@@ -75,7 +71,6 @@ def session_click(selector="", target_text="", ref="", max_chars=6000):
     _wait_content(page)  # JS-страница после клика может догружаться
     return _text(page, max_chars)
 
-
 def session_type(selector, text, max_chars=6000):
     """Ввод в поле на живой странице (без переоткрытия)."""
     page = _session_page()
@@ -83,7 +78,6 @@ def session_type(selector, text, max_chars=6000):
     page.wait_for_timeout(1500)
     _wait_content(page)
     return _text(page, max_chars)
-
 
 def session_scroll(direction="bottom", max_chars=6000):
     """Скролл на живой странице: bottom/top/down/up. down/up — на 0.8
@@ -103,18 +97,15 @@ def session_scroll(direction="bottom", max_chars=6000):
     _wait_content(page)  # lazy/infinite: подтянуть появившееся
     return _text(page, max_chars)
 
-
 def session_links(max_links=20):
     """Ссылки текущей страницы сессии."""
     page = _session_page()
     links = _page_links(page, max_links)
     return "\n".join(links) if links else "ссылок не найдено"
 
-
 def session_text(max_chars=6000):
     """Текст текущей страницы сессии (без навигации)."""
     return _text(_session_page(), max_chars)
-
 
 def session_back(max_chars=6000):
     """Назад по истории вкладки (как стрелка «назад» у человека)."""
@@ -123,7 +114,6 @@ def session_back(max_chars=6000):
         page.go_back(timeout=45000, wait_until="domcontentloaded")
     _wait_content(page)
     return _text(page, max_chars)
-
 
 def session_status():
     """Состояние сессии: URL, заголовок, жива ли вкладка."""
@@ -134,7 +124,6 @@ def session_status():
         )
     except Exception as e:
         return f"ошибка: {type(e).__name__}: {e}"
-
 
 def session_end():
     """Закрыть вкладку сессии (состояние сброшено)."""
@@ -150,7 +139,6 @@ def session_end():
     _core._SESSION_URL = None
     return "сессия закрыта"
 
-
 def session_reset():
     """Полный сброс сессии (после перезапуска браузера set_proxy:
     старые вкладки мертвы — чистим ссылки, чтобы не висели)."""
@@ -160,7 +148,6 @@ def session_reset():
     _core._NEXT_TAB = 1
     _core._WATCH = {}
     return "сессия сброшена"
-
 
 def session_tabs(op="list", url="", tab_id=""):
     """Вкладки сессии: op=list (все с id/url/title), op=new (открыть url
@@ -211,7 +198,6 @@ def session_tabs(op="list", url="", tab_id=""):
         return f"вкладка {tab_id} закрыта"
     return f"ошибка: действие '{op}' (list/new/switch/close)"
 
-
 def session_wait_for(text="", selector="", timeout=15):
     """Ждать на живой странице появления текста (text) или элемента
     (selector). Паттерн stealth-agent-browser-mcp browser_wait_for +
@@ -228,7 +214,6 @@ def session_wait_for(text="", selector="", timeout=15):
             pass
         page.wait_for_timeout(700)
     return f"не дождался за {timeout}с: '{text or selector}' (URL: {page.url})"
-
 
 def session_eval(expression):
     """Выполнить JS в активной вкладке сессии (MAIN world), вернуть JSON.

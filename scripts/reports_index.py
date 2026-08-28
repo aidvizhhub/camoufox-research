@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Пересборка research/INDEX.md вручную одним вызовом.
 
@@ -23,7 +22,6 @@ sys.path.insert(0, str(REPO))
 
 from camoufox_research.camoufox_housekeep import _refresh_report_index  # noqa: E402
 
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="пересборка INDEX.md отчётов")
     ap.add_argument(
@@ -45,7 +43,6 @@ def main() -> int:
         return 0
     print(f"❌ INDEX.md не создан (нет отчётов в {d}?)")
     return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

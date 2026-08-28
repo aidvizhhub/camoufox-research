@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Разовый прогон пост-цикла по всем done-кампаниям: отчёты получают
 живой verified (границы: автоархив писался ДО verify → «verified: 0»,
@@ -19,8 +18,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
-
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="перегенерация отчётов done-кампаний")
@@ -55,7 +52,6 @@ def main() -> int:
     else:
         print(f"\n✅ перегенерировано: {done} отчётов")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

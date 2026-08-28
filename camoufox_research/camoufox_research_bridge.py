@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Мост сервер→воркер (вынесено из camoufox_research.py, canon/FILE-SIZE.md):
 production-гейты (auth/rate-limit) + живой воркер-процесс + _call.
@@ -28,7 +27,6 @@ _RATE_LIMIT_MAX = int(os.environ.get("CAMOUFOX_RATE_LIMIT", "60"))  # max calls/
 _RATE_LIMIT_WINDOW = 60.0
 _AUTH_KEY = os.environ.get("CAMOUFOX_API_KEY", "").strip()
 
-
 def _check_auth(kwargs: dict) -> str | None:
     """Если CAMOUFOX_API_KEY задан — требуем api_key в kwargs, иначе 401."""
     if not _AUTH_KEY:
@@ -40,7 +38,6 @@ def _check_auth(kwargs: dict) -> str | None:
             "(задай CAMOUFOX_API_KEY env и передай api_key в вызов)"
         )
     return None
-
 
 def _check_rate_limit(action: str) -> str | None:
     """Простой fixed-window: max _RATE_LIMIT_MAX вызовов в 60с, иначе 429."""
@@ -72,13 +69,11 @@ def _check_rate_limit(action: str) -> str | None:
 _worker_state = None  # {"proc": Popen, "queue": Queue}
 _worker_lock = threading.Lock()
 
-
 def _read_loop(proc, q):
     """Фон: строки из stdout воркера → очередь. None на EOF."""
     for line in proc.stdout:
         q.put(line)
     q.put(None)
-
 
 def _worker_proc():
     global _worker_state
@@ -100,7 +95,6 @@ def _worker_proc():
         t.start()
         _worker_state = {"proc": proc, "queue": q}
     return _worker_state
-
 
 def _call_live(req, timeout):
     """Запрос к живому воркеру: JSON-строка в stdin, JSON-строка из queue."""
@@ -133,7 +127,6 @@ def _call_live(req, timeout):
         except json.JSONDecodeError:
             continue  # мусорная строка (лог браузера) — пропускаем
 
-
 def _kill_worker():
     global _worker_state
     if _worker_state is not None:
@@ -141,12 +134,10 @@ def _kill_worker():
             _worker_state["proc"].kill()
         _worker_state = None
 
-
 def _parse(parsed):
     if "error" in parsed:
         return f"ошибка: {parsed['error']}"
     return parsed.get("result", "")
-
 
 def _call(action, timeout=120, **kwargs):
     # production gates

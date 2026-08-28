@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Чтение документов (PDF/DOCX/XLSX) — паттерн Firecrawl formats
 (pdf/document). Чистый Python, без браузера. Библиотеки опциональны:
@@ -21,7 +20,6 @@ except ImportError:
     import camoufox_browser_core as _cb  # живая ссылка на модуль: _LIVE_PROVIDER меняется в serve
 
 _SUPPORTED = {".pdf", ".docx", ".xlsx"}
-
 
 def _download_temp(source, ext):
     """URL → временный файл. Возвращает путь (удалять вызывающему)."""
@@ -50,7 +48,6 @@ def _download_temp(source, ext):
         fh.write(resp.read())
     return tmp.name
 
-
 def _extract_pdf(path):
     from pypdf import PdfReader
 
@@ -63,13 +60,11 @@ def _extract_pdf(path):
             pages.append("")
     return "\n".join(pages)
 
-
 def _extract_docx(path):
     from docx import Document
 
     doc = Document(path)
     return "\n".join(p.text for p in doc.paragraphs)
-
 
 def _extract_xlsx(path):
     from openpyxl import load_workbook
@@ -80,7 +75,6 @@ def _extract_xlsx(path):
         for row in ws.iter_rows(values_only=True):
             rows.append("\t".join("" if c is None else str(c) for c in row))
     return "\n".join(rows)
-
 
 def read_document(source, max_chars=6000):
     """Текст из PDF/DOCX/XLSX. source — URL или локальный путь.

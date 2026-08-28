@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Кэш страниц/поиска (вынесено из camoufox_worker.py, canon/FILE-SIZE.md):
 sqlite-кэш ~/.cache/camoufox-research, TTL сутки."""
@@ -16,7 +15,6 @@ _CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "camoufox-research"
 _CACHE_DB = os.path.join(_CACHE_DIR, "cache.db")
 _CACHE_TTL = 86400  # сутки
 _FETCH_LIMIT = 12000  # сколько символов храним в кэше (хватает на большие статьи)
-
 
 def _cache_init():
     os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -34,7 +32,6 @@ def _cache_init():
             "(url_hash TEXT PRIMARY KEY, content_hash TEXT, ts REAL)"
         )
 
-
 def _search_cache_get(query, max_results=10, pages=1):
     key = hashlib.sha256(f"{query}|{max_results}|{pages}".encode()).hexdigest()[:16]
     try:
@@ -45,7 +42,6 @@ def _search_cache_get(query, max_results=10, pages=1):
     except Exception:
         pass
     return None
-
 
 def _search_cache_set(query, result, max_results=10, pages=1):
     key = hashlib.sha256(f"{query}|{max_results}|{pages}".encode()).hexdigest()[:16]
@@ -58,7 +54,6 @@ def _search_cache_set(query, result, max_results=10, pages=1):
     except Exception:
         pass
 
-
 def _cache_get(url, suffix=""):
     key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
     try:
@@ -70,7 +65,6 @@ def _cache_get(url, suffix=""):
         pass
     return None
 
-
 def _cache_set(url, text, suffix=""):
     key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
     try:
@@ -81,7 +75,6 @@ def _cache_set(url, text, suffix=""):
             )
     except Exception:
         pass
-
 
 def _delta_get(url, suffix=""):
     """Хэш последнего прочитанного контента страницы (delta-чтение:
@@ -99,7 +92,6 @@ def _delta_get(url, suffix=""):
         pass
     return None, None
 
-
 def _delta_set(url, content_hash, suffix=""):
     key = hashlib.sha256((url + suffix).encode()).hexdigest()[:16]
     try:
@@ -111,9 +103,7 @@ def _delta_set(url, content_hash, suffix=""):
     except Exception:
         pass
 
-
 _cache_init()
-
 
 def _github_api_text(url, timeout=25):
     """Файл с raw.githubusercontent.com → содержимое через api.github.com.
@@ -162,7 +152,6 @@ def _github_api_text(url, timeout=25):
             return text
     except Exception:
         return None
-
 
 def _prefetch_text(url):
     """Текст без браузера, если можем: raw.githubusercontent → GitHub API.

@@ -15,7 +15,6 @@ except ImportError:
     import camoufox_worker_core as _core
 globals().update({k: v for k, v in _core.__dict__.items() if not k.startswith('__')})
 
-
 # --- Session-режим: одна живая вкладка между командами (как человек) ---
 # Паттерны индустрии (ресёрч 18.08.2026, 42 источника): agent-browser
 # (daemon + persistent сессии, tab pinning по CDP target id), Playwright
@@ -105,7 +104,6 @@ ACTIONS = {
     "session_upload": session_upload,
 }
 
-
 def _close_pages(browser):
     """Закрыть все страницы живого браузера (после каждой команды),
     КРОМЕ вкладок сессии: session_* держит вкладки между командами."""
@@ -116,7 +114,6 @@ def _close_pages(browser):
                 continue
             with suppress(Exception):  # страница могла уже упасть
                 page.close()
-
 
 def _serve():
     """Долгоживущий режим: читает JSON-команды из stdin построчно,
@@ -165,7 +162,6 @@ def _serve():
             with suppress(Exception):  # мог уже закрыться в set_proxy
                 cur.__exit__(None, None, None)
 
-
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--serve":
         _serve()
@@ -183,13 +179,10 @@ def main():
         print(json.dumps({"error": f"{type(e).__name__}: {e}"}))
         sys.exit(1)
 
-
 if __name__ == "__main__":
     main()
-
 
 # Разработано для https://t.me/aidvizhenie · https://t.me/hilartem.
 # Каждая версия уникальна, дальше — ещё лучше.
 
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub

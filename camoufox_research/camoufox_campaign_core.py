@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Кампании ресёрча: цель по РАЗНЫМ источникам, счётчик прогресса, отчёт.
 
@@ -66,7 +65,6 @@ _SCHEMA = (
 
 _DDL_DONE = False
 
-
 def _db():
     """Соединение к базе (+мягкая миграция feeds для старых баз)."""
     global _DDL_DONE
@@ -93,7 +91,6 @@ def _db():
         _DDL_DONE = True
     return con
 
-
 def _reg_domain(url):
     """Регистрируемый домен (единый счётчик «разные сайты» — sources.py)."""
     try:
@@ -102,7 +99,6 @@ def _reg_domain(url):
         from camoufox_sources import _reg_domain as reg
     return reg(url)
 
-
 def _log(log_path, msg):
     """Строка прогресса в лог: таймштамп + сообщение (свежесть видна сразу)."""
     try:
@@ -110,7 +106,6 @@ def _log(log_path, msg):
             fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
     except Exception:
         pass
-
 
 def _ingest(camp_id, payload):
     """Источники из research(as_json=True) → база. Возвращает (новые, всего, уникальных_доменов).
@@ -140,7 +135,6 @@ def _ingest(camp_id, payload):
             "WHERE camp_id=?", (camp_id,)).fetchone()
     return fresh, total, uniq, skipped
 
-
 def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
     """Единый финал: строка в базе + маркер done_file (ЖДУТ ЕГО, не лог)."""
     with _db() as con:
@@ -165,7 +159,6 @@ def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
     saved = save_report(camp_id, topic, status, notes, _report(camp_id))
     if saved:
         marker_update(done_path, "report", saved)
-
 
 def _feed_leg(camp_id, feeds, notes):
     """Нога-фиды (RSS/sitemap): источники без поисковика (DDG мёртв —
@@ -209,7 +202,6 @@ def _feed_leg(camp_id, feeds, notes):
     notes.append(f"фиды:+{fresh} новых ({uniq} доменов)")
     if skipped:
         notes[-1] += f", реклама отсеяна: {skipped}"
-
 
 def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
          feeds=None, llm_planner=False):
@@ -273,18 +265,15 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                 _target_of(camp_id), [f"{type(e).__name__}: {e}"],
                 done_path)
 
-
 def _counts(camp_id):
     with _db() as con:
         return con.execute(
             "SELECT COUNT(*), COUNT(DISTINCT domain) FROM campaign_sources "
             "WHERE camp_id=?", (camp_id,)).fetchone()
 
-
 def _target_of(camp_id):
     with _db() as con:
         row = con.execute("SELECT target_sources FROM campaigns WHERE id=?",
                           (camp_id,)).fetchone()
     return row[0] if row else 0
-
 

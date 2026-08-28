@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Принадлежит каналу https://t.me/aidvizhenie · админ h-i-l-artem · гиг t,me/aidvizh_hub
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
 
 """Общий кроссплатформенный модуль AGGG2.0: кодировка stdout, пути venv,
 платформенные хелперы. Единое место вместо копирования в каждый скрипт
@@ -21,12 +20,10 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-# Принадлежит сообществу AGGG [AGENT OS] · канал: t.me/aidvizhenie · админ: @hilartem · гиг: t.me/aidvizh_hub
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# Принадлежит сообществу AGGG [AGENT OS] · канал: t.me/aidvizhenie · админ: @hilartem · гиг: t.me...
 
 IS_NT = os.name == "nt"
 IS_CI = os.environ.get("CI") == "true"
-
 
 def fix_encoding():
     """Windows-консоль по умолчанию cp1251 — русский вывод (✓/✗/кириллица)
@@ -37,7 +34,6 @@ def fix_encoding():
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-
 
 def run(cmd, *, timeout=None, cwd=None, env=None, check=False):
     """subprocess.run для CLI-скриптов: кроссплатформенная кодировка.
@@ -66,7 +62,6 @@ def run(cmd, *, timeout=None, cwd=None, env=None, check=False):
         check=check,
     )
 
-
 # Маркеры корня AGGG2.0: файлы/папки, которые есть ТОЛЬКО в корне воркспейса
 # (VERSION уникален — в проектах его нет; db-tools/ и scripts/_compat.py —
 # часть корня). DETECT_MARKERS — по ЛЮБОМУ из них корень находится при
@@ -78,7 +73,6 @@ def run(cmd, *, timeout=None, cwd=None, env=None, check=False):
 DETECT_MARKERS = ("VERSION", "db-tools", "scripts/_compat.py", "make_archive.sh")
 ROOT_MARKERS = ("VERSION", "db-tools", "scripts/_compat.py")
 ROOT_MIN_MARKERS = 2
-
 
 def chulan_root():
     """Корень AGGG2.0. Паттерн индустрии (jayqi/python-find-project-root-
@@ -107,7 +101,6 @@ def chulan_root():
     _validate_root(cand, source="__file__")
     return cand
 
-
 def _validate_root(root, source):
     """Корень опознаётся по ЛЮБЫМ ROOT_MIN_MARKERS маркерам из ROOT_MARKERS
     (см. комментарий выше): переименование папки и потеря одного маркера
@@ -122,7 +115,6 @@ def _validate_root(root, source):
             f"AGGG2_ROOT или укажите корень AGGG2.0."
         )
 
-
 def venv_dir():
     """Общий venv воркспейса: ~/.venvs/aggg2 (вынесенный из папки, чтобы
     проект шерился чисто). Создаётся setup.py (ensure_env).
@@ -136,14 +128,12 @@ def venv_dir():
         return Path(env).expanduser()
     return Path.home() / ".venvs" / "aggg2"
 
-
 def venv_python():
     """Путь к python в venv проекта (bin/python vs Scripts/python.exe)."""
     d = venv_dir()
     if IS_NT:
         return d / "Scripts" / "python.exe"
     return d / "bin" / "python"
-
 
 @contextmanager
 def db_connect(path, row_factory=None):
@@ -168,12 +158,9 @@ def db_connect(path, row_factory=None):
     finally:
         con.close()
 
-
 # aidvizhenie · hilartem · aidvizh_hub — все в Телеграме: t.me/aidvizhenie
 
 # aidvizhenie · hilartem · aidvizh_hub — все в Телеграме: t.me/aidvizhenie
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
-
 
 def yaml_scalar(value):
     """YAML-скаляр из python-значения. JSON-строка — валидный YAML
@@ -186,7 +173,6 @@ def yaml_scalar(value):
     if isinstance(value, str):
         return json.dumps(value)
     return str(value)
-
 
 def replace_top_level_yaml_block(path, block, marker):
     """Хирургическая замена top-level блока YAML-конфига: строка marker

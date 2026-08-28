@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Расширение реестра доменов: разбор батчей, термы для follow-up
 волны (вырезано из camoufox_sources.py, canon FILE-SIZE.md); ядро
@@ -13,10 +12,8 @@ try:
 except ImportError:
     from camoufox_stopwords import _STOP
 
-
 _MIN_LEN = 5
 _TERM_MAX = 5
-
 
 def _batch_texts(batch):
     """'--- URL: u\\ntext\\n\\n--- URL: ...' → [{'url', 'text'}] (для JSON)."""
@@ -27,7 +24,6 @@ def _batch_texts(batch):
         if u:
             texts.append({"url": u, "text": t.strip()})
     return texts
-
 
 def extract_terms(texts, base_queries):
     """Редкие/именные термы из текстов первой волны → follow-up запросы.

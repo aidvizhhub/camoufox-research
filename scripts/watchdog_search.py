@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Сторож поиска: DDG жив? Кроны 2 раза в сутки идут РЕАЛЬНЫМ путём охоты
 (браузер + duckduckgo, тот же _search_results, что у research).
@@ -33,12 +32,10 @@ _HOME_CACHE = os.environ.get(
 _LOG = os.path.join(_HOME_CACHE, "watchdog.log")
 _ALERT = os.path.join(_HOME_CACHE, "watchdog_ALERT")
 
-
 def _stamp(msg):
     os.makedirs(_HOME_CACHE, exist_ok=True)
     with open(_LOG, "a", encoding="utf-8") as fh:
         fh.write(f"{time.strftime('%d.%m %H:%M')} {msg}\n")
-
 
 def main():
     n, err = 0, ""
@@ -63,7 +60,6 @@ def main():
             "(camoufox_browser.py, разметка DDG?).\n"
         )
     sys.exit(1)
-
 
 if __name__ == "__main__":
     try:

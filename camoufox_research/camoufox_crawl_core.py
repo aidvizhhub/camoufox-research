@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Crawl + Map сайта (паттерн Firecrawl crawl/map): BFS по внутренним
 ссылкам одного домена с лимитами depth/pages. Map — только ссылки
@@ -51,7 +50,6 @@ _UA = (
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 
-
 def _fetch_bytes(url, timeout=30):
     """Байты по URL: при живом браузере — Playwright request (urllib на
     части сайтов даёт 403 — проверено 22.08.2026, w3.org), иначе urllib."""
@@ -69,7 +67,6 @@ def _fetch_bytes(url, timeout=30):
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 
-
 def _crawl_fetch(url, max_chars, article_only):
     """Фетч страницы для crawl. В serve — ЖИВОЙ браузер (_browser_ctx):
     новый Camoufox() в serve-процессе падает («Sync API inside asyncio
@@ -86,12 +83,10 @@ def _crawl_fetch(url, max_chars, article_only):
     _cache_set(url, t, suffix)
     return t[:max_chars]
 
-
 def _norm_url(url):
     """Нормализация: убрать якорь, хвостовой слэш."""
     u = url.split("#")[0].rstrip("/")
     return u
-
 
 def _same_domain(a, b):
     """Один домен или поддомен (пример: www.example.com и example.com)."""
@@ -102,7 +97,6 @@ def _same_domain(a, b):
         return True
     return pa.netloc.endswith("." + pb.netloc) or pb.netloc.endswith("." + pa.netloc)
 
-
 def _page_hrefs(url):
     """Все http-ссылки страницы."""
     with _browser_ctx() as browser:
@@ -111,7 +105,6 @@ def _page_hrefs(url):
         return page.eval_on_selector_all(
             "a", "els => els.map(e => e.href).filter(h => h && h.startsWith('http'))"
         )
-
 
 def map_site(url, max_links=50, pattern=""):
     """Карта сайта: все ссылки того же домена со стартовой страницы
@@ -129,7 +122,6 @@ def map_site(url, max_links=50, pattern=""):
     links.add(_norm_url(url))
     out = sorted(links)
     return "\n".join(out[:max_links]) if out else "ссылок не найдено"
-
 
 def crawl(url, max_pages=10, max_depth=2, pattern="", article_only=True, max_chars=4000):
     """BFS-обход сайта: стартовая страница + внутренние ссылки
@@ -168,9 +160,7 @@ def crawl(url, max_pages=10, max_depth=2, pattern="", article_only=True, max_cha
         time.sleep(0.4)  # rate limit — защита от капчи
     return "\n\n".join(out) if out else "ничего не обошли"
 
-
 # --- Sitemap (карта сайта из sitemap.xml) ---
-
 
 def sitemap(url, max_links=200):
     """URL'ы из sitemap.xml (+ .xml.gz, вложенные sitemapindex).
@@ -211,9 +201,7 @@ def sitemap(url, max_links=200):
                     urls.append(loc.strip())
     return "\n".join(urls[:max_links]) if urls else "sitemap пуст или не найден"
 
-
 # --- RSS/Atom-фиды ---
-
 
 def rss(url, limit=20):
     """Посты из RSS/Atom-фида: title, link, дата. Паттерн Apify/Bright Data
@@ -256,7 +244,6 @@ def rss(url, limit=20):
         if len(items) >= limit:
             break
     return "\n".join(items) if items else "постов не найдено"
-
 
 # --- Проверка битых ссылок ---
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Session-тулы MCP (вынесено из camoufox_research.py, canon/FILE-SIZE.md):
 register(mcp) добавляет session_* тулы — одна живая вкладка «как человек»,
 плюс тулы 2-й волны: snapshot/screenshot (vision), tabs, wait_for, eval,
 crawl/map, extract, прокси и профили."""
-
 
 def register(mcp, call):
     @mcp.tool()

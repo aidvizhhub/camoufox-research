@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Принадлежит: t.me/aidvizhenie · t.me/hilartem · t.me/aidvizh_hub — ищи в Телеграме
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """JSON-RPC клиент к MCP-серверу camoufox_research.py (один вызов).
 
@@ -27,7 +26,6 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(HERE, "camoufox_research.py")
 
-
 def call_rpc(proc, req):
     proc.stdin.write(json.dumps(req) + "\n")
     proc.stdin.flush()
@@ -38,7 +36,6 @@ def call_rpc(proc, req):
         msg = json.loads(line)
         if msg.get("id") == req["id"]:
             return msg
-
 
 def main():
     ap = argparse.ArgumentParser(description="JSON-RPC вызов camoufox MCP-сервера")
@@ -105,7 +102,6 @@ def main():
     finally:
         proc.stdin.close()
         proc.terminate()
-
 
 if __name__ == "__main__":
     sys.exit(main())

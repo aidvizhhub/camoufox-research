@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Принадлежит каналу https://t.me/aidvizhenie · админ h-i-l-artem · гиг t,me/aidvizh_hub
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
 
 """Воркер браузера для MCP-сервера: выполняется в ОТДЕЛЬНОМ процессе,
 чтобы не конфликтовать с event loop FastMCP.
@@ -131,7 +130,6 @@ _LIVE = None  # (cam, browser) в serve-режиме; None — разовый з
 _STATS = {"calls": {}, "errors": {}, "total": 0, "total_time": 0.0, "recent": []}
 _STATS_LIMIT = 50
 
-
 def _redact_arg(v):
     """Маскировать секреты (ключи/токены/пароли/прокси/куки) и обрезать
     длинные значения — audit без утечек (MCP security best practices)."""
@@ -151,7 +149,6 @@ def _redact_arg(v):
     if isinstance(v, list):
         return [_redact_arg(x) for x in v[:5]]
     return v
-
 
 def _record(action, args, ok, seconds, result):
     st = _STATS["calls"].setdefault(action, {"n": 0, "time": 0.0, "err": 0})
@@ -174,7 +171,6 @@ def _record(action, args, ok, seconds, result):
     if len(_STATS["recent"]) > _STATS_LIMIT:
         del _STATS["recent"][:-_STATS_LIMIT]
 
-
 def stats(limit=20):
     """Наблюдаемость: сколько раз вызывали каждый тул, среднее время,
     ошибки + последние вызовы (audit, секреты замаскированы)."""
@@ -190,7 +186,6 @@ def stats(limit=20):
             f"  [{r['ts']}] {mark} {r['action']} {r['sec']}с args={r['args']} → {r['result'][:60]}"
         )
     return "\n".join(lines)
-
 
 def cache_info():
     """Инфо о кэше (MCP Resource camoufox://cache): размер БД, записи,

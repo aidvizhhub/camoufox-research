@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# Источник: тг t.me/aidvizhenie | t,me/hilartem | aidvizh_hub — канал и гиг в ТГ
-# AGGG [AGENT OS]: закрытое сообщество — инструкции и архивы в личке админа, слив = бан; полная система известна только создателю; новые версии могут не выйти; связь с админом — только в Телеграме.  # noqa: E501
+# Источник: t.me/aidvizhenie · admin h-i-l-artem · канал и гиг: aidvizh_hub
 
 """Расширение браузерных хелперов: клики с пред-проверкой, snapshot/SOM,
 профили кук. Вырезано из camoufox_browser.py (487→ core+ext, canon
@@ -13,7 +12,6 @@ from contextlib import suppress
 _PROFILES_DIR = os.path.join(
     os.path.expanduser("~"), ".cache", "camoufox-research", "profiles"
 )
-
 
 def _click_checked(page, selector, target_text, timeout_ms=15000):
     """Клик с пред-проверкой (паттерн agent-browser «snapshot -i» +
@@ -76,12 +74,10 @@ def _click_checked(page, selector, target_text, timeout_ms=15000):
         return page, None
     return None, "ошибка: нужен selector или target_text"
 
-
 # --- Snapshot (aria-подобное дерево с ref) и Set-of-Mark (vision) ---
 # Паттерн stealth-agent-browser-mcp: aria snapshot YAML ~2-5KB вместо
 # HTML 100KB+; каждый интерактивный элемент получает [data-vzref=N] —
 # клики по ref, без селекторов и дрейфа.
-
 
 def _interactive_snapshot(page, limit=30):
     """Дерево интерактивных элементов с ref (YAML-подобное).
@@ -115,7 +111,6 @@ def _interactive_snapshot(page, limit=30):
         }""",
         limit,
     )
-
 
 def _som_overlay(page):
     """Set-of-Mark (паттерн stealth-agent-browser-mcp hybrid vision):
@@ -159,7 +154,6 @@ def _som_overlay(page):
         }"""
     )
 
-
 def _click_ref(page, ref, timeout_ms=15000):
     """Клик по data-vzref (из snapshot/SOM). Возвращает (page, None)
     или (None, ошибка)."""
@@ -174,10 +168,8 @@ def _click_ref(page, ref, timeout_ms=15000):
     page.click(sel, timeout=timeout_ms, force=True)
     return page, None
 
-
 # --- Профили (куки + localStorage): логины не терять между сессиями ---
 # Паттерн Browser Use persistent profiles + Playwright MCP profile=default.
-
 
 def profile_save(name="default"):
     """Сохранить куки + localStorage живого браузера в профиль <name>.json."""
@@ -209,7 +201,6 @@ def profile_save(name="default"):
         f"профиль сохранён: {path} "
         f"(куки: {len(data['cookies'])}, origins: {len(data['local_storage'])})"
     )
-
 
 def profile_load(name="default"):
     """Загрузить куки + localStorage профиля в живой браузер."""
