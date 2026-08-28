@@ -49,19 +49,9 @@ if [ -z "$(git status --porcelain metrics/)" ]; then
     exit 0
 fi
 
-# 3. Коммит + пуш (gh credential helper или любой git-кред от юзера)
-git add metrics/ README.md
+# 3. ЛОКАЛЬНО, БЕЗ ПУША (юзер 28.08: «в витрину ничего автоматом и
+# сам не хочу»). Крон считает MAP и пишет metrics/ ЛОКАЛЬНО; коммит
+# и пуш — ТОЛЬКО руками (как camo-publish). Никакой автоматики в git.
 NEW=$("$VENV" -c "import json;d=json.load(open('$REPO/metrics/map.json'));print(f\"{d['map10']:.3f}\")" 2>/dev/null || echo "?")
-if git diff --cached --quiet; then
-    echo "[$(date '+%F %T')] diff пуст — без коммита"
-    exit 0
-fi
-git commit -q --no-verify -m "metrics: MAP@10 = $NEW (авто-обновление бейджа)
-
-map_metric --save: реальный MAP на кампаниях прод-БД. Бейдж
-README обновлён (shields.io endpoint → metrics/map-badge.json)."
-if git push origin main 2>>"$LOG"; then
-    echo "[$(date '+%F %T')] push OK, MAP@10 = $NEW"
-else
-    echo "[$(date '+%F %T')] push НЕ удался — метрика в коммите, дожмётся вручную"
-fi
+echo "[$(date '+%F %T')] MAP@10 = $NEW — записан локально (metrics/map*.json)."
+echo "   Публикация в git — ТОЛЬКО вручную: git add metrics/ && git push"
