@@ -126,11 +126,32 @@ def verify(venv: Path):
     return False
 
 
+def _print_config(venv: Path) -> int:
+    """--print: показать РЕАЛЬНЫЕ пути (config.env) одной командой —
+    проверка, откуда система берёт repo/python/кэш (диагностика)."""
+    cfg = CAMOUFOX_CACHE / "config.env"
+    print("camoufox-research: пути (config.env — единый источник)")
+    if cfg.exists():
+        for line in cfg.read_text(encoding="utf-8").splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                val = v.strip().strip('"')
+                print(f"  {k.strip():20s}= {val}")
+    else:
+        print(f"  (config.env ещё нет: {cfg} — запусти установку)")
+    print(f"  {'VENV (по умолчанию)':20s}= {venv}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="установка кауфми-MCP из git в opencode")
     ap.add_argument("--venv", default=str(Path.home() / ".venvs" / "camoufox-research"))
     ap.add_argument("--reinstall", action="store_true", help="переустановить (force)")
+    ap.add_argument("--print", action="store_true",
+                    help="показать пути (config.env) и выйти")
     args = ap.parse_args()
+    if args.print:
+        return _print_config(Path(args.venv))
     venv = Path(args.venv)
     ensure_repo()
     ensure_venv(venv)
