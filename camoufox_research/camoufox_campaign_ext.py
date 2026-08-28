@@ -256,6 +256,48 @@ def report(camp_id, fmt="md"):
                 {1: "жив", 0: "битый", -1: "?"}.get(li, "?"),
             ])
         return buf.getvalue().strip()
+    if fmt == "xlsx":
+        # Excel добычи с verified (для отчётов с цитатами у не-технарей;
+        # openpyxl — штатная зависимость).
+        try:
+            import openpyxl
+        except ImportError:
+            return ("ошибка: openpyxl не установлен "
+                    "(pip install openpyxl) — формат xlsx недоступен")
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "добыча"
+        ws.append(["title", "url", "domain", "tier", "tier_label",
+                   "verified", "status", "snippet"])
+        for t, u, d, ti, lb, li in rows:
+            ws.append([
+                t or "", u, d, ti, lb or "",
+                1 if li == 1 else 0,
+                {1: "жив", 0: "битый", -1: "?"}.get(li, "?"),
+                "",  # snippet добывается отдельно (выжимки)
+            ])
+        path = _EXPORT_DIR / f"{camp_id}-добыча.xlsx"
+        wb.save(path)
+        return f"xlsx сохранён: {path} (источников: {len(rows)})"
+    if fmt == "mermaid":
+        # Граф добычи (Mermaid-плоттер, канон DeepResearch citations):
+        # кампания → домены → источники, с статусом ✅/❌. Figma-вставка
+        # или mermaid.live — видно сразу, кто жив, кто битый.
+        def esc(v):
+            return str(v).replace('"', "'").replace("[", "(").replace("]", ")")
+
+        out = ["graph LR", f'  C["{esc(topic_row[0])}"]']
+        seen_d = {}
+        for t, u, d, _ti, _lb, li in rows:
+            mark = {1: "✅", 0: "❌", -1: "?"}.get(li, "?")
+            if d not in seen_d:
+                seen_d[d] = len(seen_d) + 1
+                out.append(f'  C --> D{seen_d[d]}["{esc(d)}"]')
+            node = f'  D{seen_d[d]} --> U{abs(hash(u)) % 999999}'
+            out.append(f'{node}["{mark} {esc(t or u)[:40]}"]')
+        if not rows:
+            out.append('  C --> N["нет источников"]')
+        return "\n".join(out)
     head = ([f"# Кампания: {topic_row[0]}",
              f"- id: {camp_id} · статус: {topic_row[2]}",
              (f"- источников: {total}, разных сайтов: {uniq}/"

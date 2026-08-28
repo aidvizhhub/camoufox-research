@@ -269,3 +269,58 @@ class VerifyTtlCacheTest(unittest.TestCase):
 
         self.assertGreater(calls["n"], before,
                            "max_age=0 не форсировал проверку (кэш остался)")
+
+
+class ReportFormatsTest(unittest.TestCase):
+    """Новые форматы отчёта (28.08): csv/xlsx/mermaid — живой факт."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        import camoufox_research.camoufox_campaign_core as cc
+
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls._db = os.path.join(cls._tmp.name, "c.db")
+        _mk_db(cls._db)
+        cls._old_f = None
+        cls._old_c = cc._DB_PATH
+        cc._DB_PATH = cls._db
+
+    @classmethod
+    def tearDownClass(cls):
+        import camoufox_research.camoufox_campaign_core as cc
+
+        cc._DB_PATH = cls._old_c
+        cls._tmp.cleanup()
+
+    def test_csv_format(self):
+        from camoufox_research.camoufox_campaign import report
+
+        out = report("cmp_test", fmt="csv")
+        self.assertIn("title,url,domain,tier,tier_label,verified,status", out)
+        self.assertIn("docs.example.com", out)
+
+    def test_mermaid_format(self):
+        from camoufox_research.camoufox_campaign import report
+
+        out = report("cmp_test", fmt="mermaid")
+        self.assertIn("graph LR", out)
+        self.assertIn("python.org", out)
+        self.assertIn("✅", out)
+
+    def test_xlsx_format(self):
+        import tempfile
+        from pathlib import Path
+
+        import camoufox_research.camoufox_campaign_ext as ce
+        from camoufox_research.camoufox_campaign import report
+
+        if "openpyxl" not in str(Path(ce.__file__)):
+            with tempfile.TemporaryDirectory() as td:
+                old = ce._EXPORT_DIR
+                ce._EXPORT_DIR = Path(td)
+                try:
+                    out = report("cmp_test", fmt="xlsx")
+                    self.assertIn("xlsx сохранён", out)
+                finally:
+                    ce._EXPORT_DIR = old

@@ -46,7 +46,7 @@ def main():
         from camoufox_browser import _search_results
 
         n = len(_search_results("python programming", 8))
-    except Exception as e:  # noqa: BLE001 — любая беда = FAIL, не краш
+    except Exception as e:
         err = f"{type(e).__name__}: {e}"
     if n >= _MIN:
         _stamp(f"ok: {n} результатов (порог {_MIN})")
@@ -68,7 +68,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:  # noqa: BLE001 — импорт/пути: тоже в лог
+    except Exception as e:
         _stamp(f"FAIL: сторож сам упал: {type(e).__name__}: {e}")
         with open(_ALERT, "w", encoding="utf-8") as fh:
             fh.write(f"сторож упал: {e}\n")

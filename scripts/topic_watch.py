@@ -30,10 +30,10 @@ sys.path.insert(
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:  # noqa: S110,BLE001 — опционально
+except Exception:
     pass
 
-import camoufox_campaign as cc  # noqa: E402
+import camoufox_campaign as cc
 
 
 def default_config_path():

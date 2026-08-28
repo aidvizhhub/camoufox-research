@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "camoufox_research")
 )
-from camoufox_campaign import _EXPORT_DIR  # noqa: E402
+from camoufox_campaign import _EXPORT_DIR
 
 
 def plan(directory, days):

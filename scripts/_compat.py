@@ -35,7 +35,7 @@ def fix_encoding():
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: S110,BLE001 — reconfigure опционален, без него живём
+    except Exception:
         pass
 
 
