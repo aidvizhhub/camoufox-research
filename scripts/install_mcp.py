@@ -83,6 +83,38 @@ def write_env_config(venv: Path):
     path.write_text(body, encoding="utf-8")
     print(f"[5+] пути в {path} (читают camo-publish/крон)")
 
+def install_gitleaks():
+    """gitleaks локально (28.08): секрет-скан ДО коммита (2-й слой
+    рядом с CI). Если go нет — предупреждение, не падение (CI догонит).
+    Модуль переименован: github.com/zricethezav/gitleaks (грабля 28.08)."""
+    import shutil
+    if shutil.which("gitleaks"):
+        print("[6] gitleaks уже установлен — пропускаю")
+        return
+    if not shutil.which("go"):
+        print("[6] ⚠️  go нет — gitleaks пропущен (CI gitleaks.yml догонит)")
+        return
+    try:
+        import subprocess
+        r = subprocess.run(["go", "install", "github.com/zricethezav/gitleaks/v8@latest"],
+                           capture_output=True, text=True, timeout=300)
+        if r.returncode == 0:
+            gobin = Path.home() / "go" / "bin" / "gitleaks"
+            if gobin.exists():
+                bindir = Path.home() / ".local" / "bin"
+                bindir.mkdir(parents=True, exist_ok=True)
+                link = bindir / "gitleaks"
+                if not link.exists():
+                    link.symlink_to(gobin)
+                print(f"[6] gitleaks установлен ({gobin})")
+            else:
+                print("[6] gitleaks собран, но бинарник не найден — проверь PATH")
+        else:
+            print(f"[6] ⚠️  go install упал: {r.stderr.strip()[:100]}")
+    except Exception as e:
+        print(f"[6] ⚠️  gitleaks пропущен: {type(e).__name__}")
+
+
 def write_mcp_config(venv: Path):
     """Прописать MCP в opencode.json, если секции нет."""
     if not OPENCODE_CFG.exists():
@@ -152,6 +184,7 @@ def main() -> int:
     fetch_browser(venv)
     write_mcp_config(venv)
     write_env_config(venv)
+    install_gitleaks()
     ok = verify(venv)
     print("\n[+] переподключи MCP: opencode2 api post /api/mcp/camoufox/connect")
     return 0 if ok else 1

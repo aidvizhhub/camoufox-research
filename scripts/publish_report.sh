@@ -91,8 +91,12 @@ echo "✅ скан секретов: чисто (0 подозрительных)
 
 # --- 2. Копия в research/public/ (единственное место, что уходит в git) ---
 mkdir -p "$PUBLIC"
-if [ -f "$PUBLIC/$NAME" ] && ! diff -q "$FILE" "$PUBLIC/$NAME" >/dev/null; then
-  echo "⚠️  $NAME уже в public/ и отличается — перезаписываю"
+if [ -f "$PUBLIC/$NAME" ]; then
+  if diff -q "$FILE" "$PUBLIC/$NAME" >/dev/null; then
+    echo "⚠️  ДУБЛЬ: $NAME уже на витрине (идентичный) — копия та же"
+  else
+    echo "⚠️  $NAME уже в public/ и отличается — перезаписываю"
+  fi
 fi
 cp "$FILE" "$PUBLIC/$NAME"
 

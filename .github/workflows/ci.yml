@@ -77,6 +77,16 @@ jobs:
       - name: MCP stdio smoke (initialize + tools/list + ping)
         run: python .github/scripts/smoke_mcp.py
 
+      - name: Guard-all (приватная добыча, 3-й слой после локального хука)
+        # 28.08: локальный guard-all (pre-commit) может быть обойдён —
+        # CI-версия догонит: research/*.md (приват) = стоп, секреты = стоп.
+        run: |
+          PRIV=$(git ls-files --cached | grep -E '^research/[0-9]{4}-.*\.md$|^research/cit/' || true)
+          if [ -n "$PRIV" ]; then
+            echo "⛔ приватная добыча в коммите:"; echo "$PRIV"; exit 1
+          fi
+          echo "guard-all: приватных файлов нет"
+
       - name: Tool count audit
         # 28.08: аудит числа тулов (context-pressure, arXiv 2602.18914 /
         # 2605.05247: >40 = деградация). Число видно в логе; если
