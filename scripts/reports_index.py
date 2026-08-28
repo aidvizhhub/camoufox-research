@@ -28,8 +28,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="пересборка INDEX.md отчётов")
     ap.add_argument(
         "--dir",
-        default=str(REPO / "research"),
-        help="каталог отчётов (по умолчанию research/ рядом с репой)",
+        default=str(Path.home() / ".cache/camoufox-research/research"),
+        help="каталог отчётов (по умолчанию кэш research/)",
     )
     args = ap.parse_args()
     d = Path(args.dir)

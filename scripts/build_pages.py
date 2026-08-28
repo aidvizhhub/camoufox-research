@@ -288,7 +288,11 @@ def build(src: Path, out_dir: Path, base: str) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="витрина research/ → статический сайт")
-    ap.add_argument("--src", default=str(REPO / "research"), help="каталог отчётов")
+    # Дефолт — кэш research/ (добыча живёт в кэше с 28.08, репо чист).
+    # CI pages.yml передаёт --src research/public явно (публичное окно
+    # из git) — на GitHub нет локального кэша.
+    ap.add_argument("--src", default=str(Path.home() / ".cache/camoufox-research/research"),
+                    help="каталог отчётов")
     ap.add_argument("--out", default=str(REPO / "_site"), help="куда собрать HTML")
     ap.add_argument(
         "--base",

@@ -102,9 +102,10 @@ class ReportDirTest(unittest.TestCase):
     """Куда пишутся отчёты (переносимость, закон 28): cwd/research
     по умолчанию (конвенция research/README), env — приоритет."""
 
-    def test_default_is_package_research(self):
-        """Дефолт = research/ рядом с ПАКЕТОМ (не cwd: сервер стартует из
-        любого каталога — проверено 28.08, отчёты уплывали в ~/.cache)."""
+    def test_default_is_cache_research(self):
+        """Дефолт = КЭШ research/ (~/.cache/camoufox-research/research),
+        НЕ research/ рядом с пакетом (запрос юзера 28.08: папка в репо
+        дублировала добычу и бесила; репо — только публичное окно)."""
         import camoufox_research.camoufox_housekeep as hk
         import os
 
@@ -115,8 +116,8 @@ class ReportDirTest(unittest.TestCase):
         try:
             d = hk._report_dir()
             self.assertTrue(str(d).endswith("research"))
-            pkg = Path(hk.__file__).resolve().parent.parent
-            self.assertTrue(str(d).startswith(str(pkg)))
+            self.assertIn(".cache", str(d))
+            self.assertIn("camoufox-research", str(d))
         finally:
             hk._REPORT_DIR = old_dir
             if old_env is not None:
@@ -258,3 +259,35 @@ class CleanupKeepsResearchTest(unittest.TestCase):
         finally:
             hk._REPORT_DIR = old_dir
             hk._WLOG = old_wlog
+
+
+class CleanupKeepsHarvestTest(unittest.TestCase):
+    """Регрессия 28.08: cleanup НЕ трогает добычу (.md/.cit) даже в
+    exports — TTL только для временных артефактов (логи, json)."""
+
+    def test_cleanup_keeps_md_in_exports(self):
+        import camoufox_research.camoufox_housekeep as hk
+        import tempfile
+        from pathlib import Path
+
+        old = hk._WLOG
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                td = Path(td)
+                exports = td / "exports"
+                exports.mkdir()
+                hk._WLOG = str(td / "watchdog.log")
+                md = exports / "2026-01-01-старая-тема.md"
+                cit = exports / "cmp_x.cit.md"
+                log = exports / "cmp_x.log"
+                for f in (md, cit, log):
+                    f.write_text("старое", encoding="utf-8")
+                    import os
+                    os.utime(f, (100000000, 100000000))  # сильно старое
+                hk.cleanup(td / "cache.db", exports_days=1)
+                self.assertTrue(md.exists(), ".md снесён — добыча!"
+                                )
+                self.assertTrue(cit.exists(), ".cit снесён — добыча!")
+                self.assertFalse(log.exists(), "лог должен чиститься")
+        finally:
+            hk._WLOG = old

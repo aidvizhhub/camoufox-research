@@ -28,19 +28,16 @@ _REPORT_DIR = os.environ.get("CAMOUFOX_REPORT_DIR", "")
 
 
 def _report_dir() -> Path:
-    """Куда писать отчёты: env → research/ рядом с проектом → exports.
+    """Куда писать отчёты: env → кэш research/ → exports.
 
-    «Рядом с проектом» = parent пакета (пакет живёт в репо: editable или
-    прямая установка из исходников). cwd НЕ годится: MCP-сервер может
-    стартовать из любого каталога (проверено 28.08 — отчёты уплыли в
-    ~/.cache/exports, потому что сервер запущен из /home/admin1)."""
+    С 28.08 отчёты живут в КЭШЕ (~/.cache/camoufox-research/research),
+    а не в research/ рядом с репой: папка в репо дублировала добычу и
+    бесила (запрос юзера). Кэш-каталог = родитель watchdog-лога, без
+    хардкода. cwd НЕ годится: MCP-сервер стартует из любого каталога
+    (проверено 28.08 — отчёты уплывали в ~/.cache/exports)."""
     if _REPORT_DIR:
         return Path(_REPORT_DIR)
-    pkg_parent = Path(__file__).resolve().parent.parent  # .../camoufox-reasearch/
-    cand = pkg_parent / "research"
-    if cand.is_dir():
-        return cand
-    return Path(_WLOG).parent / "exports"
+    return Path(_WLOG).parent / "research"
 
 # Пульс крона сторожа: молчит дольше → предупреждение в research_start.
 _STALE_H = int(os.environ.get("CAMOUFOX_STALE_H", "48"))
@@ -242,10 +239,18 @@ def cleanup(db_path, cache_days=30, exports_days=90, campaigns_days=90, dry_run=
         cutoff = now - exports_days * 86400
         for f in d.iterdir():
             try:
-                if f.is_file() and f.stat().st_mtime < cutoff:
-                    n_files += 1
-                    if not dry_run:
-                        f.unlink()
+                if not f.is_file() or f.stat().st_mtime >= cutoff:
+                    continue
+                # Добыча (.md-отчёты, .cit-цитаты) — НЕ чистим: это
+                # вечный архив, а TTL — только для временных артефактов
+                # (логи, json волн). Регрессия после переноса отчётов
+                # в кэш-research: старые .md могли остаться в exports.
+                if f.suffix.lower() in (".md", ".cit"):
+                    n_files += 0
+                    continue
+                n_files += 1
+                if not dry_run:
+                    f.unlink()
             except OSError:
                 continue
     summary.append(f"exports:{n_files}")
