@@ -44,7 +44,7 @@ jobs:
           .venv/bin/python -c "import camoufox_research.camoufox_research as s; n=len(s.mcp._tool_manager._tools); print('smoke tools:', n); assert n >= 50"
           rm -rf .venv
 
-      - name: Auto-lock (push в main: pyproject новее uv.lock → пересобрать)
+      - name: "Auto-lock (push в main: pyproject новее uv.lock → пересобрать)"
         # dependabot открывает PR на пины, но uv.lock не трогает
         # (известная граница); CI на PR красный — честно. При мерже в
         # main этот шаг пересобирает lock автоматически (не вручную).
