@@ -63,14 +63,10 @@ def _norm(url):
         from urllib.parse import urlsplit, urlunsplit
         sp = urlsplit(url)
         if sp.query:
-            params = sp.query.split("&")
-            only_source = (len(params) == 1
-                           and params[0].lower().startswith("source="))
-            if only_source:
-                keep = params
-            else:
-                keep = [p for p in params if not p.lower().startswith(
-                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+            # source= — идентификатор фида, НЕ трекинг (см. fetch_ext).
+            keep = [p for p in sp.query.split("&") if not p.lower().startswith(
+                ("utm_", "ref=", "pubdate=", "fbclid", "gclid",
+                 "spm=", "mkt_tok="))]
             url = urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep),
                               sp.fragment))
     except Exception:
@@ -170,11 +166,22 @@ def main() -> int:
 
         m = Path(__file__).resolve().parents[1] / "metrics"
         m.mkdir(exist_ok=True)
+        _ts = __import__("time").strftime("%Y-%m-%d")
         (m / "map.json").write_text(json.dumps(
             {"map10": round(bm, 3), "binary": round(bn, 3),
-             "campaigns": n, "updated": __import__("time").strftime("%Y-%m-%d")},
+             "campaigns": n, "updated": _ts},
             ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"  → сохранено: {m / 'map.json'} (для бейджа README)")
+        # map-badge.json — для dynamic-бейджа shields.io endpoint
+        # (README ссылается на raw.githubusercontent → бейдж живой,
+        # обновляется при каждом --save).
+        color = "brightgreen" if bm >= 0.9 else ("yellow" if bm >= 0.75 else "red")
+        (m / "map-badge.json").write_text(json.dumps({
+            "schemaVersion": 1,
+            "label": "MAP@10",
+            "message": f"{bm:.3f}",
+            "color": color,
+        }, ensure_ascii=False), encoding="utf-8")
+        print(f"  → сохранено: {m / 'map.json'} + {m / 'map-badge.json'}")
     return 0
 
 

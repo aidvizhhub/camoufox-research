@@ -72,6 +72,26 @@ def fetch_browser(venv: Path):
     run([py, "-m", "camoufox", "fetch"], check=False)
 
 
+CAMOUFOX_CACHE = Path.home() / ".cache" / "camoufox-research"
+
+
+def write_env_config(venv: Path):
+    """~/.cache/camoufox-research/config.env — ЕДИНСТВЕННОЕ место с
+    путями репо/venv (переносимость, закон 28: НЕ хардкод в обёртках).
+    camo-publish / map_metric_cron читают его (env CAMOUFOX_* — приоритет).
+    НЕ секрет, только пути."""
+
+    CAMOUFOX_CACHE.mkdir(parents=True, exist_ok=True)
+    body = (
+        f'CAMOUFOX_REPO="{REPO}"\n'
+        f'CAMOUFOX_PYTHON="{venv / "bin" / "python"}"\n'
+        f'CAMOUFOX_CACHE_DIR="{CAMOUFOX_CACHE}"\n'
+    )
+    path = CAMOUFOX_CACHE / "config.env"
+    path.write_text(body, encoding="utf-8")
+    print(f"[5+] пути в {path} (читают camo-publish/крон)")
+
+
 def write_mcp_config(venv: Path):
     """Прописать MCP в opencode.json, если секции нет."""
     if not OPENCODE_CFG.exists():
@@ -117,6 +137,7 @@ def main() -> int:
     install_package(venv, args.reinstall)
     fetch_browser(venv)
     write_mcp_config(venv)
+    write_env_config(venv)
     ok = verify(venv)
     print("\n[+] переподключи MCP: opencode2 api post /api/mcp/camoufox/connect")
     return 0 if ok else 1

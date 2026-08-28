@@ -35,8 +35,11 @@ _KEEP = int(os.environ.get("BACKUP_KEEP", "7"))
 _CACHE = Path(os.environ.get(
     "CAMOUFOX_CACHE_DIR", str(Path.home() / ".cache/camoufox-research")
 ))
+# ПЕРЕНОСИМОСТЬ (закон 28): env > ~/.backups/camoufox-research —
+# НЕ хардкод диска. На машине с вторым диском можно
+# CAMOUFOX_BACKUP_DIR=/run/media/admin1/DATA/cache-backups (env).
 _BACKUP_DIR = Path(os.environ.get(
-    "CAMOUFOX_BACKUP_DIR", "/run/media/admin1/DATA/cache-backups"
+    "CAMOUFOX_BACKUP_DIR", str(Path.home() / ".backups" / "camoufox-research")
 ))
 
 

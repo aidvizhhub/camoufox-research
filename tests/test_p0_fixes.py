@@ -246,14 +246,9 @@ class URLNormalizeTest(unittest.TestCase):
 
         sp = urlsplit(url)
         if sp.query:
-            params = sp.query.split("&")
-            only_source = (len(params) == 1
-                           and params[0].lower().startswith("source="))
-            if only_source:
-                keep = params
-            else:
-                keep = [p for p in params if not p.lower().startswith(
-                    ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+            keep = [p for p in sp.query.split("&") if not p.lower().startswith(
+                ("utm_", "ref=", "pubdate=", "fbclid", "gclid",
+                 "spm=", "mkt_tok="))]
             return urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep),
                                sp.fragment))
         return url
@@ -263,11 +258,17 @@ class URLNormalizeTest(unittest.TestCase):
         self.assertEqual(self._norm(u), "https://ex.com/post?a=1")
 
     def test_source_alone_kept(self):
-        # netflix-techblog: source=rss — ЕДИНСТВЕННЫЙ параметр = сам
-        # RSS-источник, не трекинг (28.08: 10 URL, все разные пути,
-        # связки не теряются — страховка на будущее для CMS).
+        # source=rss — ИДЕНТИФИКАТОР ФИДА (netflix-techblog), не трекинг.
+        # 28.08: 10 URL, все разные пути — связки не теряются.
         u = "https://netflixtechblog.com/post-123?source=rss---42"
         self.assertEqual(self._norm(u), "https://netflixtechblog.com/post-123?source=rss---42")
+
+    def test_source_with_tracking_kept(self):
+        # source= сохраняется ДАЖЕ с utm рядом (это фид, не мусор),
+        # utm уходит. WordPress-кейс: один путь, разные source — разные
+        # фиды, склейки не будет (source остаётся в URL).
+        u = "https://wpblog.com/post?source=rss-7&utm_campaign=big"
+        self.assertEqual(self._norm(u), "https://wpblog.com/post?source=rss-7")
 
     def test_page2_kept(self):
         u = "https://ex.com/world/news?page=2"

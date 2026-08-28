@@ -22,7 +22,8 @@ NO_PUSH=""
 
 # Добыча с 28.08 живёт в кэше: если файл не по данному пути — ищем
 # по имени в ~/.cache/camoufox-research/research и exports.
-CACHE="/home/admin1/.cache/camoufox-research"
+# ПЕРЕНОСИМОСТЬ (закон 28): кэш из env, дефолт ~/.cache — НЕ хардкод.
+CACHE="${CAMOUFOX_CACHE_DIR:-$HOME/.cache/camoufox-research}"
 if [ ! -f "$FILE" ]; then
   for d in "$CACHE/research" "$CACHE/exports"; do
     [ -f "$d/$(basename "$FILE")" ] && FILE="$d/$(basename "$FILE")" && break
