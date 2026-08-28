@@ -174,7 +174,7 @@ def digest_report(camp_id):
     фоне» (проверено 27.08.2026: 30 URL ↔ ~700 символов на источник)."""
     total = 0
     out = []
-    for url, title, digest, live in _sources(camp_id):
+    for url, title, digest, live, _vts in _sources(camp_id):
         total += 1
         mark = {1: "✅", 0: "❌", -1: "?"}.get(live, "?")
         out.append(f"{mark} {title}\n    {url}\n    {digest[:220] if digest else '(нет выжимки)'}")

@@ -85,6 +85,11 @@ def _db():
         if "live" not in scol:  # verified: -1/1/0 (жив-или-кэш/битый)
             con.execute("ALTER TABLE campaign_sources ADD COLUMN "
                         "live INTEGER DEFAULT -1")
+        vts = {r[1] for r in con.execute(
+            "PRAGMA table_info(campaign_sources)")}
+        if "verified_ts" not in vts:  # TTL-кэш верификации (28.08):
+            con.execute("ALTER TABLE campaign_sources ADD COLUMN "
+                        "verified_ts REAL DEFAULT 0")  # повторная проверка не ждёт сети
         _DDL_DONE = True
     return con
 

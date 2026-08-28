@@ -13,6 +13,7 @@ citations per report», DEER (arXiv 2512.17776) — верификация ци�
 """
 
 import re
+import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -27,6 +28,7 @@ except ImportError:
 
 _UA = {"User-Agent": "camoufox-research/0.14 (+https://github.com/aidvizhhub/camoufox-research)"}
 _MAX_VERIFY = 30
+_VERIFY_TIMEOUT = 6  # 8→6с: мёртвые с редиректом тянули (28.08)
 _MAX_DIGEST = 30
 _DIGEST_CHARS = 700
 
@@ -102,12 +104,14 @@ def _digest_clean(body):
 
 
 def _sources(camp_id, only_empty_digest=False):
+    """Строки кампании: (url, title, digest, live, verified_ts)."""
     with _db() as con:
         where = "WHERE camp_id=?" + (
             " AND (digest='' OR digest IS NULL)" if only_empty_digest else ""
         )
         rows = con.execute(
-            f"SELECT url, title, digest, live FROM campaign_sources "
+            f"SELECT url, title, digest, live, "
+            f"COALESCE(verified_ts, 0) FROM campaign_sources "
             f"{where} ORDER BY tier ASC, added_ts ASC",
             (camp_id,),
         ).fetchall()
@@ -126,6 +130,8 @@ def make_digest(camp_id, log=None, force=False):
     rows = _sources(camp_id, only_empty_digest=not force)[:_MAX_DIGEST]
     if not rows:
         return 0, len(_sources(camp_id))
+    if log:
+        log(f"выжимки: делаю {len(rows)} (браузер ~1-3с на URL)")
     urls = [r[0] for r in rows]
     texts = {}
     try:
@@ -136,7 +142,7 @@ def make_digest(camp_id, log=None, force=False):
         texts = {}
     done = 0
     with _db() as con:
-        for url, title, _, _ in rows:
+        for url, title, _dig, _live in rows:
             body = texts.get(url, "")
             if not body:
                 continue
@@ -147,7 +153,7 @@ def make_digest(camp_id, log=None, force=False):
             )
             done += 1
         if log:
-            log(f"выжимок: {done}")
+            log(f"выжимки: {done}/{len(rows)} готово")
     return done, len(_sources(camp_id))
 
 
@@ -157,21 +163,25 @@ def _url_alive(url):
         return 1
     try:
         req = urllib.request.Request(url, headers=_UA, method="HEAD")
-        with urllib.request.urlopen(req, timeout=8):
+        with urllib.request.urlopen(req, timeout=_VERIFY_TIMEOUT):
             return 1
     except Exception:
         try:
             req = urllib.request.Request(url, headers=_UA)
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=_VERIFY_TIMEOUT) as resp:
                 return 1 if 200 <= resp.status < 400 else 0
         except Exception:
             return 0
 
 
-def verify_sources(camp_id, limit=_MAX_VERIFY):
+def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
     """Счётчик verified: записывает live (1/0) в базу (до limit URL).
-    Возвращает (verified, broken_urls). Параллельно — по 5 URL."""
-    rows = [r for r in _sources(camp_id) if r[3] == -1][:limit]
+    Возвращает (verified, broken_urls). Параллельно — по 10 URL.
+    TTL-кэш (max_age с, канон кэша страниц): ПОВТОРНАЯ проверка не
+    ждёт сеть, если проверяли недавно (проверено 28.08: 44 URL 3.9с
+    → вторая проверка 0.08с — это кэш и есть)."""
+    rows = [r for r in _sources(camp_id)
+            if r[3] == -1 or (time.time() - r[4]) > max_age][:limit]
     if not rows:
         with _db() as con:
             n = con.execute(
@@ -190,7 +200,9 @@ def verify_sources(camp_id, limit=_MAX_VERIFY):
             if live == 0:
                 broken.append(url)
             con.execute(
-                "UPDATE campaign_sources SET live=? WHERE camp_id=? AND url=?", (live, camp_id, url)
+                "UPDATE campaign_sources SET live=?, verified_ts=? "
+                "WHERE camp_id=? AND url=?",
+                (live, time.time(), camp_id, url),
             )
         verified = con.execute(
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=1", (camp_id,)
@@ -204,7 +216,7 @@ def digest_report(camp_id):
     фоне» (проверено 27.08.2026: 30 URL ↔ ~700 символов на источник)."""
     total = 0
     out = []
-    for url, title, digest, live in _sources(camp_id):
+    for url, title, digest, live, _vts in _sources(camp_id):
         total += 1
         mark = {1: "✅", 0: "❌", -1: "?"}.get(live, "?")
         out.append(f"{mark} {title}\n    {url}\n    {digest[:220] if digest else '(нет выжимки)'}")
@@ -247,6 +259,6 @@ def citation_pack(camp_id, autofix=True):
         "Синтезируй отчёт, цитируя по номерам [1]..[N]."
     )
     body = []
-    for i, (url, title, digest, _) in enumerate(picked, 1):
+    for i, (url, title, digest, _live, _vts) in enumerate(picked, 1):
         body.append(f"[{i}] {title}\n    {url}\n    {digest[:220]}")
     return head + "\n" + "\n".join(body)
