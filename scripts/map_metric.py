@@ -150,6 +150,7 @@ def main() -> int:
         return 1
     bm = acc_bm / n
     bn = acc_bin / n
+    _camp_ids = [c[0] for c in camps]
     print(f"\nИТОГ на {n} кампаниях:")
     print(f"  BM25:      MAP@{args.top} = {bm:.3f}")
     print(f"  бинарный:  MAP@{args.top} = {bn:.3f}")

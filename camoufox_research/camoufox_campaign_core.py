@@ -251,6 +251,8 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                            llm_planner=use_llm)
             payload = json.loads(raw) if isinstance(raw, str) else {}
             fresh, total, uniq, skipped = _ingest(camp_id, payload)
+            # АВТО-СТОП: счётчик мусорных волн подряд
+            _dead_waves = 0
             # БЮДЖЕТ В БД (28.08, кросстаблично): +1 поисковый вызов
             # на каждую волну — campaign.search_calls (для «сколько
             # вызовов ушло на тему» без парсинга логов).
@@ -261,6 +263,19 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
             notes.append(f"волна{i}:+{fresh} новых ({uniq}/{target} доменов)"
                          + (f", реклама отсеяна: {skipped}" if skipped else ""))
             _log(log_path, notes[-1])
+            # АВТО-СТОП ПРИ МУСОРЕ (28.08, индустрия strict_budget):
+            # 2+ волны подряд с +0 новых = охота впустую (другие углы
+            # не дают доменов) — завершаем честно (partial), не жжём
+            # бюджет. Ранее только писали в лог, теперь — стоп.
+            if fresh == 0:
+                _dead_waves += 1
+                if _dead_waves >= 2:
+                    notes.append("авто-стоп: 2+ мусорные волны подряд — "
+                                 "охота впустую, завершаем честно")
+                    _log(log_path, notes[-1])
+                    break
+            else:
+                _dead_waves = 0
         with _db() as con:
             total, uniq = con.execute(
                 "SELECT COUNT(*), COUNT(DISTINCT domain) FROM "

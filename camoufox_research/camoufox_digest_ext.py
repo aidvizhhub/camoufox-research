@@ -90,6 +90,24 @@ def research_digest(camp_id, refresh=True, max_age=86400):
     if refresh:
         make_digest(camp_id)
         verify_sources(camp_id, max_age=max_age)
+    # VISUAL-ЖУРНАЛ ВОЛН (28.08, индустрия inspectability): одна строка
+    # «какие углы дали домены, какие нет» — агент видит качество охоты
+    # без чтения лога (rmax.ai: durable trace, «шаг за шагом видно»).
+    try:
+        import re as _re
+        from pathlib import Path as _P
+
+        _log_p = _P(_EXPORT_DIR) / f"{camp_id}.log"
+        if _log_p.exists():
+            _t = _log_p.read_text(encoding="utf-8", errors="replace")
+            _waves = _re.findall(r"волна\d+:\+?\d+ новых", _t)
+            if _waves:
+                # убрать префикс «волнаN:» из каждого (уже в логе)
+                _clean = [_re.sub(r"^волна\d+:", "", w).strip() for w in _waves]
+                _s = " · ".join(f"в{i+1}: {w}" for i, w in enumerate(_clean))
+                return digest_report(camp_id) + f"\n\n**волны:** {_s}"
+    except Exception:
+        pass  # журнал — бонус
     return digest_report(camp_id)
 
 def _memory_candidates():
