@@ -179,7 +179,23 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
                 stdout=lf, stderr=subprocess.STDOUT,
                 cwd=str(Path(__file__).resolve().parent.parent),
                 start_new_session=True)
-        msg = (f"кампания {camp_id} запущена В ФОНЕ: цель {target_sources} "
+        # ПРИЧИНА ПРОШЛОЙ PARTIAL (28.08): юзер запускает новую — видит,
+        # почему прошлая не закончилась (не «вдруг опять partial»).
+        try:
+            with _db() as con:
+                _last = con.execute(
+                    "SELECT topic, error FROM campaigns "
+                    "WHERE error != '' AND status='partial' "
+                    "ORDER BY updated_ts DESC LIMIT 1").fetchone()
+            if _last and _last[1]:
+                msg0 = (f"⚠️ прежняя «{(_last[0] or '')[:40]}» partial: "
+                        f"{_last[1][:120]}")
+            else:
+                msg0 = ""
+        except Exception:
+            msg0 = ""
+        msg = (f"{msg0}\nкампания {camp_id} запущена В ФОНЕ: "
+               f"цель {target_sources} "
                f"разных сайтов\nлог: {log_path}\nмаркер готовности (ждать "
                f"его): {done_path}\nсостояние: research_status('{camp_id}')")
     else:

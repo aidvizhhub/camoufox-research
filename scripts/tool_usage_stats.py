@@ -153,6 +153,23 @@ def main() -> int:
             "color": color, "total": total,
             "hunt_quality": _q,  # % полезных волн
         }, ensure_ascii=False), encoding="utf-8")
+        # ТРЕНД КАЧЕСТВА (28.08): по дням — бейдж показывает СЕЙЧАС,
+        # история тут (видно 90% → 85% → ... как меняется).
+        try:
+            import datetime as _dt
+            hist_f = Path(str(REPO)) / "metrics" / "hunt_quality_history.json"
+            hist = {}
+            if hist_f.exists():
+                hist = _j.loads(hist_f.read_text(encoding="utf-8"))
+            today = _dt.date.today().isoformat()
+            hist[today] = _q
+            # чистим старше 30 дней
+            cutoff = (_dt.date.today() - _dt.timedelta(days=30)).isoformat()
+            hist = {k: v for k, v in hist.items() if k >= cutoff}
+            hist_f.write_text(_j.dumps(hist, ensure_ascii=False, indent=1),
+                              encoding="utf-8")
+        except Exception:
+            pass
         print(f"бейдж сохранён: {args.badge} ({total} тулов, качество {_q}%)")
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)

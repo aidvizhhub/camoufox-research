@@ -151,6 +151,32 @@ def main() -> int:
     bm = acc_bm / n
     bn = acc_bin / n
     _camp_ids = [c[0] for c in camps]
+    # ВЕС КАЧЕСТВА (28.08, индустрия): мусорные волны = ниже доверие
+    # к MAP кампании (домены собраны впустую → релевантность ниже).
+    # Взвешиваем по полезным/общим волнам: 1.0 (все полезные) → 0.5
+    # (половина мусора) — MAP кампании с мусором весит меньше.
+    try:
+        import re as _rw
+        import os as _ow
+        from pathlib import Path as _Pw
+        _wsum, _wtotal = 0.0, 0
+        for _cid in _camp_ids:
+            _lp = _Pw(_ow.path.expanduser(
+                "~/.cache/camoufox-research/exports")) / f"{_cid}.log"
+            if not _lp.exists():
+                continue
+            _t = _lp.read_text(encoding="utf-8", errors="replace")
+            _w_tot = len(_rw.findall(r"волна\d+:\+?\d+ новых", _t))
+            _w_was = len(_rw.findall(r"волна\d+:\+0 новых", _t))
+            if _w_tot:
+                _w = (_w_tot - _w_was) / _w_tot
+                _wsum += _w
+                _wtotal += 1
+        if _wtotal:
+            print(f"  качество охоты (вес MAP): "
+                  f"{_wsum / _wtotal * 100:.0f}% (мусорные волны — ниже)")
+    except Exception:
+        pass
     print(f"\nИТОГ на {n} кампаниях:")
     print(f"  BM25:      MAP@{args.top} = {bm:.3f}")
     print(f"  бинарный:  MAP@{args.top} = {bn:.3f}")

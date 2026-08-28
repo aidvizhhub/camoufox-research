@@ -146,9 +146,15 @@ def _ingest(camp_id, payload):
 def _finish(camp_id, topic, status, total, uniq, target, notes, done_path):
     """Единый финал: строка в базе + маркер done_file (ЖДУТ ЕГО, не лог)."""
     with _db() as con:
+        # error-пометка: ПРИЧИНА в НАЧАЛО (28.08: notes длинные —
+        # «авто-стоп» в конце утонул бы в обрезке [:200]).
+        _err = "; ".join(notes)
+        _cause = next((n for n in notes
+                       if n.startswith(("авто-стоп", "нулевая волна", "бюджет"))), "")
+        _err = (_cause + " | " + _err if _cause else _err)[:200]
         con.execute(
             "UPDATE campaigns SET status=?, updated_ts=?, error=? WHERE id=?",
-            (status, time.time(), "; ".join(notes)[:200] or "", camp_id))
+            (status, time.time(), _err or "", camp_id))
     marker = {"id": camp_id, "topic": topic, "status": status,
               "sources": total, "unique_domains": uniq,
               "target": target, "notes": notes,
