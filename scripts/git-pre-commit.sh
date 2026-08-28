@@ -7,11 +7,33 @@
 # Разрешено: research/public/**, метрики, код, тесты, README-*.md.
 # Запрещено: research/*.md (приватные автоотчёты), research/cit/*,
 #            research/screenshots/*, секреты (ключи ghp_/sk-/AIza).
+#
+# Режим --classify <файл> (28.08, для self-теста): печатает вердикт
+# ALLOW/BLOCK и выходит 0/3 — без git и grep (чистая логика).
 
 set -euo pipefail
 
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || echo "$(cd "$(dirname "$0")/.." && pwd)")"
 cd "$REPO"
+
+# Классификатор (единственное место правил приватности)
+classify_file() {
+  local f="$1"
+  case "$f" in
+    research/README.md) echo ALLOW; return 0 ;;
+    research/public/*) echo ALLOW; return 0 ;;   # витрина — публикуется намеренно
+    research/*.md|research/cit/*|research/screenshots/*)
+      echo BLOCK; return 3
+      ;;
+  esac
+  echo ALLOW; return 0
+}
+
+if [ "${1:-}" = "--classify" ]; then
+  [ -n "${2:-}" ] || { echo "используй: $(basename "$0") --classify <путь>" >&2; exit 2; }
+  classify_file "$2"
+  exit $?
+fi
 
 # что уже staged
 staged=$(git diff --cached --name-only 2>/dev/null || true)
@@ -20,14 +42,10 @@ bad=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   # 1. приватная добыча — НИКОГДА; витрина (research/public) — МОЖНО
-  case "$f" in
-    research/README.md) continue ;;            # README ок
-    research/public/*) continue ;;             # витрина — публикуется намеренно
-    research/*.md|research/cit/*|research/screenshots/*)
-      bad="$bad\n  PRIVATE: $f (добыча — только локально)"
-      continue
-      ;;
-  esac
+  if classify_file "$f" | grep -q "^BLOCK$"; then
+    bad="$bad\n  PRIVATE: $f (добыча — только локально)"
+    continue
+  fi
   # 2. секреты в файле
   if [ -f "$f" ]; then
     if grep -qE "gh[pous]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}" "$f" 2>/dev/null; then
