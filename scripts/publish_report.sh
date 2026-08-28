@@ -15,17 +15,19 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBLIC="$REPO/research/public"
 
-usage() { echo "использование: $(basename "$0") <файл> [--public] [--push]" >&2; exit 2; }
+usage() { echo "использование: $(basename "$0") <файл> [--public] [--push] [--dry]" >&2; exit 2; }
 
 [ $# -ge 1 ] || usage
 FILE="$1"
 DO_PUBLIC=""
 DO_PUSH=""
+DO_DRY=""
 # совместимость со старым --no-push (= только подготовить)
 [ "${2:-}" = "--no-push" ] && DO_PUBLIC=1
 [ "${2:-}" = "--public" ] && DO_PUBLIC=1
 [ "${2:-}" = "--push" ] && { DO_PUBLIC=1; DO_PUSH=1; }
-[ "${2:-}" = "" ] || [ "${2:-}" = "--no-push" ] || [ "${2:-}" = "--public" ] || [ "${2:-}" = "--push" ] || usage
+[ "${2:-}" = "--dry" ] && DO_DRY=1
+[ "${2:-}" = "" ] || [ "${2:-}" = "--no-push" ] || [ "${2:-}" = "--public" ] || [ "${2:-}" = "--push" ] || [ "${2:-}" = "--dry" ] || usage
 
 # Добыча с 28.08 живёт в кэше: если файл не по данному пути — ищем
 # по имени в ~/.cache/camoufox-research/research и exports.
@@ -38,6 +40,17 @@ if [ ! -f "$FILE" ]; then
 fi
 [ -f "$FILE" ] || { echo "❌ файл не найден: $FILE (искал и в кэше)" >&2; exit 1; }
 NAME="$(basename "$FILE")"
+
+# --- 0. --dry: план без действий (28.08) ---
+if [ -n "$DO_DRY" ]; then
+  echo "🧪 DRY-план (ничего не делаю):"
+  echo "   файл:   $FILE"
+  echo "   в итоге: $PUBLIC/$NAME"
+  echo "   push:   $([ -n "$DO_PUSH" ] && echo 'ДА (--push)' || echo 'НЕТ (--public/локально)')"
+  echo "   шаги:   скан секретов → копия в public/ → пересборка витрины"
+  echo "            $([ -n "$DO_PUSH" ] && echo '→ коммит → git push' || echo '→ (git не тронут)')"
+  exit 0
+fi
 case "$NAME" in
   20??-??-??-*.md) ;;
   *) echo "❌ имя не по конвенции (ожидается YYYY-MM-DD-тема.md): $NAME" >&2; exit 1 ;;
