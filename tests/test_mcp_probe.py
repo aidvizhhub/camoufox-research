@@ -21,7 +21,12 @@ class FindVenvTest(unittest.TestCase):
     def test_default_venv_and_repo(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             py, repo, _ = mh._find()
-        self.assertIn(".venvs/camoufox-research", py)
+        # на машине с venv — venv-путь; на CI-runner'е (venv нет) — честный
+        # фолбэк на sys.executable (портативность — закон 28)
+        if Path.home().joinpath(".venvs/camoufox-research/bin/python").exists():
+            self.assertIn(".venvs/camoufox-research", py)
+        else:
+            self.assertEqual(py, sys.executable)
         self.assertTrue(repo.endswith("camoufox-reasearch"))
 
     def test_python_priority_over_venv(self):
