@@ -2,6 +2,7 @@
 # camoufox_campaign_ext — вторая половина кампаний (262 строк, канон FILE-SIZE.md)
 """Вторая половина кампаний: resume, start, status, report — зависит от core."""
 import json
+import os
 import subprocess
 import sys
 import time
@@ -55,6 +56,12 @@ def _resume_hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                            llm_planner=use_llm)
             payload = json.loads(raw) if isinstance(raw, str) else {}
             fresh, total, uniq, _skipped = _ingest(camp_id, payload)
+            # БЮДЖЕТ В БД (28.08): добор (resume) — тоже поисковые
+            # вызовы, считаем (второй путь; core-волны считали).
+            with _db() as con:
+                con.execute(
+                    "UPDATE campaigns SET search_calls = "
+                    "COALESCE(search_calls,0)+1 WHERE id=?", (camp_id,))
             notes.append(f"добор{i}:+{fresh} ({uniq}/{target} доменов)")
             _log(log_path, notes[-1])
             if fresh == 0:  # спираль-кап: те же домены по кругу не множим
@@ -319,10 +326,21 @@ def report(camp_id, fmt="md"):
         if not rows:
             out.append('  C --> N["нет источников"]')
         return "\n".join(out)
+    # БЮДЖЕТ В ОТЧЁТ (28.08): search_calls из БД — сколько поисковых
+    # вызовов ушло (кросстаблично, без парсинга логов).
+    try:
+        with _db() as con:
+            _sc = con.execute(
+                "SELECT COALESCE(search_calls,0) FROM campaigns WHERE id=?",
+                (camp_id,)).fetchone()[0]
+        _budget_n = int(os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40"))
+        _sc_txt = f" · бюджет: {_sc}/{_budget_n}"
+    except Exception:
+        _sc_txt = ""
     head = ([f"# Кампания: {topic_row[0]}",
              f"- id: {camp_id} · статус: {topic_row[2]}",
              (f"- источников: {total}, разных сайтов: {uniq}/"
-             f"{topic_row[1]} · verified: {verified}"),
+             f"{topic_row[1]} · verified: {verified}{_sc_txt}"),
              "", "| # | источник | домен | класс | статус |",
              "|---|---|---|---|---|"])
     body = "\n".join(
