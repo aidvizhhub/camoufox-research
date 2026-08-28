@@ -42,6 +42,21 @@ def ensure_repo():
         return
     print("[1] репо есть — git pull")
     run(["git", "-C", str(REPO), "pull", "--ff-only", "origin", "main"], check=False)
+    # СИНТАКС-ГЕЙТ (28.08, риск: запушили сломанное — editable сервер
+    # упал бы). py_compile всех .py репо ПЕРЕД использованием —
+    # сломанное не пройдёт, честный отказ с указанием файла.
+    import subprocess as _sp2
+    import pathlib as _pl2
+    _bad = []
+    for _f in _pl2.Path(REPO).rglob("*.py"):
+        if ".venv" not in str(_f) and "node_modules" not in str(_f):
+            _r = _sp2.run([sys.executable, "-m", "py_compile", str(_f)],
+                          capture_output=True, text=True)
+            if _r.returncode != 0:
+                _bad.append(str(_f))
+    if _bad:
+        print(f"⛔ СИНТАКС-ГЕЙТ: сломанные файлы (не пушим дальше): {_bad[:3]}")
+        sys.exit(1)
 
 def ensure_venv(venv: Path):
     """venv нет — создать."""
@@ -186,7 +201,18 @@ def main() -> int:
     write_env_config(venv)
     install_gitleaks()
     ok = verify(venv)
-    print("\n[+] переподключи MCP: opencode2 api post /api/mcp/camoufox/connect")
+    # АВТО-ХИТЧ (28.08): переподключение MCP в opencode2 САМО (не
+    # «переподключи руками»). Если не вышло — честная подсказка.
+    try:
+        import subprocess as _sp
+        _r = _sp.run(["opencode2", "api", "post", "/api/mcp/camoufox/connect"],
+                     capture_output=True, text=True, timeout=20)
+        if _r.returncode == 0:
+            print("[+] MCP переподключён в opencode2")
+        else:
+            print("[!] переподключи вручную: opencode2 mcp restart camoufox")
+    except Exception as _e:
+        print(f"[!] переподключи вручную (auto-fail {type(_e).__name__})")
     return 0 if ok else 1
 
 if __name__ == "__main__":

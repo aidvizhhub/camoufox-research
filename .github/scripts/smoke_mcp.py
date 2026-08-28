@@ -85,6 +85,10 @@ def run_once():
                 names = [t["name"] for t in got["result"]["tools"]]
                 assert "web_search" in names and "session_start" in names
                 assert len(names) >= 18, names
+                # CANARY-КОМПОЗИЦИЯ (28.08): критик/роутер/usage — новые
+                # тулы ДОЛЖНЫ быть (иначе сервер не переустановлен).
+                assert "research_critic" in names, "критик не зарегистрирован! (переустанови)"
+                assert "tool_hint" in names, "роутер не зарегистрирован!"
                 ntools = len(names)
                 seen.add("tools")
             elif want == "ping":
