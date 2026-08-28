@@ -36,10 +36,13 @@ def mk_dirs(db_path: str) -> str:
 
     ex = Path(db_path).parent / "exports"
     ex.mkdir()
-    (ex / "old.md").write_text("x")
+    # 28.08: cleanup НЕ трогает добычу (.md/.cit) — тестируем на
+    # временном артефакте (.log), old.md-ожидания сняты (TTL сносил
+    # вечную добычу — баг, исправлен).
+    (ex / "old.log").write_text("x")
     exm = 100 * 86400  # > 90 дней
-    os.utime(ex / "old.md", (time.time() - exm, time.time() - exm))
-    (ex / "fresh.md").write_text("x")
+    os.utime(ex / "old.log", (time.time() - exm, time.time() - exm))
+    (ex / "fresh.log").write_text("x")
     return str(ex)
 
 
@@ -62,7 +65,7 @@ class CleanupTest(unittest.TestCase):
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM pages").fetchone()[0], 2)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM campaigns").fetchone()[0], 1)
                 con.close()
-                self.assertTrue(os.path.exists(os.path.join(ex, "old.md")))
+                self.assertTrue(os.path.exists(os.path.join(ex, "old.log")))
             finally:
                 os.environ = old  # noqa: B003 — восстановление тестового env
                 hk._WLOG = old2
@@ -85,8 +88,8 @@ class CleanupTest(unittest.TestCase):
                 )
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM campaigns").fetchone()[0], 1)
                 con.close()
-                self.assertFalse(os.path.exists(os.path.join(ex, "old.md")))
-                self.assertTrue(os.path.exists(os.path.join(ex, "fresh.md")))
+                self.assertFalse(os.path.exists(os.path.join(ex, "old.log")))
+                self.assertTrue(os.path.exists(os.path.join(ex, "fresh.log")))
                 self.assertTrue(os.path.exists(wlog))
                 with open(wlog, encoding="utf-8") as fh:
                     self.assertIn("cleanup:", fh.read())
@@ -222,12 +225,13 @@ class CleanupKeepsResearchTest(unittest.TestCase):
                 old_ts = time.time() - 400 * 86400
                 os.utime(old_report, (old_ts, old_ts))
 
-                # кэш-exports со старым файлом (его и должна удалить):
-                # _WLOG рядом (хранится в .../exports/), очистка идёт от
-                # каталога _WLOG.parent/exports
+                # кэш-exports со старым ВРЕМЕННЫМ файлом (его и должна
+                # удалить): _WLOG рядом, очистка идёт от каталога
+                # _WLOG.parent/exports. 28.08: .md в exports — тоже
+                # добыча (защищена), артефакты = .log/.json.
                 ex = Path(td) / "exports"
                 ex.mkdir()
-                old_cache = ex / "2020-01-01-старый-артефакт.md"
+                old_cache = ex / "2020-01-01-старый-артефакт.log"
                 old_cache.write_text("МУСОР", encoding="utf-8")
                 os.utime(old_cache, (old_ts, old_ts))
 
