@@ -5,7 +5,6 @@
 
 | Дата | Тема | Файл |
 |---|---|---|
-| 2026-08-27 | how to improve python mcp research server camoufox research  | [2026-08-27-how-to-improve-python-mcp-research-server-camoufox-research-.md](2026-08-27-how-to-improve-python-mcp-research-server-camoufox-research-.md) |
 | 2026-08-27 | industry mcp and web research tools architecture 2026 | [2026-08-27-industry-mcp-and-web-research-tools-architecture-2026.md](2026-08-27-industry-mcp-and-web-research-tools-architecture-2026.md) |
 | 2026-08-27 | как компании в проде делают улучшения безопасная доставка из | [2026-08-27-как-компании-в-проде-делают-улучшения-безопасная-доставка-из.md](2026-08-27-как-компании-в-проде-делают-улучшения-безопасная-доставка-из.md) |
 | 2026-08-27 | кампания 6b00 как в проде делают улучшения | [2026-08-27-кампания-6b00-как-в-проде-делают-улучшения.md](2026-08-27-кампания-6b00-как-в-проде-делают-улучшения.md) |
