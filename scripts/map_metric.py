@@ -162,7 +162,10 @@ def main() -> int:
         _ts = __import__("time").strftime("%Y-%m-%d")
         (m / "map.json").write_text(json.dumps(
             {"map10": round(bm, 3), "binary": round(bn, 3),
-             "campaigns": n, "updated": _ts},
+             "campaigns": n, "updated": _ts,
+             "sync": "local-only",  # 28.08: метрика локальна (юзер:
+             # витрина/гит — только руками). В git — устаревшая копия.
+             "note": "в git не обновляется автоматически"},
             ensure_ascii=False, indent=1), encoding="utf-8")
         # map-badge.json — для dynamic-бейджа shields.io endpoint
         # (README ссылается на raw.githubusercontent → бейдж живой,

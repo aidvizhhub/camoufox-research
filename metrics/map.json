@@ -2,5 +2,7 @@
  "map10": 0.916,
  "binary": 0.917,
  "campaigns": 26,
- "updated": "2026-08-28"
+ "updated": "2026-08-28",
+ "sync": "local-only",
+ "note": "в git не обновляется автоматически"
 }

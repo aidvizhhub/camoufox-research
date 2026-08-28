@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Публикация отчёта на витрину одной командой:
-#   скан секретов → копия в research/public/ → пересборка витрины → push.
-# Запуск:  scripts/publish_report.sh <файл-отчёта> [--no-push]
-# Пример:  scripts/publish_report.sh research/2026-08-28-gta-6-*.md
+# Публикация отчёта на витрину (28.08: публикация И пуш — РАЗДЕЛЕНЫ):
+#   --public  — скопировать в research/public/ (+локальная сборка), БЕЗ пуша
+#   --push    — (после --public) закоммитить и запушить витрину
+#   по умолчанию (без флагов) — только подготовить ЛОКАЛЬНО, НИЧЕГО в git
+# Запуск:  scripts/publish_report.sh <файл-отчёта> [--public] [--push]
+# Пример:  scripts/publish_report.sh 2026-08-28-gta-6-*.md --public
+#          scripts/publish_report.sh 2026-08-28-gta-6-*.md --public --push
 #
 # Безопасность: публикуется ТОЛЬКО research/public/ (git-трекается).
 # Скан секретов — первый барьер, gitleaks в CI — второй (см. gitleaks.yml).
@@ -12,13 +15,17 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUBLIC="$REPO/research/public"
 
-usage() { echo "использование: $(basename "$0") <файл-отчёта> [--no-push]" >&2; exit 2; }
+usage() { echo "использование: $(basename "$0") <файл> [--public] [--push]" >&2; exit 2; }
 
 [ $# -ge 1 ] || usage
 FILE="$1"
-NO_PUSH=""
-[ "${2:-}" = "--no-push" ] && NO_PUSH=1
-[ "${2:-}" = "" ] || [ "${2:-}" = "--no-push" ] || usage
+DO_PUBLIC=""
+DO_PUSH=""
+# совместимость со старым --no-push (= только подготовить)
+[ "${2:-}" = "--no-push" ] && DO_PUBLIC=1
+[ "${2:-}" = "--public" ] && DO_PUBLIC=1
+[ "${2:-}" = "--push" ] && { DO_PUBLIC=1; DO_PUSH=1; }
+[ "${2:-}" = "" ] || [ "${2:-}" = "--no-push" ] || [ "${2:-}" = "--public" ] || [ "${2:-}" = "--push" ] || usage
 
 # Добыча с 28.08 живёт в кэше: если файл не по данному пути — ищем
 # по имени в ~/.cache/camoufox-research/research и exports.
@@ -70,8 +77,13 @@ cp "$FILE" "$PUBLIC/$NAME"
 python "$REPO/scripts/reports_index.py" --dir "$PUBLIC"
 python "$REPO/scripts/build_pages.py" --src "$PUBLIC" --out "$REPO/_site"
 
-# --- 4. Commit + push ---
+# --- 4. ТОЛЬКО --push трогает git (28.08: --public — чисто локально) ---
 cd "$REPO"
+if [ -z "$DO_PUSH" ]; then
+  echo "✅ подготовлено ЛОКАЛЬНО (git не тронут): $PUBLIC/$NAME"
+  echo "   Запушить: $0 $NAME --push  (или git push сам)"
+  exit 0
+fi
 git add -- "$PUBLIC/$NAME" "$PUBLIC/INDEX.md"
 if git diff --cached --quiet; then
   echo "ℹ️  изменений в git нет — файл уже опубликован ранее"
@@ -80,11 +92,6 @@ fi
 TOPIC="${NAME%.md}"
 TOPIC="${TOPIC#?????-??-??-}"
 git commit -m "publish(витрина): $TOPIC" >/dev/null
-if [ -n "$NO_PUSH" ]; then
-  echo "✅ подготовлено (без пуша): $PUBLIC/$NAME"
-  git -C "$REPO" log --oneline -1
-  exit 0
-fi
 git push
 echo "✅ опубликовано: $NAME — витрина пересоберётся в Pages автоматически"
 echo "   смотреть: https://aidvizhhub.github.io/camoufox-research/"
