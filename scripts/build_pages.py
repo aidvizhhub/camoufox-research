@@ -26,6 +26,7 @@ sys.path.insert(0, str(REPO))
 
 from camoufox_research.camoufox_housekeep import _refresh_report_index  # noqa: E402
 
+
 def _camp_verified(camp_id: str) -> str:
     """✅/❌/— по БД кампаний (verified-статус для витрины)."""
     try:
@@ -35,7 +36,8 @@ def _camp_verified(camp_id: str) -> str:
             row = con.execute(
                 "SELECT COUNT(*), SUM(CASE WHEN live=1 THEN 1 ELSE 0 END), "
                 "SUM(CASE WHEN live=0 THEN 1 ELSE 0 END) "
-                "FROM campaign_sources WHERE camp_id=?", (camp_id,)
+                "FROM campaign_sources WHERE camp_id=?",
+                (camp_id,),
             ).fetchone()
         total = row[0] or 0
         ok = row[1] or 0
@@ -60,7 +62,8 @@ def _camp_pasport(camp_id: str) -> str:
                 "SUM(CASE WHEN live=1 AND digest != '' THEN 1 ELSE 0 END), "
                 "SUM(CASE WHEN tier=0 THEN 1 ELSE 0 END), "
                 "SUM(CASE WHEN live=0 THEN 1 ELSE 0 END) "
-                "FROM campaign_sources WHERE camp_id=?", (camp_id,)
+                "FROM campaign_sources WHERE camp_id=?",
+                (camp_id,),
             ).fetchone()
         total = row[0] or 0
         citable = row[1] or 0
@@ -68,8 +71,10 @@ def _camp_pasport(camp_id: str) -> str:
         bad = row[3] or 0
         if total == 0:
             return ""
-        return (f" · **паспорт:** {citable}/{total} verified+текстом · "
-                f"первоисточников {primary} · битых {bad}")
+        return (
+            f" · **паспорт:** {citable}/{total} verified+текстом · "
+            f"первоисточников {primary} · битых {bad}"
+        )
     except Exception:
         return ""
 
@@ -85,9 +90,12 @@ def _camp_budget(camp_id: str) -> str:
         log = _P(_os.path.expanduser("~/.cache/camoufox-research/exports")) / f"{camp_id}.log"
         if not log.exists():
             return ""
-        used = len(re.findall(
-            r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых",
-            log.read_text(encoding="utf-8", errors="replace")))
+        used = len(
+            re.findall(
+                r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых",
+                log.read_text(encoding="utf-8", errors="replace"),
+            )
+        )
         pct = int(used / budget * 100) if budget else 0
         warn = " ⚠️" if pct > 80 else ""
         return f"бюджет: {used}/{budget} ({pct}%{warn})"
@@ -100,8 +108,10 @@ def _camp_id_from_report(text: str) -> str:
     m = re.search(r"cmp_[0-9a-f]+_[0-9a-f]+", text)  # полный id: _6b00-хвост
     return m.group(0) if m else ""
 
+
 def _build(content: str) -> str:  # для совместимости со старым вызовом
     return content
+
 
 _PAGE = """<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
@@ -121,6 +131,8 @@ table{{border-collapse:collapse;width:100%}} th,td{{border:1px solid #ddd;
   background:#f6f6f6;cursor:pointer}}
 .filters button.active{{background:#0645ad;color:#fff;border-color:#0645ad}}
 .report{{border-bottom:1px solid #eee;padding-bottom:.5rem}}
+.section{{margin-top:2rem;padding:.4rem .7rem;background:#f0f4ff;
+  border-left:4px solid #0645ad;border-radius:4px}}
 </style></head><body>
 {filters}
 {body}
@@ -137,6 +149,7 @@ function v(filter) {{
 }}
 </script>
 </body></html>"""
+
 
 def md_to_html(md: str) -> str:
     """Минимальный md→HTML (stdlib): заголовки, таблицы, списки, код,
@@ -226,6 +239,7 @@ def md_to_html(md: str) -> str:
         out.append("</code></pre>")
     return "\n".join(out)
 
+
 def build_rss(src: Path, out_dir: Path, base: str) -> int:
     """src/*.md → out_dir/rss.xml (RSS 2.0, stdlib). Отчёт = item:
     title из имени файла, link = base#файл, pubDate из даты в имени."""
@@ -284,37 +298,80 @@ def build_rss(src: Path, out_dir: Path, base: str) -> int:
     (out_dir / "rss.xml").write_text(xml, encoding="utf-8")
     return len(items)
 
+
 def build(src: Path, out_dir: Path, base: str) -> int:
-    """src/*.md → out_dir/index.html (+ rss.xml). Возвращает число файлов."""
+    """src/ → out_dir/index.html (+ rss.xml): витрина РАЗДЕЛАМИ.
+
+    Структура витрины (28.08, по фидбеку «на витрине должны быть скиллы и
+    гайды, а не только результаты ресёрча»):
+      📘 Гайды     — guides/*.md (как пользоваться, миграция, шаблон скилла)
+      🧩 Скиллы    — skills/*.md (готовые SKILL.md — установить локально)
+      🗄️ Архив охот — research-отчёты (20??-??-??-*.md, с паспортами/фильтром)
+    """
     _refresh_report_index(src)  # INDEX актуален перед сборкой
     out_dir.mkdir(parents=True, exist_ok=True)
     parts = []
-    count = 0
-    for f in sorted(src.glob("20??-??-??-*.md")):
-        count += 1
-        title = re.sub(r"^\d{4}-\d{2}-\d{2}-|\.md$", "", f.name).replace("-", " ").replace("_", " ")
-        body_text = f.read_text(encoding="utf-8")
-        cid = _camp_id_from_report(body_text)
-        stat = _camp_verified(cid) if cid else "—"
-        # state для фильтра: "ok" если есть ✅, "bad" если есть ❌
-        state = "ok" if "✅" in stat else ("bad" if "❌" in stat else "na")
-        pasport = _camp_pasport(cid) if cid else ""
-        budget = _camp_budget(cid) if cid else ""
-        parts.append(f"<div class='report' data-state='{state}'>"
-                     f"<h2 id='{f.stem}'>{html.escape(title)} "
-                     f"<span class='vstat'>{html.escape(stat)}</span></h2>"
-                     f"<p class='meta'>{pasport}"
-                     + (f" · {budget}" if budget else "") + "</p>")  # паспорт свой, не юзерский
-        parts.append(f"<p class='meta'>{f.name}</p>")
-        parts.append(md_to_html(body_text))
+    n_guides = n_skills = n_reports = 0
+
+    def _simple(title: str, f: Path) -> None:
+        parts.append(
+            f"<div class='report'>"
+            f"<h2 id='{f.stem}'>{html.escape(title)}</h2>"
+            f"<p class='meta'>{f.name}</p>"
+        )
+        parts.append(md_to_html(f.read_text(encoding="utf-8")))
         parts.append("</div>")
-    index = src / "INDEX.md"
-    if index.exists() and count == 0:
-        parts.append(md_to_html(index.read_text(encoding="utf-8")))
+
+    guides = sorted(src.glob("guides/*.md"))
+    if guides:
+        parts.append("<h2 class='section'>📘 Гайды</h2>")
+        for f in guides:
+            n_guides += 1
+            _simple(f.stem.replace("-", " "), f)
+
+    skills = sorted(src.glob("skills/*.md"))
+    if skills:
+        parts.append("<h2 class='section'>🧩 Скиллы (установить агенту)</h2>")
+        for f in skills:
+            n_skills += 1
+            _simple(f.stem.replace("-", " "), f)
+
+    reports = sorted(src.glob("20??-??-??-*.md"))
+    if reports:
+        parts.append("<h2 class='section'>🗄️ Архив охот (ресёрч-отчёты)</h2>")
+        for f in reports:
+            n_reports += 1
+            title = (
+                re.sub(r"^\d{4}-\d{2}-\d{2}-|\.md$", "", f.name).replace("-", " ").replace("_", " ")
+            )
+            body_text = f.read_text(encoding="utf-8")
+            cid = _camp_id_from_report(body_text)
+            stat = _camp_verified(cid) if cid else "—"
+            # state для фильтра: "ok" если есть ✅, "bad" если есть ❌
+            state = "ok" if "✅" in stat else ("bad" if "❌" in stat else "na")
+            pasport = _camp_pasport(cid) if cid else ""
+            budget = _camp_budget(cid) if cid else ""
+            parts.append(
+                f"<div class='report' data-state='{state}'>"
+                f"<h2 id='{f.stem}'>{html.escape(title)} "
+                f"<span class='vstat'>{html.escape(stat)}</span></h2>"
+                f"<p class='meta'>{pasport}" + (f" · {budget}" if budget else "") + "</p>"
+            )  # паспорт свой, не юзерский
+            parts.append(f"<p class='meta'>{f.name}</p>")
+            parts.append(md_to_html(body_text))
+            parts.append("</div>")
+
+    if not (n_guides or n_skills or n_reports):
+        index = src / "INDEX.md"
+        if index.exists():
+            parts.append(md_to_html(index.read_text(encoding="utf-8")))
     body = (
-        f"<h1>Camoufox Research — добыча</h1>"
-        f"<p class='meta'>отчётов: {count} · собрано автоматически ·"
-        f" <a href='rss.xml'>📡 RSS-подписка</a></p>" + "\n".join(parts)
+        f"<h1>Camoufox Research</h1>"
+        f"<p class='meta'>гайдов: {n_guides} · скиллов: {n_skills} · "
+        f"отчётов: {n_reports} · собрано автоматически"
+        + (" · <a href='rss.xml'>📡 RSS</a>" if n_reports else "")
+        + "</p>"
+        + "\n".join(parts)
     )
     filters = (
         "<div class='filters'><span>Фильтр:</span>"
@@ -323,21 +380,23 @@ def build(src: Path, out_dir: Path, base: str) -> int:
         "<button onclick=\"v('bad')\">❌ битые</button>"
         "</div>"
     )
-    (out_dir / "index.html").write_text(
-        _PAGE.format(filters=filters, body=body), encoding="utf-8"
-    )
+    (out_dir / "index.html").write_text(_PAGE.format(filters=filters, body=body), encoding="utf-8")
     n_rss = build_rss(src, out_dir, base)
     print(f"   rss.xml: {n_rss} записей")
     # стиль лежит в шаблоне, отдельный css не нужен (KISS)
-    return count
+    return n_guides + n_skills + n_reports
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="витрина research/ → статический сайт")
     # Дефолт — кэш research/ (добыча живёт в кэше с 28.08, репо чист).
     # CI pages.yml передаёт --src research/public явно (публичное окно
     # из git) — на GitHub нет локального кэша.
-    ap.add_argument("--src", default=str(Path.home() / ".cache/camoufox-research/research"),
-                    help="каталог отчётов")
+    ap.add_argument(
+        "--src",
+        default=str(Path.home() / ".cache/camoufox-research/research"),
+        help="каталог отчётов",
+    )
     ap.add_argument("--out", default=str(REPO / "_site"), help="куда собрать HTML")
     ap.add_argument(
         "--base",
@@ -348,6 +407,7 @@ def main() -> int:
     n = build(Path(args.src), Path(args.out), args.base)
     print(f"✅ сайт собран: {Path(args.out) / 'index.html'} (отчётов: {n})")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
