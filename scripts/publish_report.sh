@@ -20,7 +20,15 @@ NO_PUSH=""
 [ "${2:-}" = "--no-push" ] && NO_PUSH=1
 [ "${2:-}" = "" ] || [ "${2:-}" = "--no-push" ] || usage
 
-[ -f "$FILE" ] || { echo "❌ файл не найден: $FILE" >&2; exit 1; }
+# Добыча с 28.08 живёт в кэше: если файл не по данному пути — ищем
+# по имени в ~/.cache/camoufox-research/research и exports.
+CACHE="/home/admin1/.cache/camoufox-research"
+if [ ! -f "$FILE" ]; then
+  for d in "$CACHE/research" "$CACHE/exports"; do
+    [ -f "$d/$(basename "$FILE")" ] && FILE="$d/$(basename "$FILE")" && break
+  done
+fi
+[ -f "$FILE" ] || { echo "❌ файл не найден: $FILE (искал и в кэше)" >&2; exit 1; }
 NAME="$(basename "$FILE")"
 case "$NAME" in
   20??-??-??-*.md) ;;
