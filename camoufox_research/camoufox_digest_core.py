@@ -142,7 +142,7 @@ def make_digest(camp_id, log=None, force=False):
         texts = {}
     done = 0
     with _db() as con:
-        for url, title, _dig, _live in rows:
+        for url, title, _dig, _live, _vts in rows:
             body = texts.get(url, "")
             if not body:
                 continue
@@ -191,11 +191,11 @@ def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
     results = {}
     with ThreadPoolExecutor(max_workers=10) as ex:  # 5→10: 44 URL вдвое
         # быстрее (проверено 28.08: 44 URL = 3.9с при 5; сеть лимитирует)
-        for url, _, _, _ in rows:
+        for url, _t, _d, _l, _v in rows:
             results[url] = ex.submit(_url_alive, url)
     broken = []
     with _db() as con:
-        for url, _, _, _ in rows:
+        for url, _t, _d, _l, _v in rows:
             live = results[url].result()
             if live == 0:
                 broken.append(url)

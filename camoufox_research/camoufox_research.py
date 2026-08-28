@@ -150,6 +150,33 @@ def monitor_page(url: str) -> str:
     )
 
 
+# --- Фильтр тулов: контекст-инженерия (аудит 28.08.2026) ---
+# 57 тулов > порога ~20: модель деградирует, контекст переполнен.
+# Машина решает, какие тулы ВИДИТ агент:
+#   CAMOUFOX_TOOLS_ONLY="a,b,c" — показывать ТОЛЬКО эти (allowlist), или
+#   CAMOUFOX_TOOL_HIDE="x,y" — спрятать эти (blocklist, если allowlist пуст).
+# Ничего не задано = все 57 (старое поведение, совместимость не ломается).
+def _apply_tool_filter() -> None:
+    only = os.environ.get("CAMOUFOX_TOOLS_ONLY", "").strip()
+    hide = os.environ.get("CAMOUFOX_TOOL_HIDE", "").strip()
+    if not only and not hide:
+        return
+    import asyncio
+
+    keep = {x.strip() for x in only.split(",") if x.strip()}
+    drop = {x.strip() for x in hide.split(",") if x.strip()}
+
+    def _run() -> None:
+        for t in asyncio.run(mcp.list_tools()):
+            if (only and t.name not in keep) or t.name in drop:
+                mcp.remove_tool(t.name)
+
+    _run()
+
+
+_apply_tool_filter()
+
+
 def main():
     """Точка входа MCP-сервера (entry point: `camoufox-research`).
     Транспорты: stdio (по умолчанию), http (streamable), sse.

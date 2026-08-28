@@ -49,6 +49,7 @@ def _mk_db(db_path: str, with_campaign: bool = True) -> None:
             added_ts REAL,
             digest TEXT DEFAULT '',
             live INTEGER DEFAULT -1,
+            verified_ts REAL DEFAULT 0,
             UNIQUE(camp_id, url));
         """
     )
@@ -179,3 +180,92 @@ class CampaignReadCycleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VerifyTtlCacheTest(unittest.TestCase):
+    """TTL-кэш verified: повторная проверка НЕ ждёт сеть (канон кэша
+    страниц). Mock _url_alive: первая проверка считает 1 URL/шаг,
+    повторная (verif_ts свежий) — 0 обращений к сети."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls._db = os.path.join(cls._tmp.name, "c.db")
+        _mk_db(cls._db)
+        # подмена у ФАСАДА (digest импортирует _db ИЗ фасада,
+        # а _db() читает core._DB_PATH динамически — правим оба)
+        import camoufox_research.camoufox_campaign as camp
+        import camoufox_research.camoufox_campaign_core as cc
+        cls._old_f = camp._DB_PATH
+        cls._old_c = cc._DB_PATH
+        camp._DB_PATH = cls._db
+        cc._DB_PATH = cls._db
+
+    @classmethod
+    def tearDownClass(cls):
+        import camoufox_research.camoufox_campaign as camp
+        import camoufox_research.camoufox_campaign_core as cc
+        camp._DB_PATH = cls._old_f
+        cc._DB_PATH = cls._old_c
+        cls._tmp.cleanup()
+
+    def _reset_verify(self):
+        """Сброс verified-состояния кампании (тесты независимы)."""
+        import sqlite3
+        import camoufox_research.camoufox_campaign_core as cc
+        con = sqlite3.connect(cc._DB_PATH)
+        con.execute("UPDATE campaign_sources SET live=-1, verified_ts=0 "
+                    "WHERE camp_id='cmp_test'")
+        con.commit()
+        con.close()
+
+    def test_second_verify_no_network(self):
+        import camoufox_research.camoufox_digest_core as dc
+
+        # порядовый сброс: test_max_age_zero идёт ПЕРВЫМ (алфавит) и
+        # уже наполнил кэш — тут нужен чистый -1
+        self._reset_verify()
+        calls = {"n": 0}
+        orig = dc._url_alive
+
+        def fake(url):
+            calls["n"] += 1
+            return 1
+
+        dc._url_alive = fake
+        try:
+            # первая проверка: всё в кэш (все -1 → 2 URL)
+            v1, _ = dc.verify_sources("cmp_test")
+            first_calls = calls["n"]
+            # повторная: verified_ts свежий (только что) → сеть НЕ трогаем
+            v2, _ = dc.verify_sources("cmp_test")
+        finally:
+            dc._url_alive = orig
+
+        self.assertEqual(first_calls, 2,
+                         "после сброса оба URL live=-1 → 2 проверки")
+        self.assertEqual(v2, v1, "повторная проверка не должна менять счётчик")
+        self.assertEqual(calls["n"], first_calls,
+                         "повторная проверка пошла в СЕТЬ — TTL-кэш не сработал")
+
+    def test_max_age_zero_forces_network(self):
+        import camoufox_research.camoufox_digest_core as dc
+
+        self._reset_verify()
+        calls = {"n": 0}
+        orig = dc._url_alive
+
+        def fake(url):
+            calls["n"] += 1
+            return 1
+
+        dc._url_alive = fake
+        try:
+            dc.verify_sources("cmp_test")  # кэш наполнился
+            before = calls["n"]
+            dc.verify_sources("cmp_test", max_age=0)  # форс → сеть снова
+        finally:
+            dc._url_alive = orig
+
+        self.assertGreater(calls["n"], before,
+                           "max_age=0 не форсировал проверку (кэш остался)")

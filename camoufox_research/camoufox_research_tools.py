@@ -103,14 +103,20 @@ def register(mcp, call):
         return call("paper_search", query=query, sources=sources, max_results=max_results)
 
     @mcp.tool()
-    def research_digest(camp_id: str, refresh: bool = True) -> str:
+    def research_digest(
+        camp_id: str, refresh: bool = True, max_age: int = 86400
+    ) -> str:
         """Выжимки + верификация кампании: короткие пакеты
         (заголовок + первый абзац, ~700 символов) для синтеза и статус
         «жив/битый» каждого источника (гейт качества, паттерн DEER /
         DeepResearch Bench: verified citations). refresh=True — собрать
         выжимки и проверить живость заново (до 30 URL, параллельно);
-        у фоновой кампании всё уже заполнено — refresh не нужен."""
-        return call("research_digest", camp_id=camp_id, refresh=refresh)
+        у фоновой кампании всё уже заполнено — refresh не нужен.
+        max_age — свежесть verified в секундах (0 = проверить ВСЁ
+        заново, напр. сомнение в кэше; 86400 = сутки TTL-кэш)."""
+        return call(
+            "research_digest", camp_id=camp_id, refresh=refresh, max_age=max_age
+        )
 
     @mcp.tool()
     def citation_pack(camp_id: str) -> str:

@@ -27,6 +27,37 @@ sys.path.insert(0, str(REPO))
 
 from camoufox_research.camoufox_housekeep import _refresh_report_index  # noqa: E402
 
+def _camp_verified(camp_id: str) -> str:
+    """✅/❌/— по БД кампаний (verified-статус для витрины)."""
+    try:
+        from camoufox_research.camoufox_campaign import _db
+
+        with _db() as con:
+            row = con.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN live=1 THEN 1 ELSE 0 END), "
+                "SUM(CASE WHEN live=0 THEN 1 ELSE 0 END) "
+                "FROM campaign_sources WHERE camp_id=?", (camp_id,)
+            ).fetchone()
+        total = row[0] or 0
+        ok = row[1] or 0
+        bad = row[2] or 0
+        if total == 0:
+            return "—"
+        return f"✅ {ok}/{total}" + (f" · ❌ {bad}" if bad else "")
+    except Exception:
+        return "—"
+
+
+def _camp_id_from_report(text: str) -> str:
+    """cmp_XXX из шапки автоархива («кампании cmp_…»)."""
+    m = re.search(r"cmp_[0-9a-f]+_[0-9a-f]+", text)  # полный id: _6b00-хвост
+    return m.group(0) if m else ""
+
+
+def _build(content: str) -> str:  # для совместимости со старым вызовом
+    return content
+
+
 _PAGE = """<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -202,9 +233,13 @@ def build(src: Path, out_dir: Path, base: str) -> int:
     for f in sorted(src.glob("20??-??-??-*.md")):
         count += 1
         title = re.sub(r"^\d{4}-\d{2}-\d{2}-|\.md$", "", f.name).replace("-", " ").replace("_", " ")
-        parts.append(f"<h2 id='{f.stem}'>{html.escape(title)}</h2>")
+        body_text = f.read_text(encoding="utf-8")
+        cid = _camp_id_from_report(body_text)
+        stat = _camp_verified(cid) if cid else "—"
+        parts.append(f"<h2 id='{f.stem}'>{html.escape(title)} "
+                     f"<span class='vstat'>{html.escape(stat)}</span></h2>")
         parts.append(f"<p class='meta'>{f.name}</p>")
-        parts.append(md_to_html(f.read_text(encoding="utf-8")))
+        parts.append(md_to_html(body_text))
     index = src / "INDEX.md"
     if index.exists() and count == 0:
         parts.append(md_to_html(index.read_text(encoding="utf-8")))

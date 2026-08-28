@@ -67,11 +67,13 @@ def citation_report(camp_id, path=None):
     return f"отчёт сохранён: {path}\nисточников с цитатами: {len(blocks)} · символов: {len(md)}"
 
 
-def research_digest(camp_id, refresh=True):
-    """ACTION для воркера: выжимки + верификация + пакет для синтеза."""
+def research_digest(camp_id, refresh=True, max_age=86400):
+    """ACTION для воркера: выжимки + верификация + пакет для синтеза.
+    max_age — свежесть verified в секундах (0 = проверить всё заново,
+    default 86400 = сутки TTL-кэш)."""
     if refresh:
         make_digest(camp_id)
-        verify_sources(camp_id)
+        verify_sources(camp_id, max_age=max_age)
     return digest_report(camp_id)
 
 
