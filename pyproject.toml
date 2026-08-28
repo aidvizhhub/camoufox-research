@@ -29,7 +29,7 @@ classifiers = [
 # Версии запинены по реально работающему окружению (проверено 08.2026) —
 # без пинов pip дрейфует к новым версиям и ломает совместимость.
 dependencies = [
-    "mcp==2.1.1",  # v2 (2026-07-28): stateless, ttlMs/cacheScope, OTel по умолчанию
+    "mcp==2.1.0",  # v2 (2026-07-28): stateless, ttlMs/cacheScope, OTel по умолчанию
     "camoufox==0.5.4",
     "trafilatura>=2.0",
     "pypdf>=4.0",
