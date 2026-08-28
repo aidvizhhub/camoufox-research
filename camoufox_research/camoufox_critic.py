@@ -107,6 +107,7 @@ _CRITIC_CACHE: dict[str, dict] = {}  # camp_id → результат (кэш в
 _CRITIC_FILE = _Path(os.environ.get(
     "CAMOUFOX_CACHE_DIR", str(_Path.home() / ".cache" / "camoufox-research")
 )) / "critic_cache.json"
+_CRITIC_TTL = int(os.environ.get("CAMOUFOX_CRITIC_TTL", "86400"))  # секунды
 
 
 def _critic_load() -> dict:
@@ -117,7 +118,8 @@ def _critic_load() -> dict:
             import json
             data = json.loads(_CRITIC_FILE.read_text(encoding="utf-8"))
             return {k: v for k, v in data.items()
-                    if isinstance(v, dict) and time.time() - v.get("_ts", 0) < 86400}
+                    if isinstance(v, dict)
+                    and time.time() - v.get("_ts", 0) < _CRITIC_TTL}
     except Exception:
         pass
     return {}

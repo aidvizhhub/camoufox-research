@@ -74,6 +74,27 @@ def _camp_pasport(camp_id: str) -> str:
         return ""
 
 
+def _camp_budget(camp_id: str) -> str:
+    """Бюджет поиска кампании для витрины (28.08): волны из лога /
+    лимит env — аналог research_status, но для сайта (не только агенту)."""
+    try:
+        import os as _os
+        from pathlib import Path as _P
+
+        budget = int(_os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40"))
+        log = _P(_os.path.expanduser("~/.cache/camoufox-research/exports")) / f"{camp_id}.log"
+        if not log.exists():
+            return ""
+        used = len(re.findall(
+            r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых",
+            log.read_text(encoding="utf-8", errors="replace")))
+        pct = int(used / budget * 100) if budget else 0
+        warn = " ⚠️" if pct > 80 else ""
+        return f"бюджет: {used}/{budget} ({pct}%{warn})"
+    except Exception:
+        return ""
+
+
 def _camp_id_from_report(text: str) -> str:
     """cmp_XXX из шапки автоархива («кампании cmp_…»)."""
     m = re.search(r"cmp_[0-9a-f]+_[0-9a-f]+", text)  # полный id: _6b00-хвост
@@ -278,10 +299,12 @@ def build(src: Path, out_dir: Path, base: str) -> int:
         # state для фильтра: "ok" если есть ✅, "bad" если есть ❌
         state = "ok" if "✅" in stat else ("bad" if "❌" in stat else "na")
         pasport = _camp_pasport(cid) if cid else ""
+        budget = _camp_budget(cid) if cid else ""
         parts.append(f"<div class='report' data-state='{state}'>"
                      f"<h2 id='{f.stem}'>{html.escape(title)} "
                      f"<span class='vstat'>{html.escape(stat)}</span></h2>"
-                     f"<p class='meta'>{pasport}</p>")  # паспорт свой, не юзерский
+                     f"<p class='meta'>{pasport}"
+                     + (f" · {budget}" if budget else "") + "</p>")  # паспорт свой, не юзерский
         parts.append(f"<p class='meta'>{f.name}</p>")
         parts.append(md_to_html(body_text))
         parts.append("</div>")

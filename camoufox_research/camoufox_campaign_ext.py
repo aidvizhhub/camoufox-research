@@ -144,8 +144,9 @@ def start(topic, queries=None, target_sources=20, domains_limit=2,
     with _db() as con:
         cur = con.execute(
             "INSERT INTO campaigns (id, topic, queries, target_sources, "
-            "domains_limit, feeds, status, error, created_ts, updated_ts) "
-            "SELECT ?,?,?,?,?,?,'running','',?,? "
+            "domains_limit, feeds, status, error, created_ts, updated_ts, "
+            "search_calls) "
+            "SELECT ?,?,?,?,?,?,'running','',?,?,0 "
             "WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE status='running')",
             (camp_id, topic, json.dumps(qs, ensure_ascii=False),
              int(target_sources), int(domains_limit),
@@ -217,8 +218,12 @@ def status(camp_id, limit=6):
         used = 0
         if log_path.exists():
             import re as _re
-            used = len(_re.findall(r"волна\d*\+?\d+ новых|волна \d+: \d+ запросов",
-                                   log_path.read_text(encoding="utf-8", errors="replace")))
+            # 28.08: форматы волн «волна 1: N запросов» И «волна1:+N новых»
+            # (проверено на 3 реальных логах — старый паттерн ловил 2/4,
+            # «волна1:+20» ускользал. Универсальный: волна[без пробела или с]).
+            used = len(_re.findall(
+                r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых",
+                log_path.read_text(encoding="utf-8", errors="replace")))
         out.insert(2, f"бюджет поиска: использовано ~{used}/{budget} вызовов"
                       + (" · ⚠️ близко к лимиту" if used >= budget * 0.8 else ""))
     except Exception:

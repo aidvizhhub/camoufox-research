@@ -10,6 +10,7 @@
 """
 import json
 import os
+import contextlib
 import sqlite3
 import time
 from pathlib import Path
@@ -65,6 +66,12 @@ _SCHEMA = (
 
 _DDL_DONE = False
 
+def _ensure_search_calls(con):
+    """Миграция 28.08: search_calls (бюджет в БД, кросстаблично)."""
+    with contextlib.suppress(Exception):
+        con.execute("ALTER TABLE campaigns ADD COLUMN search_calls INTEGER DEFAULT 0")
+
+
 def _db():
     """Соединение к базе (+мягкая миграция feeds для старых баз)."""
     global _DDL_DONE
@@ -89,6 +96,7 @@ def _db():
             con.execute("ALTER TABLE campaign_sources ADD COLUMN "
                         "verified_ts REAL DEFAULT 0")  # повторная проверка не ждёт сети
         _DDL_DONE = True
+    _ensure_search_calls(con)
     return con
 
 def _reg_domain(url):
@@ -243,6 +251,13 @@ def hunt(camp_id, topic, queries, target, dl, log_path, done_path,
                            llm_planner=use_llm)
             payload = json.loads(raw) if isinstance(raw, str) else {}
             fresh, total, uniq, skipped = _ingest(camp_id, payload)
+            # БЮДЖЕТ В БД (28.08, кросстаблично): +1 поисковый вызов
+            # на каждую волну — campaign.search_calls (для «сколько
+            # вызовов ушло на тему» без парсинга логов).
+            with _db() as con:
+                con.execute(
+                    "UPDATE campaigns SET search_calls = "
+                    "COALESCE(search_calls,0)+1 WHERE id=?", (camp_id,))
             notes.append(f"волна{i}:+{fresh} новых ({uniq}/{target} доменов)"
                          + (f", реклама отсеяна: {skipped}" if skipped else ""))
             _log(log_path, notes[-1])
