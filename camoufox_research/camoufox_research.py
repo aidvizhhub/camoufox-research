@@ -26,7 +26,8 @@ try:
 except Exception:
     pass
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.caching import CacheHint
+from mcp.server.mcpserver import MCPServer
 
 # Запуск как скрипт из подпапки (camoufox_worker спавнит именно так):
 # sys.path[0] = каталог camoufox_research, где лежит ФАЙЛ camoufox_research.py
@@ -46,7 +47,14 @@ from camoufox_research.camoufox_caps import resolve_caps
 from camoufox_research.camoufox_research_tools import register as register_research
 from camoufox_research.session_tools import register as register_session
 
-mcp = FastMCP("camoufox-research")
+# MCP v2 (SDK 2.1.1, спека 2026-07-28): FastMCP → MCPServer.
+# ttlMs/cacheScope на tools/list: список тулов стабилен на жизнь сессии —
+# клиент может кэшировать сутки (CacheHint, SEP-2549).
+mcp = MCPServer(
+    "camoufox-research",
+    version="0.19.0",
+    cache_hints={"tools/list": CacheHint(ttl_ms=86_400_000, scope="public")},
+)
 
 
 @mcp.tool()
@@ -185,19 +193,17 @@ def _apply_tool_filter() -> None:
         only = ",".join(sorted(keep)) if keep else ""
     if not only and not hide:
         return
-    import asyncio
 
     keep = {x.strip() for x in only.split(",") if x.strip()}
     drop = {x.strip() for x in hide.split(",") if x.strip()}
+    # list_tools() асинхронная и в v1, и в v2 (проверено интроспекцией 2.1.1)
+    import asyncio
 
-    def _run() -> None:
-        for t in asyncio.run(mcp.list_tools()):
-            if (only and t.name not in keep) or t.name in drop:
-                # повторный прогон фильтра: тул уже удалён — не страшно
-                with contextlib.suppress(Exception):
-                    mcp.remove_tool(t.name)
-
-    _run()
+    for t in asyncio.run(mcp.list_tools()):
+        if (only and t.name not in keep) or t.name in drop:
+            # повторный прогон фильтра: тул уже удалён — не страшно
+            with contextlib.suppress(Exception):
+                mcp.remove_tool(t.name)
 
 
 _apply_tool_filter()
@@ -214,7 +220,7 @@ def main():
         "--transport",
         choices=["stdio", "http", "sse"],
         default="stdio",
-        help="транспорт MCP (по умолчанию stdio)",
+        help="транспорт MCP (по умолчанию stdio); 'http' = streamable-http (v2)",
     )
     ap.add_argument(
         "--host", default="127.0.0.1", help="адрес для http/sse (по умолчанию 127.0.0.1)"
@@ -248,8 +254,11 @@ def main():
     if args.transport == "stdio":
         mcp.run()
     elif args.transport == "http":
-        mcp.run(transport="http", host=args.host, port=args.port)
+        # MCP v2: транспорт переименован http → streamable-http (stateless)
+        mcp.run(transport="streamable-http", host=args.host, port=args.port)
     else:
+        # SSE-only транспорт deprecated в спеке 2026-07-28 (12 мес окно) —
+        # оставлен для совместимости, новые клиенты → streamable-http
         mcp.run(transport="sse", host=args.host, port=args.port)
 
 
