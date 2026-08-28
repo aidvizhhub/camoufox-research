@@ -58,6 +58,19 @@ def ping() -> str:
 register_research(mcp, _call)
 register_session(mcp, _call)
 
+
+# --- Заморозка порядка тулов (prompt-кэш гигиена, 28.08) ---
+# Детерминированный порядок: по имени, один раз на старте. Стабильный
+# список = стабильный префикс промпта (dev.to: смена порядка внутри
+# разговора = инвалидация prompt-кэша; сортировка убирает зависимость
+# от порядка вставки в коде). ttlMs/cacheScope — только в спеке
+# 2026-07-28, в mcp 1.29 типов нет (проверено) — план на SDK 2.0.
+def _freeze_tool_order() -> None:
+    mcp._tool_manager._tools = dict(sorted(mcp._tool_manager._tools.items(), key=lambda kv: kv[0]))
+
+
+_freeze_tool_order()
+
 # --- MCP Resources: данные для чтения «как файлы» (4-й примитив
 # протокола, MCP-канон 2026: tools + resources + prompts) ---
 

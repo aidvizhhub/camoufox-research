@@ -171,7 +171,11 @@ research(queries=["..."], academic=True)  # adds tier-0 papers to the hunt
 after the hunt the runner cuts short digests (title + first paragraph) for cheap
 synthesis and marks each source ✅ live / ❌ broken (verified citations gate,
 DEER / DeepResearch Bench pattern). The done-marker gains `digests / verified
-/ broken` fields; `research_report` shows the status column.
+/ broken / fact` fields; `research_report` shows the status column.
+**FACT counter (post_hunt):** the % of live citations
+(`verified / (verified + broken)`) is logged, stored in the done-marker
+(`fact`) and written to the memory note — goal ≥90% (DeepResearch Bench
+FACT: Perplexity DR 90.24%); 0 checked sources = honest 0, not 100.
 
 **One hunt at a time (guard):** a new campaign starts only if no other
 campaign is `running` — 1 campaign = 1 worker = 1 browser (atomic
@@ -377,6 +381,9 @@ camoufox-research --caps research,browser        # or env CAMOUFOX_CAPS
 `CAMOUFOX_TOOLS_ONLY`/`CAMOUFOX_TOOL_HIDE` still apply on top.
 Unknown group → warning; valid groups still activate. New tool without a
 group fails `tests/test_caps.py` (fail-fast).
+Tool order is frozen (sorted by name at startup) — stable prompt prefix
+(prompt-cache hygiene); `ttlMs`/`cacheScope` hints need the 2026-07-28
+SDK 2.0 (planned migration).
 
 ## Transports
 

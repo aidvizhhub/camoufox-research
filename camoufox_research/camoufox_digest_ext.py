@@ -30,6 +30,7 @@ except ImportError:
         verify_sources,
     )
 
+
 def citation_report(camp_id, path=None):
     """Цитированный отчёт НА ДИСК: готовый MD-документ (выжимки verified
     ✅ источников с нумерацией [1..N] + раздел «Ссылки»). Возвращает путь
@@ -51,8 +52,10 @@ def citation_report(camp_id, path=None):
         if _cits_newer:
             md = existing.read_text(encoding="utf-8")
             n_blocks = md.count("## [")
-            return (f"отчёт из кэша: {existing}\n"
-                    f"источников с цитатами: {n_blocks} · символов: {len(md)}")
+            return (
+                f"отчёт из кэша: {existing}\n"
+                f"источников с цитатами: {n_blocks} · символов: {len(md)}"
+            )
     pack = citation_pack(camp_id, autofix=False)
     if pack.startswith("ошибка") or "CIT-ПАКЕТ пуст" in pack:
         return pack
@@ -83,6 +86,7 @@ def citation_report(camp_id, path=None):
         fh.write(md)
     return f"отчёт сохранён: {path}\nисточников с цитатами: {len(blocks)} · символов: {len(md)}"
 
+
 def research_digest(camp_id, refresh=True, max_age=86400):
     """ACTION для воркера: выжимки + верификация + пакет для синтеза.
     max_age — свежесть verified в секундах (0 = проверить всё заново,
@@ -104,11 +108,12 @@ def research_digest(camp_id, refresh=True, max_age=86400):
             if _waves:
                 # убрать префикс «волнаN:» из каждого (уже в логе)
                 _clean = [_re.sub(r"^волна\d+:", "", w).strip() for w in _waves]
-                _s = " · ".join(f"в{i+1}: {w}" for i, w in enumerate(_clean))
+                _s = " · ".join(f"в{i + 1}: {w}" for i, w in enumerate(_clean))
                 return digest_report(camp_id) + f"\n\n**волны:** {_s}"
     except Exception:
         pass  # журнал — бонус
     return digest_report(camp_id)
+
 
 def _memory_candidates():
     """Кандидаты памяти, считаются в момент вызова (env юзера может
@@ -120,6 +125,7 @@ def _memory_candidates():
         os.environ.get("CAMOUFOX_MEMORY_FILE", ""),
         str(Path.home() / ".cache" / "camoufox-research" / "memory.md"),
     )
+
 
 def _note_memory(text):
     """Строка в память: env-путь (если задан и жив) → кэш-файл, который
@@ -144,6 +150,7 @@ def _note_memory(text):
         print(f"[memory] ни один кандидат не подошёл: {last_err}", file=sys.stderr, flush=True)
     return ""
 
+
 def post_hunt(camp_id, log):
     """После финала охоты: выжимки + верификация + ОТЧЁТ НА ДИСК (всё в
     том же фоне). Маркер done.json дополняется полями digests/verified/
@@ -152,6 +159,7 @@ def post_hunt(camp_id, log):
     # БАТЧ-ВЕРИФИКАЦИЯ (28.08): verify_all добором всех (не 30/вызов)
     try:
         from camoufox_research.camoufox_digest_core import verify_all
+
         verified, _broken = verify_all(camp_id)
     except Exception:
         verified, _broken = verify_sources(camp_id)
@@ -159,7 +167,15 @@ def post_hunt(camp_id, log):
         broken_total = con.execute(
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=0", (camp_id,)
         ).fetchone()[0]
+    # FACT-счётчик: % живых цитат (DeepResearch Bench, цель ≥90%)
+    try:
+        from camoufox_research.camoufox_digest_core import fact_score
+    except ImportError:
+        from camoufox_digest_core import fact_score
+
+    fact = fact_score(verified, broken_total)
     log(f"verified: {verified}/{total}" + (f", битых: {broken_total}" if broken_total else ""))
+    log(f"FACT: {fact}% живых цитат (цель ≥90%)")
     # Пере-сохранение автоархива ПОСЛЕ verify: в _finish отчёт пишется
     # ДО верификации (все live=-1 → «verified: 0»). Здесь счёт живой
     # (проверено 28.08: отчёт кампании показывал verified: 0 при
@@ -170,8 +186,7 @@ def post_hunt(camp_id, log):
 
         with _db() as con:
             crow = con.execute(
-                "SELECT topic, target_sources, status FROM campaigns "
-                "WHERE id=?", (camp_id,)
+                "SELECT topic, target_sources, status FROM campaigns WHERE id=?", (camp_id,)
             ).fetchone()
         if crow:
             topic2 = crow[0]
@@ -214,7 +229,7 @@ def post_hunt(camp_id, log):
             f"- {time.strftime('%d.%m.%Y')} (ресёрч-сводка {camp_id}): "
             f"тема «{topic[:60]}» — доменов {uniq}/{target}, "
             f"источников {total}, verified {verified}, "
-            f"битых {broken_total}, отчёт: "
+            f"битых {broken_total}, FACT {fact}%, отчёт: "
             f"{cit_report.splitlines()[0] if cit_report else 'нет'}"
         )
         # поводок длины: база не пухнет от длинных тем/путей (лимит env)
@@ -233,9 +248,11 @@ def post_hunt(camp_id, log):
         "digests": digests,
         "verified": verified,
         "broken": broken_total,
+        "fact": fact,
         "cit_report": cit_report,
         "memory_note": memory_note,
     }
+
 
 def digest_report(camp_id):
     """Пакет для синтеза: выжимки всех источников (title + первый абзац).

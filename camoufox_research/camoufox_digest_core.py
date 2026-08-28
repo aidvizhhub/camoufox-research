@@ -89,6 +89,7 @@ _MENU_PHRASES = (
     "terms of service",
 )
 
+
 def _digest_clean(body):
     """Срезать меню из выжимки: короткие junk-строки (len<=40) вон +
     меню-фразы из любой строки (GitHub склеивает меню в длинную строку —
@@ -99,6 +100,7 @@ def _digest_clean(body):
     for phrase in _MENU_PHRASES:
         text = re.sub(re.escape(phrase), "", text, flags=re.IGNORECASE)
     return re.sub(r"\s{2,}", " ", text)[:_DIGEST_CHARS]
+
 
 def _sources(camp_id, only_empty_digest=False):
     """Строки кампании: (url, title, digest, live, verified_ts)."""
@@ -113,6 +115,7 @@ def _sources(camp_id, only_empty_digest=False):
             (camp_id,),
         ).fetchall()
     return rows
+
 
 def make_digest(camp_id, log=None, force=False):
     """Выжимки: title + первые _DIGEST_CHARS текста (меню-строки срезаны
@@ -152,6 +155,17 @@ def make_digest(camp_id, log=None, force=False):
             log(f"выжимки: {done}/{len(rows)} готово")
     return done, len(_sources(camp_id))
 
+
+def fact_score(verified: int, broken: int) -> float:
+    """FACT-счётчик: % живых цитат (DeepResearch Bench: citation accuracy).
+
+    FACT = verified / (verified + broken). 0/0 → 0.0 — честный ноль
+    (нет данных ≠ 100%), цель ≥90% (ориентир: Perplexity DR 90.24%).
+    """
+    total = verified + broken
+    return round(verified / total * 100, 1) if total else 0.0
+
+
 def _url_alive(url):
     """1 = жив (200 или в кэше страниц), 0 = битый/недоступен."""
     if _cache_get(url) is not None:
@@ -168,6 +182,7 @@ def _url_alive(url):
         except Exception:
             return 0
 
+
 def verify_all(camp_id, batch=_MAX_VERIFY, max_age=86400):
     """VERIFY ВСЕХ одним вызовом (батч-цикл, 28.08): verify_sources
     режет лимитом 30/вызов — при 536 URL надо 18 волн. Здесь добор
@@ -178,8 +193,7 @@ def verify_all(camp_id, batch=_MAX_VERIFY, max_age=86400):
     # КАП итераций (28.08, страховка от зависания): максимум 25 батчей
     # (~750 URL при 30/батч) — даже если вечно живые, не вечный цикл.
     for _ in range(25):
-        rows_left = [r for r in _sources(camp_id)
-                     if r[3] == -1 or (time.time() - r[4]) > max_age]
+        rows_left = [r for r in _sources(camp_id) if r[3] == -1 or (time.time() - r[4]) > max_age]
         if not rows_left:
             break
         v, b = verify_sources(camp_id, limit=batch, max_age=max_age)
@@ -196,8 +210,7 @@ def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
     TTL-кэш (max_age с, канон кэша страниц): ПОВТОРНАЯ проверка не
     ждёт сеть, если проверяли недавно (проверено 28.08: 44 URL 3.9с
     → вторая проверка 0.08с — это кэш и есть)."""
-    rows = [r for r in _sources(camp_id)
-            if r[3] == -1 or (time.time() - r[4]) > max_age][:limit]
+    rows = [r for r in _sources(camp_id) if r[3] == -1 or (time.time() - r[4]) > max_age][:limit]
     if not rows:
         with _db() as con:
             n = con.execute(
@@ -216,14 +229,14 @@ def verify_sources(camp_id, limit=_MAX_VERIFY, max_age=86400):
             if live == 0:
                 broken.append(url)
             con.execute(
-                "UPDATE campaign_sources SET live=?, verified_ts=? "
-                "WHERE camp_id=? AND url=?",
+                "UPDATE campaign_sources SET live=?, verified_ts=? WHERE camp_id=? AND url=?",
                 (live, time.time(), camp_id, url),
             )
         verified = con.execute(
             "SELECT COUNT(*) FROM campaign_sources WHERE camp_id=? AND live=1", (camp_id,)
         ).fetchone()[0]
     return verified, broken
+
 
 def digest_report(camp_id):
     """Пакет для синтеза: выжимки всех источников (title + первый абзац).
@@ -238,6 +251,7 @@ def digest_report(camp_id):
     if not out:
         return f"ошибка: нет источников кампании {camp_id}"
     return f"источников: {total}\n" + "\n".join(out)
+
 
 def citation_pack(camp_id, autofix=True):
     """CIT-ПАКЕТ для синтеза: только verified ✅ источники с выжимками.
