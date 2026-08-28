@@ -157,6 +157,9 @@ def _crossref_rows(query, max_results):
     try:
         url = (f"{_CROSSREF_URL}?query={urllib.parse.quote(query)}"
                f"&rows={max_results}&mailto=camoufox@example.com")
+        # Вежливость: Crossref x-rate-limit-limit=3/1s (проверено
+        # 28.08) — 1с пауза, чтобы 4 канала не толкались локтями.
+        time.sleep(1)
         data = json.loads(_http_get(url))
         for it in data.get("message", {}).get("items", [])[:max_results]:
             title = " ".join((it.get("title") or [""])[0].split())

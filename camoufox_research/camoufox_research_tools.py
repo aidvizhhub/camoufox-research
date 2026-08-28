@@ -193,20 +193,83 @@ def register(mcp, call):
                       "общий веб: web_search; глубокая охота на N сайтов — research_start"),
             "стать": ("paper_search",
                       "научные: arXiv/Semantic/Crossref/Wiki — первоисточники"),
-            "анализ страниц": ("fetch_page / extract", "текст: fetch_page; по схеме: extract"),
-            "мониторинг": ("research_start(feeds=) / page_diff", "следить за страницей: page_diff"),
-            "карта сайта": ("map_site / sitemap", "все URL сайта: map_site; sitemap.xml: sitemap"),
-            "выжимки": ("research_digest", "verified-источники с текстом: research_digest"),
-            "отчёт": ("research_report(fmt=)", "md/csv/xlsx/mermaid — итог кампании"),
-            "браузер": ("session_*", "живая сессия: session_start → navigate/click/type/text"),
+            "анализ страниц": ("fetch_page / extract",
+                               "текст: fetch_page; по схеме: extract"),
+            "мониторинг": ("research_start(feeds=) / page_diff",
+                           "следить за изменением страницы: page_diff"),
+            "карта сайта": ("map_site / sitemap",
+                            "все URL сайта: map_site; sitemap.xml: sitemap"),
+            "выжимки": ("research_digest",
+                        "verified-источники с текстом: research_digest"),
+            "отчёт": ("research_report(fmt=)",
+                      "md/csv/xlsx/mermaid — итог кампании"),
+            "браузер": ("session_*",
+                        "живая сессия: session_start → navigate/click/type/text"),
+            "таблиц": ("table_extract",
+                       "таблицы со страницы: table_extract (HTML → структура)"),
+            "скриншот": ("screenshot",
+                         "вид страницы картинкой: screenshot"),
+            "ссылки": ("extract_links / session_links",
+                       "ссылки страницы: extract_links; в сессии: session_links"),
+            "файл": ("read_document / session_download / session_upload",
+                     "PDF/DOCX/XLSX: read_document; скачать: session_download; "
+                     "загрузить: session_upload"),
+            "профиль": ("profile_load / profile_save",
+                        "куки+localStorage сессии: profile_save/load"),
+            "сеть": ("session_network / session_console",
+                     "запросы вкладки: session_network; JS-ошибки: session_console"),
+            "прокси": ("set_proxy",
+                       "сменить прокси на лету: set_proxy (host:port)"),
+            "экспорт": ("export",
+                        "JSON/CSV/MD результата: export(data, format, path)"),
+            "проверка ссылок": ("check_links",
+                                "битые ссылки: check_links"),
+            "цитаты": ("citation_pack / citation_report",
+                       "verified+текст для синтеза: citation_pack"),
+            "документ": ("read_document",
+                         "PDF/DOCX/XLSX текст: read_document"),
+            "статус": ("research_status",
+                       "прогресс кампании: research_status(id)"),
+            "продолжить": ("research_resume",
+                           "добор кампании с места: research_resume(id)"),
         }
         if not what:
             return ("для чего? примеры: поиск, статьи, анализ страниц, "
-                    "мониторинг, выжимки, отчёт, браузер")
+                    "мониторинг, таблицы, цитаты, файлы, документ, статус")
         for k, v in _R.items():
             if k.lower() in what.lower():
                 return f"для «{what}» → {v[0]}: {v[1]}"
         return f"для «{what}»: начни с research_start (общая охота) или web_search (быстрый поиск)"
+
+    @mcp.tool()
+    def service_route(goal: str, query: str = "") -> str:
+        """СЕРВИС-РОУТЕР (авто-подбор, паттерн MegaAgent orchestration):
+        НЕ подсказывает, а САМ вызывает нужный тул по цели.
+        goal — цель («поиск», «статьи», «мониторинг», «выжимки»);
+        query — параметр (тема/URL). Для «поиск» зовёт web_search,
+        «статьи» — paper_search, «мониторинг» — page_diff и т.д.
+        Возвращает РЕЗУЛЬТАТ тула (не совет) — цепочка сокращается."""
+        _MAP = {
+            "поиск": ("web_search", {"query": query or goal, "max_results": 10}),
+            "стать": ("paper_search", {"query": query or goal, "max_results": 5}),
+            "мониторинг": ("page_diff", {"url": query, "max_chars": 4000}),
+            "карта": ("map_site", {"url": query, "max_links": 30}),
+            "выжимки": ("research_digest", {"camp_id": query}),
+            "статьи": ("paper_search", {"query": query or goal, "max_results": 5}),
+        }
+        g = goal.lower().strip()
+        for k, (tool, params) in _MAP.items():
+            if k in g:
+                if tool == "page_diff" and not query:
+                    return "мониторинг: нужен URL (query=...)"
+                if tool == "research_digest" and not query:
+                    return "выжимки: нужен camp_id (query=...)"
+                try:
+                    return call(tool, **params)
+                except Exception as e:
+                    return f"роутер: {tool} упал ({type(e).__name__})"
+        return ("цель не распознана. goals: поиск, статьи, мониторинг, "
+                "карта, выжимки + query=параметр")
 
     @mcp.tool()
     def research_resume(camp_id: str, background: bool = False) -> str:

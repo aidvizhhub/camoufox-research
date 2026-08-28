@@ -15,6 +15,21 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![MAP@10]
 
 ```
+## Роутер тулов (tool_hint)
+
+Не перебирай 58 тулов вслепую — спроси **одну команду**:
+
+`tool_hint(what="таблицы")` → `для «таблицы» → table_extract: таблицы со страницы`
+
+| Спроси про... | Роутер ответит |
+|---|---|
+| поиск / статьи / анализ | web_search · paper_search · fetch_page |
+| мониторинг / карта сайта | page_diff · map_site / sitemap |
+| выжимки / отчёт / цитаты | research_digest · research_report · citation_pack |
+| таблицы / скриншот / ссылки | table_extract · screenshot · extract_links |
+| файлы / документ / профиль | read_document · session_download · profile_save |
+| сеть / прокси / браузер | session_network · set_proxy · session_start |
+
 ## Переносимость путей (закон 28)
 
 Всё работает из одного источника: env `CAMOUFOX_*` > `~/.cache/camoufox-research/config.env`
