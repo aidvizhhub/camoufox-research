@@ -12,7 +12,27 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 ![MCP](https://img.shields.io/badge/MCP-ready-black)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
 ![Version](https://img.shields.io/badge/version-0.19.0-green)
-![MAP@10](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aidvizhhub/camoufox-research/main/metrics/map-badge.json)
+![MAP@10]
+
+```
+## Переносимость путей (закон 28)
+
+Всё работает из одного источника: env `CAMOUFOX_*` > `~/.cache/camoufox-research/config.env`
+(пишет `install_mcp.py`) > авто-fallback. Никаких хард-путей.
+
+| Команда | Что делает |
+|---|---|
+| `python scripts/install_mcp.py` | установка + запись config.env |
+| `python scripts/install_mcp.py --print` | показать пути одной командой |
+| `scripts/install_cron.sh [--dry]` | поставить/обновить крон-строки из config.env |
+| `scripts/install_cron.sh --keep-timings` | обновить, сохранив СВОИ расписания |
+| `scripts/install_cron.sh --remove` | снять наши строки (переезд) |
+| `camo-publish <отчёт>` | опубликовать на витрину (найдёт репо сам) |
+
+**direnv** (опционально, для dev): `direnv allow` в репо — подхватит
+`.envrc`, который читает тот же config.env. Без direnv всё работает
+как есть (`.envrc` только для тех, кто им пользуется).
+```(https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aidvizhhub/camoufox-research/main/metrics/map-badge.json)
 
 ```
     AI Agent
