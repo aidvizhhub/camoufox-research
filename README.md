@@ -398,6 +398,25 @@ camoufox-research --transport http --port 8833   # 'http' = streamable-http
 CAMOUFOX_PORT=8833 camoufox-research --transport http   # or via env
 ```
 
+## Benchmarks — truth-recall (honest numbers)
+
+Method: [fastCRW `diagnose_3way.py`](https://fastcrw.com/blog/truth-recall-explained-web-scrapers)
+scoring (`phrases > 20 chars`, `recall >= 0.3` = found), same public
+dataset `firecrawl/scrape-content-dataset-v1` (819 labeled URLs).
+Reproduce: `python scripts/bench_truth_recall.py --sample N`.
+
+| Tool | Truth-recall | Run |
+|---|---|---|
+| **camoufox-research** (fetch, `article_only`, retry policy) | **53.3%** (16/30) | 2026-08-28, sample 30/819 |
+| fastCRW | 63.74% (522/819) | 2026-05-08, full 819 |
+| Crawl4AI | 59.95% (491/819) | 2026-05-08, full 819 |
+| Firecrawl | 56.04% (459/819) | 2026-05-08, full 819 |
+
+⚠️ Not directly comparable: different sample, date, and limits
+(`article_only` + 4000 chars — what an agent actually sees). Same
+methodology, honest denominator + date. After the retry policy (28.08):
+empty responses 9 → 0, recall 43.3% → 53.3% on the same 30 URLs.
+
 ## Behavior
 
 - Кампании (research_start) помнят прогресс в sqlite: счётчик РАЗНЫХ
