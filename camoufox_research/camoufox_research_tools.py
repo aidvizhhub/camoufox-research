@@ -305,8 +305,8 @@ def register(mcp, call):
                 ago = f"{(now - last) / 86400:.0f}дн" if last else "?"
                 out.append(f"  {n:5d}x  {t}  ({ago})")
             # кандидаты на резку: были вызовы, но не звались 30+ дней
-            stale = [t for t, n, last in _TOOL_USAGE.items()
-                     if last and (now - last) > 30 * 86400]
+            stale = [t for t, r in _TOOL_USAGE.items()
+                     if r.get("last") and (now - r["last"]) > 30 * 86400]
             if stale:
                 out.append("\nкандидаты на резку (>30дн не звались):")
                 for t in sorted(stale)[:10]:
