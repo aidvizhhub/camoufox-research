@@ -13,6 +13,7 @@ semanticscholar.org) = tier 0, которых DDG почти не видит.
 headless-потока. Кэш на сутки — таблица searches (ключ "acad*:...").
 """
 
+import contextlib
 import json
 import re
 import time
@@ -60,10 +61,8 @@ def _arxiv_rows(query, max_results):
         q2 = urllib.parse.quote(query)
         url2 = (f"{_ARXIV_URL}?search_query={q2}&start=0"
                 f"&max_results={max_results}&sortBy=relevance")
-        try:
+        with contextlib.suppress(Exception):
             root = ET.fromstring(_http_get(url2))
-        except Exception:
-            pass
     for ent in root.findall("a:entry", _NS):
         eid = (ent.findtext("a:id", "", _NS) or "").strip()
         title = " ".join((ent.findtext("a:title", "", _NS) or "").split())
