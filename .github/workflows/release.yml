@@ -61,7 +61,7 @@ jobs:
     env:
       HAS_TOKEN: ${{ secrets.API_TOKEN_PYPI != '' }}
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
