@@ -9,7 +9,7 @@ Search the web. Read JS-heavy pages. Interact with websites. Extract data. Monit
 
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)
 ![CI](https://img.shields.io/github/actions/workflow/status/aidvizhhub/camoufox-research/ci.yml?label=CI)
-![MCP](https://img.shields.io/badge/MCP-ready-black)
+![MCP](https://img.shields.io/badge/MCP-2026--07--28-sdk%202.1.1-blue)
 ![Camoufox](https://img.shields.io/badge/Camoufox-0.5.4-orange)
 ![Version](https://img.shields.io/badge/version-0.19.0-green)
 ![Тулов](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/aidvizhhub/camoufox-research/main/metrics/tools-badge.json)
