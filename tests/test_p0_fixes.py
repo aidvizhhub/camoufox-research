@@ -317,3 +317,24 @@ class ToolUsageTest(unittest.TestCase):
                 self.assertEqual(data["web_search"]["count"], 3)
         finally:
             rb._USAGE_FILE = old_file
+
+
+class UsageCutTest(unittest.TestCase):
+    """28.08: usage-cut режет ТОЛЬКО reviewed+action=cut (обратимо,
+    через CAMOUFOX_TOOL_HIDE — механизм _apply_tool_filter уже есть)."""
+
+    def test_marked_cut_logic(self):
+        # чистая логика _marked_cut (без файлов)
+        cands = [
+            {"tool": "a", "reviewed": True, "action": "cut"},
+            {"tool": "b", "reviewed": False, "action": "cut"},
+            {"tool": "c", "reviewed": True, "action": "keep"},
+        ]
+        # имитация через import в temp
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "usage_cut_mod", "scripts/usage-cut.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        out = mod._marked_cut(cands)
+        self.assertEqual(out, ["a"])  # только reviewed+cut
