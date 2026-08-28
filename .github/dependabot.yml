@@ -1,0 +1,39 @@
+# dependabot: авто-обновление зависимостей с PR (замок не устаревает сам).
+# uv.lock — единый замок пакета (включая mcp/): обновляется группой.
+# python-version — не трогаем (матрица 3.10-3.12 в CI, джоб требует пары).
+# Расписание: еженедельно (понедельник) — баланс свежесть/тишина.
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    # uv.lock обновляется через `uv lock --upgrade`; dependabot понимает
+    # pyproject: PR откроет и на обновление пинов (mcp==1.29.0 и др.),
+    # после мержа `uv lock` перегенерирует замок (см. CI lock --check).
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - uv
+    groups:
+      camoufox-mcp:
+        patterns:
+          - "mcp"
+          - "camoufox"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 3
+    labels:
+      - ci
+      - github-actions
