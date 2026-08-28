@@ -357,6 +357,27 @@ Check: `opencode mcp list` → `camoufox: connected`.
   `camoufox://session`, `camoufox://info`
 - **Prompts** (ready-made recipes): `research_plan`, `extract_schema`, `monitor_page`
 
+## Profile caps (fewer tools, better selection)
+
+> 60 always-on tools degrade agent tool-choice (industry: past ~40 the selection
+> quality drops). Pick groups, like Playwright MCP `--caps`:
+
+```bash
+camoufox-research --caps research,browser        # or env CAMOUFOX_CAPS
+```
+
+| Group | Tools |
+|---|---|
+| `research` | web_search, research/start/status/report/resume/index, digests, citations, critic, routers |
+| `browser` | fetch/batch_fetch, extract, table_extract, crawl, map_site, sitemap, rss, read_document, check_links, export, page_diff, browser_* |
+| `session` | session_* (live tab, forms, network, files), set_proxy, profile_save/load |
+| `vision` | snapshot, screenshot |
+
+`ping`/`stats` are always on. Empty `--caps` = all tools (old behavior).
+`CAMOUFOX_TOOLS_ONLY`/`CAMOUFOX_TOOL_HIDE` still apply on top.
+Unknown group → warning; valid groups still activate. New tool without a
+group fails `tests/test_caps.py` (fail-fast).
+
 ## Transports
 
 `stdio` (default), `http`, `sse`:

@@ -6,6 +6,7 @@ register(mcp) добавляет session_* тулы — одна живая вк
 плюс тулы 2-й волны: snapshot/screenshot (vision), tabs, wait_for, eval,
 crawl/map, extract, прокси и профили."""
 
+
 def register(mcp, call):
     @mcp.tool()
     def session_start(url: str = "", max_chars: int = 6000) -> str:
@@ -13,7 +14,11 @@ def register(mcp, call):
         serve-воркера. Состояние (скролл, ввод, клики) живёт между командами —
         «как человек в одной вкладке». Дальше: session_navigate, session_click,
         session_type, session_scroll, session_links, session_text, session_back.
-        Закрыть: session_end. session_status — состояние вкладки."""
+        Закрыть: session_end. session_status — состояние вкладки.
+        КОГДА: интерактив (клики, формы, скролл, ввод) — «как человек
+        в одной вкладке», состояние живёт между командами.
+        НЕ КОГДА: нужен только текст → fetch_page (быстрее, кэш);
+        нужен разовый клик по URL → browser_click."""
         return call("session_start", url=url, max_chars=max_chars)
 
     @mcp.tool()
@@ -28,7 +33,11 @@ def register(mcp, call):
     ) -> str:
         """Клик на живой странице сессии: CSS-селектор (selector), текст
         ссылки (target_text) или ref из snapshot (ref="3").
-        Возвращает текст ПОСЛЕ клика. Требует session_start."""
+        Возвращает текст ПОСЛЕ клика. Требует session_start.
+        КОГДА: клик по элементу уже открытой страницы (сессия жива).
+        НЕ КОГДА: сессии нет → session_start сначала; нужен разовый
+        «открыл-кликнул-прочитал» → browser_click; нужен только список
+        элементов → snapshot (получишь ref)."""
         return call(
             "session_click",
             selector=selector,
@@ -98,7 +107,11 @@ def register(mcp, call):
     def snapshot(url: str = "", limit: int = 30) -> str:
         """Дерево интерактивных элементов с ref (aria-подобный YAML,
         ~2-5KB вместо HTML 100KB+). Клик по ref: session_click(ref="N").
-        Без url — текущая вкладка сессии; с url — открыть и снять."""
+        Без url — текущая вкладка сессии; с url — открыть и снять.
+        КОГДА: понять структуру страницы и получить ref для кликов
+        (дёшево по токенам, в отличие от HTML).
+        НЕ КОГДА: нужен текст → session_text / fetch_page; нужен вид
+        глазами → screenshot(som=True) — там номера совпадают с ref."""
         return call("snapshot", url=url, limit=limit)
 
     @mcp.tool()
@@ -108,7 +121,10 @@ def register(mcp, call):
         """Скриншот в PNG: активная вкладка сессии (без url) или страница
         по url. selector — только элемент. som=True — Set-of-Mark: красные
         рамки с номерами на интерактивных элементах (ref совпадают со
-        snapshot). Возвращает путь к файлу."""
+        snapshot). Возвращает путь к файлу.
+        КОГДА: визуальная проверка (вёрстка, canvas, капча, картинки).
+        НЕ КОГДА: нужны только тексты/ссылки → snapshot / fetch_page
+        (сильно дешевле по токенам)."""
         return call("screenshot", url=url, selector=selector, som=som, full_page=full_page)
 
     @mcp.tool()
@@ -128,7 +144,11 @@ def register(mcp, call):
     ) -> str:
         """BFS-обход сайта: стартовая страница + внутренние ссылки
         (depth <= max_depth, всего <= max_pages). Тексты с разделителями
-        '--- URL:'. Паттерн Firecrawl crawl. Кэш: повторный обход дешёвый."""
+        '--- URL:'. Паттерн Firecrawl crawl. Кэш: повторный обход дешёвый.
+        КОГДА: собрать содержимое САЙТА целиком (BFS, своя структура).
+        НЕ КОГДА: нужны только URL без текста → map_site / sitemap
+        (дешевле); нужен один раздел → fetch_page; сайт огромный →
+        sitemap → фильтр pattern, потом crawl."""
         return call(
             "crawl",
             url=url,
@@ -144,7 +164,12 @@ def register(mcp, call):
         """Извлечение по схеме (Firecrawl extract, без LLM): schema — JSON
         {"поле": "css:.price"} или {"поле": {"selector": ".price",
         "attr": "text|href|src"}}. Селекторы: CSS ("css:", ".price"),
-        XPath ("//div[@class='x']" или "xpath=..."). Возвращает JSON."""
+        XPath ("//div[@class='x']" или "xpath=..."). Возвращает JSON.
+        КОГДА: нужны КОНКРЕТНЫЕ поля (цена, заголовок, ссылка) по
+        селекторам — стабильная структура страницы.
+        НЕ КОГДА: нужен сплошной текст → fetch_page / batch_fetch;
+        нужны таблицы → table_extract; не знаешь селектор → snapshot
+        сначала (найти элементы с ref)."""
         return call("extract", url=url, schema=schema)
 
     @mcp.tool()
@@ -220,7 +245,11 @@ def register(mcp, call):
     @mcp.tool()
     def read_document(source: str, max_chars: int = 6000) -> str:
         """Текст из PDF/DOCX/XLSX: source — URL или локальный путь.
-        Библиотеки pypdf/python-docx/openpyxl (pip install, если нет)."""
+        Библиотеки pypdf/python-docx/openpyxl (pip install, если нет).
+        КОГДА: документ (отчёт, прайс, спецификация) — часто ссылки
+        с сайтов/в рассылках.
+        НЕ КОГДА: HTML-страница → fetch_page; старые .doc/.xls →
+        конвертируй libreoffice --convert-to docx/xlsx (не читаются)."""
         return call("read_document", source=source, max_chars=max_chars)
 
     @mcp.tool()
@@ -273,17 +302,28 @@ def register(mcp, call):
     def export(data: str, format: str = "json", path: str = "") -> str:
         """Сохранить результат (из extract/crawl) в файл: json/csv/md.
         path — свой или авто ~/.cache/camoufox-research/exports/.
-        Паттерн data export."""
+        Паттерн data export.
+        КОГДА: результат нужен на диске (CSV для таблиц, JSON для
+        автоматизации, MD для отчёта).
+        НЕ КОГДА: результат идёт в разговор/синтез → верни текст как
+        есть; нужен готовый отчёт кампании → citation_report."""
         return call("export", data=data, format=format, path=path)
 
     @mcp.tool()
     def table_extract(url: str, selector: str = "table", max_tables: int = 5) -> str:
         """HTML-таблицы страницы → CSV-текст (характеристики, прайсы,
-        сравнения). Паттерн table export."""
+        сравнения). Паттерн table export.
+        КОГДА: на странице есть <table> — прайсы/спеки/сравнения.
+        НЕ КОГДА: данных нет в таблице → extract (произвольные поля);
+        таблиц нет вовсе → fetch_page."""
         return call("table_extract", url=url, selector=selector, max_tables=max_tables)
 
     @mcp.tool()
     def page_diff(url: str, max_chars: int = 6000) -> str:
         """Дифф страницы с прошлым чтением (кэш vs свежее): мониторинг
-        изменений, «что поменялось». Паттерн change detection."""
+        изменений, «что поменялось». Паттерн change detection.
+        КОГДА: следить за страницей (цены, доки, новости) — второй и
+        далее заходы покажут ИЗМЕНЕНИЯ.
+        НЕ КОГДА: страница читается впервые (диффу не с чем сравнить)
+        → fetch_page; нужна полная текстовая версия → fetch_page."""
         return call("page_diff", url=url, max_chars=max_chars)

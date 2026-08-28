@@ -14,6 +14,7 @@ pool, а async-тулы с subprocess в этой связке (mcp 1.x + python
 Подключение (через scripts/install/install_mcp.py) в opencode/claude/codex/deepcode.
 """
 
+import contextlib
 import os
 import sys
 import time
@@ -41,15 +42,18 @@ from camoufox_research.camoufox_research_bridge import (
     _START_TIME,
     _call,
 )
+from camoufox_research.camoufox_caps import resolve_caps
 from camoufox_research.camoufox_research_tools import register as register_research
 from camoufox_research.session_tools import register as register_session
 
 mcp = FastMCP("camoufox-research")
 
+
 @mcp.tool()
 def ping() -> str:
     """Проверка связи: возвращает pong."""
     return "pong"
+
 
 register_research(mcp, _call)
 register_session(mcp, _call)
@@ -57,26 +61,31 @@ register_session(mcp, _call)
 # --- MCP Resources: данные для чтения «как файлы» (4-й примитив
 # протокола, MCP-канон 2026: tools + resources + prompts) ---
 
+
 @mcp.resource("camoufox://stats")
 def _res_stats() -> str:
     """Статистика вызовов тулов (audit, секреты замаскированы)."""
     return _call("stats", limit=50)
+
 
 @mcp.resource("camoufox://cache")
 def _res_cache() -> str:
     """Инфо о кэше: размер БД, записи (pages/searches/deltas), TTL."""
     return _call("cache_info")
 
+
 @mcp.resource("camoufox://session")
 def _res_session() -> str:
     """Состояние живой сессии: URL, заголовок, жива ли вкладка."""
     return _call("session_status")
+
 
 @mcp.resource("camoufox://info")
 def _res_info() -> str:
     """Инфо о сервере: имя, число тулов, список."""
     tools = sorted(mcp._tool_manager._tools.keys())
     return f"camoufox-research MCP-сервер\nтулов: {len(tools)}\n" + " ".join(tools)
+
 
 @mcp.resource("camoufox://health")
 def _res_health() -> str:
@@ -91,13 +100,17 @@ def _res_health() -> str:
     tools = len(mcp._tool_manager._tools)
     total_calls = sum(len(v) for v in _RATE_LIMIT.values())
     auth_status = "включён (CAMOUFOX_API_KEY)" if _AUTH_KEY else "выключен"
+    caps_status = os.environ.get("CAMOUFOX_CAPS", "").strip() or "all"
     return (
         f'{{"status":"ok","version":"{ver}","uptime_s":{uptime},'
         f'"tools":{tools},"calls_last_min":{total_calls},'
-        f'"rate_limit_max_per_min":{_RATE_LIMIT_MAX},"auth":"{auth_status}"}}'
+        f'"rate_limit_max_per_min":{_RATE_LIMIT_MAX},"auth":"{auth_status}",'
+        f'"caps":"{caps_status}"}}'
     )
 
+
 # --- MCP Prompts: готовые рецепты для агента (шаблоны рабочих циклов) ---
+
 
 @mcp.prompt()
 def research_plan(topic: str) -> str:
@@ -115,6 +128,7 @@ def research_plan(topic: str) -> str:
         "4. Итог с цитатами источников."
     )
 
+
 @mcp.prompt()
 def extract_schema(url: str, fields: str) -> str:
     """Извлечение полей со страницы: поля → JSON-схема → extract."""
@@ -126,6 +140,7 @@ def extract_schema(url: str, fields: str) -> str:
         "3. Если нужно сохранить: export(data=..., format='csv')."
     )
 
+
 @mcp.prompt()
 def monitor_page(url: str) -> str:
     """Мониторинг изменений страницы (delta + page_diff)."""
@@ -136,15 +151,25 @@ def monitor_page(url: str) -> str:
         "3. delta=True — не тратить токены на неизменный контент."
     )
 
+
 # --- Фильтр тулов: контекст-инженерия (аудит 28.08.2026) ---
-# 57 тулов > порога ~20: модель деградирует, контекст переполнен.
+# >40 тулов в контексте = деградация выбора агентом (archestra, Merlonix);
+# здесь — как в Playwright MCP (--caps): профили-группы поверх allowlist.
 # Машина решает, какие тулы ВИДИТ агент:
-#   CAMOUFOX_TOOLS_ONLY="a,b,c" — показывать ТОЛЬКО эти (allowlist), или
-#   CAMOUFOX_TOOL_HIDE="x,y" — спрятать эти (blocklist, если allowlist пуст).
-# Ничего не задано = все 57 (старое поведение, совместимость не ломается).
+#   CAMOUFOX_CAPS="research,browser,session,vision" — группы (профили),
+#   CAMOUFOX_TOOLS_ONLY="a,b,c" — ТОЛЬКО эти имена (allowlist),
+#   CAMOUFOX_TOOL_HIDE="x,y" — спрятать эти (поверх всего).
+# Приоритет: CAPS > TOOLS_ONLY > HIDE. Ничего не задано = все тулы
+# (старое поведение, совместимость не ломается).
 def _apply_tool_filter() -> None:
     only = os.environ.get("CAMOUFOX_TOOLS_ONLY", "").strip()
     hide = os.environ.get("CAMOUFOX_TOOL_HIDE", "").strip()
+    caps = os.environ.get("CAMOUFOX_CAPS", "").strip()
+    if caps:
+        keep, errors = resolve_caps(caps)
+        if errors:
+            print("caps:", "; ".join(errors), file=sys.stderr)
+        only = ",".join(sorted(keep)) if keep else ""
     if not only and not hide:
         return
     import asyncio
@@ -155,11 +180,15 @@ def _apply_tool_filter() -> None:
     def _run() -> None:
         for t in asyncio.run(mcp.list_tools()):
             if (only and t.name not in keep) or t.name in drop:
-                mcp.remove_tool(t.name)
+                # повторный прогон фильтра: тул уже удалён — не страшно
+                with contextlib.suppress(Exception):
+                    mcp.remove_tool(t.name)
 
     _run()
 
+
 _apply_tool_filter()
+
 
 def main():
     """Точка входа MCP-сервера (entry point: `camoufox-research`).
@@ -183,7 +212,16 @@ def main():
         default=int(os.environ.get("CAMOUFOX_PORT", "8833")),
         help="порт для http/sse (или env CAMOUFOX_PORT)",
     )
+    ap.add_argument(
+        "--caps",
+        default=os.environ.get("CAMOUFOX_CAPS", ""),
+        help="профили тулов через запятую: research,browser,session,vision "
+        "(пусто = все тулы, как раньше)",
+    )
     args = ap.parse_args()
+    if args.caps.strip():
+        os.environ["CAMOUFOX_CAPS"] = args.caps.strip()
+        _apply_tool_filter()  # второй прогон безопасен (guard в фильтре)
     # TTL-уборка кэша при старте (паттерн cleanupPeriodDays, см. housekeep):
     # страницы/диффы/поиск > 30 дней, отчёты exports > 90 дней. Ошибки
     # уборки не роняют сервер (бонус, не охота).
@@ -200,6 +238,7 @@ def main():
         mcp.run(transport="http", host=args.host, port=args.port)
     else:
         mcp.run(transport="sse", host=args.host, port=args.port)
+
 
 if __name__ == "__main__":
     main()

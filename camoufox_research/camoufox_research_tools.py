@@ -5,6 +5,7 @@
 FILE-SIZE.md): register(mcp, call) добавляет research*/fetch/extract-тулы
 (паттерн session_tools). Сессионные тулы — в session_tools."""
 
+
 def register(mcp, call):
     @mcp.tool()
     def web_search(
@@ -12,7 +13,10 @@ def register(mcp, call):
     ) -> str:
         """Поиск в DuckDuckGo через анти-детект браузер: номер, заголовок,
         URL. pages>1 — пагинация (больше уникальных URL). include_snippets —
-        сниппет под URL. Кэш на сутки."""
+        сниппет под URL. Кэш на сутки.
+        КОГДА: быстрый ответ по факту (новости, точный URL, один запрос).
+        НЕ КОГДА: нужна охота на ≥10 разных сайтов → research /
+        research_start; нужны научные статьи → paper_search."""
         return call(
             "web_search",
             query=query,
@@ -75,7 +79,12 @@ def register(mcp, call):
         agents"], target_domains=20, domains_limit=2, expand=True,
         terms_wave=True, quality_first=True, academic=True, llm_planner=True,
         fetch_all=True, as_json=True, max_results_per_query=6)
-        Результат кэшируется на сутки."""
+        Результат кэшируется на сутки.
+        КОГДА: «собери 10-20+ источников» ОДНИМ вызовом, результат нужен
+        сейчас (без кампании).
+        НЕ КОГДА: нужен прогресс/статус и бюджет search_calls →
+        research_start (кампания в sqlite); нужен только топ-5 →
+        web_search."""
         return call(
             "research",
             timeout=900,
@@ -106,9 +115,7 @@ def register(mcp, call):
         return call("paper_search", query=query, sources=sources, max_results=max_results)
 
     @mcp.tool()
-    def research_digest(
-        camp_id: str, refresh: bool = True, max_age: int = 86400
-    ) -> str:
+    def research_digest(camp_id: str, refresh: bool = True, max_age: int = 86400) -> str:
         """Выжимки + верификация кампании: короткие пакеты
         (заголовок + первый абзац, ~700 символов) для синтеза и статус
         «жив/битый» каждого источника (гейт качества, паттерн DEER /
@@ -116,10 +123,11 @@ def register(mcp, call):
         выжимки и проверить живость заново (до 30 URL, параллельно);
         у фоновой кампании всё уже заполнено — refresh не нужен.
         max_age — свежесть verified в секундах (0 = проверить ВСЁ
-        заново, напр. сомнение в кэше; 86400 = сутки TTL-кэш)."""
-        return call(
-            "research_digest", camp_id=camp_id, refresh=refresh, max_age=max_age
-        )
+        заново, напр. сомнение в кэше; 86400 = сутки TTL-кэш).
+        КОГДА: кампания done — короткие выжимки + статус «жив/битый».
+        НЕ КОГДА: нужен полный MD на диск → citation_report; кампания
+        ещё running → сначала research_status/ждать маркер."""
+        return call("research_digest", camp_id=camp_id, refresh=refresh, max_age=max_age)
 
     @mcp.tool()
     def citation_pack(camp_id: str) -> str:
@@ -127,7 +135,11 @@ def register(mcp, call):
         с выжимками, одним блоком (цитируй по номерам [1]..[N]).
         Это гейт качества DEER/DeepResearch Bench: отчёт опирается на
         живые источники, а не на мёртвые ссылки. Если verify/выжимки ещё
-        не прогонялись — достроит автоматически (сеть/браузер)."""
+        не прогонялись — достроит автоматически (сеть/браузер).
+        КОГДА: пишешь отчёт с ссылками — брать ТОЛЬКО отсюда (гейт
+        качества: без мёртвых ссылок).
+        НЕ КОГДА: нужен файл на диске → citation_report; нужны выжимки
+        без верификации → research_digest(refresh=False)."""
         return call("citation_pack", camp_id=camp_id)
 
     @mcp.tool()
@@ -135,7 +147,10 @@ def register(mcp, call):
         """Цитированный отчёт НА ДИСК: готовый MD-документ с выжимками
         verified ✅ источников (нумерация [1..N] + раздел «Ссылки»).
         Без path — exports/{camp_id}.cit.md. Отдаёт путь и размер —
-        документ можно сразу отправить/приложить."""
+        документ можно сразу отправить/приложить.
+        КОГДА: готовый цитированный документ КАК ФАЙЛ (приложить,
+        отправить, сохранить в репозиторий).
+        НЕ КОГДА: текст нужен в ответ для синтеза → citation_pack."""
         return call("citation_report", camp_id=camp_id, path=path)
 
     @mcp.tool()
@@ -161,7 +176,11 @@ def register(mcp, call):
         Перед стартом проверяет пульс крона сторожа — мёртвый крон
         предупредит, а не промолчит. Финальный отчёт автоархивируется
         (CAMOUFOX_REPORT_DIR, по умолчанию exports).
-        llm_planner=True — Layer B, LLM (DeepSeek/Ollama) для 20+ вопросов [1]."""
+        llm_planner=True — Layer B, LLM (DeepSeek/Ollama) для 20+ вопросов [1].
+        КОГДА: большая тема «на N сайтов» в фон, счётчик в sqlite, маркер
+        done; кормит research_report → batch_fetch → citation_pack.
+        НЕ КОГДА: результат нужен прямо сейчас → research (синхронно);
+        кампания уже running → research_resume (двойной запуск = гонка)."""
         return call(
             "research_start",
             timeout=600,
@@ -177,13 +196,20 @@ def register(mcp, call):
     @mcp.tool()
     def research_status(camp_id: str, limit: int = 6) -> str:
         """Прогресс кампании: статус, счётчик разных сайтов vs цель,
-        топ источников по качеству (доки/код первыми)."""
+        топ источников по качеству (доки/код первыми).
+        КОГДА: «как охота?» — глянуть статус/счётчик/топ за секунду.
+        НЕ КОГДА: нужен полный список источников → research_report;
+        нужны тексты/выжимки → research_digest."""
         return call("research_status", camp_id=camp_id, limit=limit)
 
     @mcp.tool()
     def research_report(camp_id: str, fmt: str = "md") -> str:
         """Отчёт кампании: список источников (титул/URL/домен/класс) в
-        md-таблице или json. Сырьё для синтеза с цитатами."""
+        md-таблице или json. Сырьё для синтеза с цитатами.
+        КОГДА: кампания done — собрать полный список для отчёта/синтеза.
+        НЕ КОГДА: нужны только verified-цитаты с текстами → citation_pack;
+        нужна сводка ВСЕХ кампаний → research_index; кампания running →
+        research_status."""
         return call("research_report", camp_id=camp_id, fmt=fmt)
 
     @mcp.tool()
@@ -194,53 +220,55 @@ def register(mcp, call):
         перебора 57 тулов вслепую. Сокращает выбор (индустрия: >40
         тулов = −260% selection quality, роутинг решает)."""
         _R = {
-            "поиск": ("web_search / research_start",
-                      "общий веб: web_search; глубокая охота на N сайтов — research_start"),
-            "стать": ("paper_search",
-                      "научные: arXiv/Semantic/Crossref/Wiki — первоисточники"),
-            "анализ страниц": ("fetch_page / extract",
-                               "текст: fetch_page; по схеме: extract"),
-            "мониторинг": ("research_start(feeds=) / page_diff",
-                           "следить за изменением страницы: page_diff"),
-            "карта сайта": ("map_site / sitemap",
-                            "все URL сайта: map_site; sitemap.xml: sitemap"),
-            "выжимки": ("research_digest",
-                        "verified-источники с текстом: research_digest"),
-            "отчёт": ("research_report(fmt=)",
-                      "md/csv/xlsx/mermaid — итог кампании"),
-            "браузер": ("session_*",
-                        "живая сессия: session_start → navigate/click/type/text"),
-            "таблиц": ("table_extract",
-                       "таблицы со страницы: table_extract (HTML → структура)"),
-            "скриншот": ("screenshot",
-                         "вид страницы картинкой: screenshot"),
-            "ссылки": ("extract_links / session_links",
-                       "ссылки страницы: extract_links; в сессии: session_links"),
-            "файл": ("read_document / session_download / session_upload",
-                     "PDF/DOCX/XLSX: read_document; скачать: session_download; "
-                     "загрузить: session_upload"),
-            "профиль": ("profile_load / profile_save",
-                        "куки+localStorage сессии: profile_save/load"),
-            "сеть": ("session_network / session_console",
-                     "запросы вкладки: session_network; JS-ошибки: session_console"),
-            "прокси": ("set_proxy",
-                       "сменить прокси на лету: set_proxy (host:port)"),
-            "экспорт": ("export",
-                        "JSON/CSV/MD результата: export(data, format, path)"),
-            "проверка ссылок": ("check_links",
-                                "битые ссылки: check_links"),
-            "цитаты": ("citation_pack / citation_report",
-                       "verified+текст для синтеза: citation_pack"),
-            "документ": ("read_document",
-                         "PDF/DOCX/XLSX текст: read_document"),
-            "статус": ("research_status",
-                       "прогресс кампании: research_status(id)"),
-            "продолжить": ("research_resume",
-                           "добор кампании с места: research_resume(id)"),
+            "поиск": (
+                "web_search / research_start",
+                "общий веб: web_search; глубокая охота на N сайтов — research_start",
+            ),
+            "стать": ("paper_search", "научные: arXiv/Semantic/Crossref/Wiki — первоисточники"),
+            "анализ страниц": ("fetch_page / extract", "текст: fetch_page; по схеме: extract"),
+            "мониторинг": (
+                "research_start(feeds=) / page_diff",
+                "следить за изменением страницы: page_diff",
+            ),
+            "карта сайта": ("map_site / sitemap", "все URL сайта: map_site; sitemap.xml: sitemap"),
+            "выжимки": ("research_digest", "verified-источники с текстом: research_digest"),
+            "отчёт": ("research_report(fmt=)", "md/csv/xlsx/mermaid — итог кампании"),
+            "браузер": ("session_*", "живая сессия: session_start → navigate/click/type/text"),
+            "таблиц": ("table_extract", "таблицы со страницы: table_extract (HTML → структура)"),
+            "скриншот": ("screenshot", "вид страницы картинкой: screenshot"),
+            "ссылки": (
+                "extract_links / session_links",
+                "ссылки страницы: extract_links; в сессии: session_links",
+            ),
+            "файл": (
+                "read_document / session_download / session_upload",
+                "PDF/DOCX/XLSX: read_document; скачать: session_download; "
+                "загрузить: session_upload",
+            ),
+            "профиль": (
+                "profile_load / profile_save",
+                "куки+localStorage сессии: profile_save/load",
+            ),
+            "сеть": (
+                "session_network / session_console",
+                "запросы вкладки: session_network; JS-ошибки: session_console",
+            ),
+            "прокси": ("set_proxy", "сменить прокси на лету: set_proxy (host:port)"),
+            "экспорт": ("export", "JSON/CSV/MD результата: export(data, format, path)"),
+            "проверка ссылок": ("check_links", "битые ссылки: check_links"),
+            "цитаты": (
+                "citation_pack / citation_report",
+                "verified+текст для синтеза: citation_pack",
+            ),
+            "документ": ("read_document", "PDF/DOCX/XLSX текст: read_document"),
+            "статус": ("research_status", "прогресс кампании: research_status(id)"),
+            "продолжить": ("research_resume", "добор кампании с места: research_resume(id)"),
         }
         if not what:
-            return ("для чего? примеры: поиск, статьи, анализ страниц, "
-                    "мониторинг, таблицы, цитаты, файлы, документ, статус")
+            return (
+                "для чего? примеры: поиск, статьи, анализ страниц, "
+                "мониторинг, таблицы, цитаты, файлы, документ, статус"
+            )
         for k, v in _R.items():
             if k.lower() in what.lower():
                 return f"для «{what}» → {v[0]}: {v[1]}"
@@ -282,9 +310,11 @@ def register(mcp, call):
                     return call(tool, **params)
                 except Exception as e:
                     return f"роутер: {tool} упал ({type(e).__name__})"
-        return ("цель не распознана. goals: поиск, статьи, мониторинг, "
-                "карта, выжимки, таблицы, цитаты, сессия, страница, "
-                "сниппет, скриншот + query=параметр")
+        return (
+            "цель не распознана. goals: поиск, статьи, мониторинг, "
+            "карта, выжимки, таблицы, цитаты, сессия, страница, "
+            "сниппет, скриншот + query=параметр"
+        )
 
     @mcp.tool()
     def research_critic(camp_id: str) -> str:
@@ -296,6 +326,7 @@ def register(mcp, call):
         ответ «недоступен»), отчёт НЕ правит — только флагает."""
         try:
             from camoufox_research.camoufox_critic import load_bearing_report
+
             return load_bearing_report(camp_id)
         except Exception as e:
             return f"критик упал: {type(e).__name__}: {str(e)[:80]}"
@@ -309,9 +340,11 @@ def register(mcp, call):
         (метрика работает, а тул не используют)."""
         try:
             from camoufox_research.camoufox_research_bridge import _TOOL_USAGE
+
             if not _TOOL_USAGE:
                 return "пока нет вызовов (usage пуст)"
             import time as _t
+
             now = _t.time()
             rows = sorted(
                 ((t, r.get("count", 0), r.get("last")) for t, r in _TOOL_USAGE.items()),
@@ -324,8 +357,11 @@ def register(mcp, call):
                 ago = f"{(now - last) / 86400:.0f}дн" if last else "?"
                 out.append(f"  {n:5d}x  {t}  ({ago})")
             # кандидаты на резку: были вызовы, но не звались 30+ дней
-            stale = [t for t, r in _TOOL_USAGE.items()
-                     if r.get("last") and (now - r["last"]) > 30 * 86400]
+            stale = [
+                t
+                for t, r in _TOOL_USAGE.items()
+                if r.get("last") and (now - r["last"]) > 30 * 86400
+            ]
             if stale:
                 out.append("\nкандидаты на резку (>30дн не звались):")
                 for t in sorted(stale)[:10]:
@@ -358,7 +394,11 @@ def register(mcp, call):
         сутки. article_only=True — текст статьи (Trafilatura), fallback —
         весь body. delta=True — delta-чтение: если контент не изменился
         с прошлого раза, вернёт маркер '[delta: ...]' вместо текста
-        (не тратим токены на повтор)."""
+        (не тратим токены на повтор).
+        КОГДА: прочитать 1 страницу (JS/SPA — тоже) чистым текстом.
+        НЕ КОГДА: страниц 10+ → batch_fetch; нужны поля по схеме →
+        extract; повторное чтение → delta=True; нужен клик/ввод →
+        session_start."""
         return call(
             "fetch_page", url=url, max_chars=max_chars, article_only=article_only, delta=delta
         )
@@ -381,7 +421,11 @@ def register(mcp, call):
         article_only=True — извлечь текст статьи (Trafilatura), без меню
         и баннеров. Пример:
         batch_fetch(urls=["https://docs.python.org/3/", "https://opencode.ai/docs/"],
-                    max_chars=6000, article_only=True)"""
+                    max_chars=6000, article_only=True)
+        КОГДА: читать 10-50 URL одним вызовом (глубокий ресёрч после
+        research_start / research_report).
+        НЕ КОГДА: 1-2 страницы → fetch_page; URL ещё не собраны →
+        research_start, sitemap, map_site сначала."""
         return call(
             "batch_fetch",
             timeout=600,
