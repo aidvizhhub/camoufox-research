@@ -2,6 +2,7 @@
 # camoufox_campaign_ext — вторая половина кампаний (262 строк, канон FILE-SIZE.md)
 """Вторая половина кампаний: resume, start, status, report — зависит от core."""
 import json
+import re
 import os
 import subprocess
 import sys
@@ -335,6 +336,19 @@ def report(camp_id, fmt="md"):
                 (camp_id,)).fetchone()[0]
         _budget_n = int(os.environ.get("CAMOUFOX_SEARCH_BUDGET", "40"))
         _sc_txt = f" · бюджет: {_sc}/{_budget_n}"
+        # БЮДЖЕТ-ПРОФИЛЬ (28.08): волны из лога → сколько из них мусорных
+        # (волна с +0 новых = вызов впустую — не дал уникальных доменов).
+        _log_p = Path(_EXPORT_DIR) / f"{camp_id}.log"
+        _waves, _wasted = 0, 0
+        if _log_p.exists():
+            _log_txt = _log_p.read_text(encoding="utf-8", errors="replace")
+            _waves = len(re.findall(
+                r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых",
+                _log_txt))
+            # мусорная волна: «волнаN:+0 новых» (не дала доменов)
+            _wasted = len(re.findall(r"волна\d+:\+0 новых", _log_txt))
+        if _waves:
+            _sc_txt += f" · волн: {_waves} (мусорных: {_wasted})"
     except Exception:
         _sc_txt = ""
     head = ([f"# Кампания: {topic_row[0]}",

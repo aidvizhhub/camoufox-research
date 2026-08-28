@@ -53,6 +53,19 @@ def main() -> int:
     if over:
         print(f"\n⚠️ перерасход (>={args.over}%): {over} кампаний "
               f"(мусорные волны / недобор — посмотри статус)")
+        # АЛЕРТ (28.08, индустрия strict_budget): перерасход + НЕ
+        # finished — застрявшая кампания жжёт бюджет → пишем в лог
+        # перерасхода (крон подхватит, сторож увидит).
+        stalled = [r for r in rows if r[3] / budget >= args.over / 100
+                   and r[2] not in ("done", "failed")]
+        if stalled:
+            with open(Path(__file__).parent.parent
+                      / "metrics" / "budget-alert.txt", "w",
+                      encoding="utf-8") as fh:
+                fh.write(f"перерасход + не finished: "
+                         f"{', '.join(r[1][:30] for r in stalled)}\n")
+            print(f"🚨 АЛЕРТ записан: {len(stalled)} кампаний "
+                  f"перерасход + не finished (metrics/budget-alert.txt)")
     return 0
 
 

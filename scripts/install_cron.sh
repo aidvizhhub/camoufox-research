@@ -44,6 +44,7 @@ ITEMS=(
   "backup_cache|20 4 * * *|backup_cache.py"
   "map_metric|40 4 * * *|map_metric_cron.sh"
   "precommit|0 0 1 * *|pre-commit_autoupdate.sh"
+  "budget_review|20 10 * * 1|budget_review.py"
 )
 
 # --- remove: снять наши строки, оставить чужие ---
