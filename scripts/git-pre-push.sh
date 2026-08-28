@@ -33,7 +33,7 @@ while read -r _lref _lsha _rref _rsha; do
     done
     # разрешённые файлы-конфиги (не «добыча», а проект)
     case "$f" in
-      scripts/*|camoufox_research/*|tests/*|.github/*|README.md|pyproject.toml|uv.lock|.gitignore|configs/*|research/README.md|*.md) ok=1 ;;
+      scripts/*|camoufox_research/*|tests/*|.github/*|configs/*|*.md|*.yaml|*.yml|*.toml|*.lock|*.ini|.gitignore|pyproject.toml|uv.lock) ok=1 ;;
     esac
     [ "$ok" = "1" ] || bad="$bad $f"
   done <<< "$files"
