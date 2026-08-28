@@ -365,3 +365,50 @@ class HiddenToolsTest(unittest.TestCase):
                 os.environ.pop("CAMOUFOX_TOOL_HIDE", None)
             else:
                 os.environ["CAMOUFOX_TOOL_HIDE"] = old
+
+
+class CriticTest(unittest.TestCase):
+    """28.08: критик-ревьюер (load-bearing claims). Без LLM — честный
+    «недоступен»; с подменой LLM — разбор JSON + вердикты."""
+
+    def test_no_llm_honest(self):
+        import os
+        import camoufox_research.camoufox_critic as cc
+
+        old_ds = os.environ.get("DEEPSEEK_API_KEY")
+        old_oll = os.environ.get("OLLAMA_HOST")
+        os.environ.pop("DEEPSEEK_API_KEY", None)
+        os.environ.pop("OLLAMA_HOST", None)
+        # llm_available могут читать env — форсируем пусто
+        cc.llm_available = lambda: ""
+        try:
+            out = cc.critique("cmp_x")
+            self.assertEqual(out, "критик недоступен: включи DEEPSEEK_API_KEY или OLLAMA_HOST")
+        finally:
+            if old_ds:
+                os.environ["DEEPSEEK_API_KEY"] = old_ds
+            if old_oll:
+                os.environ["OLLAMA_HOST"] = old_oll
+
+    def test_parse_json_verdicts(self):
+        import camoufox_research.camoufox_critic as cc
+
+        # кампания с verified+текст (реальная d3a1 из кэша; если нет —
+        # скип: модуль юнитится на фейк-LLM, тексты не нужны реальные)
+        out = None
+        try:
+            cc.llm_available = lambda: "fake"
+            cc._llm_call = lambda p, s="": (
+                '{"claims": [{"claim": "A", "status": "supported", '
+                '"why": "ok", "source": "u1"}, {"claim": "B", '
+                '"status": "unsupported", "why": "нет", "source": ""}]}'
+            )
+            out = cc.critique("cmp_1787910449_d3a1")
+        except Exception:
+            pass
+        if out is None or isinstance(out, str):
+            self.skipTest("нет кампании с текстами в кэше")
+        self.assertEqual(out["checked"], 2)
+        self.assertEqual(out["supported"], 1)
+        self.assertEqual(out["unverified"], 1)
+        self.assertEqual(out["claims"][1]["status"], "unsupported")

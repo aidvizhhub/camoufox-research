@@ -137,6 +137,20 @@ def post_hunt(camp_id, log):
     except Exception:
         pass  # автоархив — бонус, не охота
     cit_report = ""
+
+    # КРИТИК (load-bearing claims, канон 2026): если LLM-ключ есть —
+    # проверить несущие утверждения отчёта. НЕ блокирует охоту
+    # (бонус качества; без ключа молча пропускается).
+    try:
+        from camoufox_research.camoufox_critic import load_bearing_report
+        from camoufox_research.camoufox_llm import llm_available
+
+        if llm_available():
+            _crit = load_bearing_report(camp_id)
+            if not isinstance(_crit, str):
+                log(f"критик: {_crit.splitlines()[0]}")
+    except Exception:
+        pass  # критик — бонус
     try:
         cit_report = citation_report(camp_id)
     except Exception:

@@ -282,6 +282,20 @@ def register(mcp, call):
                 "сниппет, скриншот + query=параметр")
 
     @mcp.tool()
+    def research_critic(camp_id: str) -> str:
+        """КРИТИК-РЕВЬЮЕР (канон groundwork/DCM 2026): отчёт кампании →
+        выделяет 3-5 НЕСУЩИХ утверждений и проверяет каждое против
+        текстов источников (supported/unsupported/unverifiable).
+        11-57% ошибок цитирования у коммерческих агентов — мы меряем
+        СВОИ. Требует DEEPSEEK_API_KEY или OLLAMA_HOST (иначе честный
+        ответ «недоступен»), отчёт НЕ правит — только флагает."""
+        try:
+            from camoufox_research.camoufox_critic import load_bearing_report
+            return load_bearing_report(camp_id)
+        except Exception as e:
+            return f"критик упал: {type(e).__name__}: {str(e)[:80]}"
+
+    @mcp.tool()
     def tool_usage(days: int = 0) -> str:
         """МЕТРИКА использования (28.08): какие тулы РЕАЛЬНО зовутся
         (persistent, из tool_usage.json). days>0 — показать только
