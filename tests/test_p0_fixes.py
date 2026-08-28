@@ -305,7 +305,8 @@ class ToolUsageTest(unittest.TestCase):
 
     def test_new_format_roundtrip(self):
         import camoufox_research.camoufox_research_bridge as rb
-        import tempfile, time
+        import tempfile
+        import time
         from pathlib import Path
 
         old_file = rb._USAGE_FILE
