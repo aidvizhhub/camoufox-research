@@ -111,6 +111,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="MAP@K по реальным кампаниям")
     ap.add_argument("--top", type=int, default=10, help="K в MAP@K (10)")
     ap.add_argument("--compare", action="store_true", help="BM25 vs бинарное А/В")
+    ap.add_argument("--min", type=int, default=0,
+                    help="только кампании с N+ источниками (акцент на больших)")
     args = ap.parse_args()
 
     con = sqlite3.connect(DB)
@@ -120,6 +122,8 @@ def main() -> int:
     print(f"MAP@{args.top} (правда = cit-процитированные, live=1 + digest):\n")
     for cid, topic, queries in camps:
         rows = _sources(con, cid)
+        if len(rows) < args.min:
+            continue
         relevant = {_norm(u) for u, _t, _ti, live, digest in rows
                     if live == 1 and digest}
         if not relevant:

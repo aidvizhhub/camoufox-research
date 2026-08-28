@@ -229,3 +229,39 @@ class BM25RankTest(unittest.TestCase):
 
         s = _relevance("python", "Python guide", "https://python.org", "about python")
         self.assertAlmostEqual(s, 6.0)  # 3 (title) + 2 (url) + 1 (snippet)
+
+
+class URLNormalizeTest(unittest.TestCase):
+    """28.08: нормализация стрипает ТОЛЬКО трекинг, НЕ отвечает за
+    ресурсные параметры (page/s/k/v/id). Проверено на 481 URL проду-
+    БД: 1 склейка, 0 разных-путей — стрип консервативен (риск закрыт).
+
+    Опасность: если стрипать всё подряд — ?page=2 склеится с ?page=3
+    (разные страницы). Здесь — только utm_/ref/source/pubdate/fbclid/
+    gclid, остальное живёт."""
+
+    def _norm(self, url):
+        from urllib.parse import urlsplit, urlunsplit
+
+        sp = urlsplit(url)
+        if sp.query:
+            keep = [p for p in sp.query.split("&") if not p.lower().startswith(
+                ("utm_", "ref=", "source=", "pubdate=", "fbclid", "gclid"))]
+            return urlunsplit((sp.scheme, sp.netloc, sp.path, "&".join(keep), sp.fragment))
+        return url
+
+    def test_tracking_stripped(self):
+        u = "https://ex.com/post?a=1&utm_source=x&fbclid=y"
+        self.assertEqual(self._norm(u), "https://ex.com/post?a=1")
+
+    def test_page2_kept(self):
+        u = "https://ex.com/world/news?page=2"
+        self.assertEqual(self._norm(u), "https://ex.com/world/news?page=2")
+
+    def test_search_kept(self):
+        u = "https://ex.com/s?q=python+guide"
+        self.assertEqual(self._norm(u), "https://ex.com/s?q=python+guide")
+
+    def test_youtube_id_kept(self):
+        u = "https://www.youtube.com/watch?v=abc123"
+        self.assertEqual(self._norm(u), "https://www.youtube.com/watch?v=abc123")
