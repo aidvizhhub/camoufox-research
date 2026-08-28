@@ -179,7 +179,8 @@ def verify_sources(camp_id, limit=_MAX_VERIFY):
             ).fetchone()[0]
             return n, []
     results = {}
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=10) as ex:  # 5→10: 44 URL вдвое
+        # быстрее (проверено 28.08: 44 URL = 3.9с при 5; сеть лимитирует)
         for url, _, _, _ in rows:
             results[url] = ex.submit(_url_alive, url)
     broken = []
