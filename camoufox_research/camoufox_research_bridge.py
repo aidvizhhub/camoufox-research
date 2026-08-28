@@ -147,17 +147,27 @@ def _parse(parsed):
 _USAGE_FILE = _Path.home() / ".cache" / "camoufox-research" / "tool_usage.json"
 
 
-def _usage_load() -> dict[str, int]:
+def _usage_load() -> dict[str, dict]:
+    """Читаем usage: новый формат {tool: {count, last}} или СТАРЫЙ
+    {tool: count} (миграция 28.08: дата последнего вызова нужна для
+    «тул не звался 30 дней → кандидат на резку»)."""
     try:
         if _USAGE_FILE.exists():
             import json
-            return json.loads(_USAGE_FILE.read_text(encoding="utf-8"))
+            data = json.loads(_USAGE_FILE.read_text(encoding="utf-8"))
+            out = {}
+            for k, v in data.items():
+                if isinstance(v, dict):
+                    out[k] = v
+                else:  # старый формат: v = count
+                    out[k] = {"count": v, "last": None}
+            return out
     except Exception:
         pass
     return {}
 
 
-def _usage_save(data: dict[str, int]) -> None:
+def _usage_save(data: dict) -> None:
     try:
         import json
         _USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -166,11 +176,15 @@ def _usage_save(data: dict[str, int]) -> None:
         pass  # метрика — бонус, не роняем вызов
 
 
-_TOOL_USAGE: dict[str, int] = _usage_load()
+_TOOL_USAGE: dict[str, dict] = _usage_load()
 
 
 def _call(action, timeout=120, **kwargs):
-    _TOOL_USAGE[action] = _TOOL_USAGE.get(action, 0) + 1
+    import time as _t
+    rec = _TOOL_USAGE.get(action, {"count": 0, "last": None})
+    rec["count"] = rec.get("count", 0) + 1
+    rec["last"] = _t.time()
+    _TOOL_USAGE[action] = rec
     _usage_save(_TOOL_USAGE)
     # production gates
     err = _check_auth(kwargs)

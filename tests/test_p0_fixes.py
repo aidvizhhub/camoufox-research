@@ -281,3 +281,39 @@ class URLNormalizeTest(unittest.TestCase):
     def test_youtube_id_kept(self):
         u = "https://www.youtube.com/watch?v=abc123"
         self.assertEqual(self._norm(u), "https://www.youtube.com/watch?v=abc123")
+
+
+class ToolUsageTest(unittest.TestCase):
+    """28.08: tool_usage — persistent счётчик (count+last) + кандидаты
+    на резку (не звались >30 дней). Миграция старого формата."""
+
+    def test_migration_old_format(self):
+        import camoufox_research.camoufox_research_bridge as rb
+        import tempfile
+        from pathlib import Path
+
+        old_file = rb._USAGE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                rb._USAGE_FILE = Path(td) / "usage.json"
+                rb._USAGE_FILE.write_text('{"web_search": 12}', encoding="utf-8")
+                data = rb._usage_load()
+                self.assertEqual(data["web_search"]["count"], 12)
+                self.assertIsNone(data["web_search"]["last"])
+        finally:
+            rb._USAGE_FILE = old_file
+
+    def test_new_format_roundtrip(self):
+        import camoufox_research.camoufox_research_bridge as rb
+        import tempfile, time
+        from pathlib import Path
+
+        old_file = rb._USAGE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                rb._USAGE_FILE = Path(td) / "usage.json"
+                rb._usage_save({"web_search": {"count": 3, "last": time.time()}})
+                data = rb._usage_load()
+                self.assertEqual(data["web_search"]["count"], 3)
+        finally:
+            rb._USAGE_FILE = old_file

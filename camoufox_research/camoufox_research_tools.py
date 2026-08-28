@@ -282,17 +282,36 @@ def register(mcp, call):
                 "сниппет, скриншот + query=параметр")
 
     @mcp.tool()
-    def tool_usage() -> str:
+    def tool_usage(days: int = 0) -> str:
         """МЕТРИКА использования (28.08): какие тулы РЕАЛЬНО зовутся
-        с момента старта воркера (счётчик в bridge._TOOL_USAGE).
-        Для решения «резать или нет» по факту, не по числу тулов.
-        Пусто = воркер стартовал недавно / зовётся через другой путь."""
+        (persistent, из tool_usage.json). days>0 — показать только
+        тулы с последним вызовом в пределах N дней; days=0 — топ всех.
+        Внизу — «кандидаты на резку»: вызовы были >30 дней назад
+        (метрика работает, а тул не используют)."""
         try:
             from camoufox_research.camoufox_research_bridge import _TOOL_USAGE
             if not _TOOL_USAGE:
-                return "пока нет вызовов (счётчик с рестарта воркера)"
-            rows = sorted(_TOOL_USAGE.items(), key=lambda x: -x[1])
-            return "\n".join(f"  {n:3d}x  {t}" for t, n in rows[:20])
+                return "пока нет вызовов (usage пуст)"
+            import time as _t
+            now = _t.time()
+            rows = sorted(
+                ((t, r.get("count", 0), r.get("last")) for t, r in _TOOL_USAGE.items()),
+                key=lambda x: -x[1],
+            )
+            if days > 0:
+                rows = [r for r in rows if r[2] and (now - r[2]) < days * 86400]
+            out = [f"вызовы тулов (top {min(20, len(rows))}):"]
+            for t, n, last in rows[:20]:
+                ago = f"{(now - last) / 86400:.0f}дн" if last else "?"
+                out.append(f"  {n:5d}x  {t}  ({ago})")
+            # кандидаты на резку: были вызовы, но не звались 30+ дней
+            stale = [t for t, n, last in _TOOL_USAGE.items()
+                     if last and (now - last) > 30 * 86400]
+            if stale:
+                out.append("\nкандидаты на резку (>30дн не звались):")
+                for t in sorted(stale)[:10]:
+                    out.append(f"  - {t}")
+            return "\n".join(out)
         except Exception:
             return "usage-счётчик недоступен (нет bridge)"
 

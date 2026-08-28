@@ -7,7 +7,9 @@
   research/     — автоотчёты, INDEX.md, cit-пакеты (вечная добыча);
   cache.db      — БД кампаний: источники, выжимки, verified (29М,
                   без неё отчёты не собрать заново);
-  memory.md     — сводки в память племени.
+  memory.md     — сводки в память племени;
+  tool_usage.json — метрика вызовов тулов (28.08: не в бэкапе —
+                  терялась бы при сбое диска, как и вся добыча).
 
 Куда: /run/media/admin1/DATA/cache-backups/ (ДРУГОЙ диск от /home —
 диск сгорит, добыча жива; /run/media/admin1/DATA = ext4).
@@ -50,7 +52,7 @@ def _files_to_backup(cache: Path) -> list:
     research = cache / "research"
     if research.is_dir():
         items.append(research)
-    for name in ("cache.db", "memory.md"):
+    for name in ("cache.db", "memory.md", "tool_usage.json"):
         f = cache / name
         if f.is_file() and f.stat().st_size > 0:
             items.append(f)
