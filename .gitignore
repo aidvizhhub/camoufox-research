@@ -41,3 +41,6 @@ configs/.env
 configs/local.*
 _site/
 research/cit/
+
+# алерт перерасхода (runtime, не в git)
+metrics/budget-alert.txt

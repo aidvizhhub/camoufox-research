@@ -25,6 +25,14 @@ while read -r _lref _lsha _rref _rsha; do
   bad=""
   while IFS= read -r f; do
     [ -z "$f" ] && continue
+    # РАНТАЙМ-ФАЙЛЫ (28.08): бюджет-алерт не публикуется НИКОГДА
+    # (создаётся при перерасходе — runtime, не проект).
+    case "$f" in
+      metrics/budget-alert.txt)
+        bad="$bad RUNTIME:$f (алерт перерасхода — не в git)"
+        continue
+        ;;
+    esac
     ok=0
     for pfx in "${ALLOWED_PREFIXES[@]}"; do
       case "$f" in

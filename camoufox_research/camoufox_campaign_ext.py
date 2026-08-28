@@ -234,6 +234,18 @@ def status(camp_id, limit=6):
                 log_path.read_text(encoding="utf-8", errors="replace")))
         out.insert(2, f"бюджет поиска: использовано ~{used}/{budget} вызовов"
                       + (" · ⚠️ близко к лимиту" if used >= budget * 0.8 else ""))
+        # МУСОРНЫЕ ВОЛНЫ (28.08): волны из лога, из них +0 новых
+        # (впустую — не дали уникальных доменов). Агент видит качество
+        # охоты при дозапросе: «3 волны, 1 мусорная».
+        log_path2 = Path(_EXPORT_DIR) / f"{camp_id}.log"
+        if log_path2.exists():
+            _t2 = log_path2.read_text(encoding="utf-8", errors="replace")
+            _w = len(re.findall(
+                r"волна\s?\d+:\s?\d+ запросов|волна\d+:\+?\d+ новых", _t2))
+            _wm = len(re.findall(r"волна\d+:\+0 новых", _t2))
+            if _w:
+                _q = f" · волн: {_w}" + (f" (мусорных: {_wm})" if _wm else "")
+                out[2] += _q
     except Exception:
         pass  # бюджет — бонус
     out += [f"  [{i}] {t or u}\n      {u} ({d}{'; ' + tl if tl else ''})"
