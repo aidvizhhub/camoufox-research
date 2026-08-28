@@ -19,10 +19,11 @@ staged=$(git diff --cached --name-only 2>/dev/null || true)
 bad=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
-  # 1. приватная добыча — НИКОГДА
+  # 1. приватная добыча — НИКОГДА; витрина (research/public) — МОЖНО
   case "$f" in
+    research/README.md) continue ;;            # README ок
+    research/public/*) continue ;;             # витрина — публикуется намеренно
     research/*.md|research/cit/*|research/screenshots/*)
-      [ "$f" = "research/README.md" ] && continue  # README ок
       bad="$bad\n  PRIVATE: $f (добыча — только локально)"
       continue
       ;;
