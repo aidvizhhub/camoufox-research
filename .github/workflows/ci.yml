@@ -9,6 +9,8 @@ jobs:
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -33,12 +35,26 @@ jobs:
         # во временный .venv: разошёлся lock с pyproject — красный.
         # Примечание: uv sync делает СВОЙ .venv в проекте, а не в
         # переданном каталоге (проверено 28.08) — чистим его после.
+        # Если pyproject новее lock (dependabot обновил пин, а lock нет)
+        # на ПУШЕ в main — джоб lock-update ниже починит сам.
         run: |
           pip install uv 2>&1 | tail -n 1
           uv lock --check
           uv sync --frozen --no-dev
           .venv/bin/python -c "import camoufox_research.camoufox_research as s; n=len(s.mcp._tool_manager._tools); print('smoke tools:', n); assert n >= 50"
           rm -rf .venv
+
+      - name: Auto-lock (push в main: pyproject новее uv.lock → пересобрать)
+        # dependabot открывает PR на пины, но uv.lock не трогает
+        # (известная граница); CI на PR красный — честно. При мерже в
+        # main этот шаг пересобирает lock автоматически (не вручную).
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          uv lock 2>&1 | tail -n 1
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock && git commit -m "chore: uv.lock синхронизирован с pyproject" || echo "lock не изменился"
+          git push
 
       - name: Imports compile
         run: |
