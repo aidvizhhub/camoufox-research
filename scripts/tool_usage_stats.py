@@ -24,21 +24,22 @@ USAGE = Path(os.environ.get(
 )) / "tool_usage.json"
 
 
-def _render(data, top_limit=20) -> str:
-    """Текстовый дашборд одной строкой (для крон-лога и --out)."""
+def _render(data, top_limit=20):
+    """Текстовый дашборд одной строкой (для крон-лога и --out).
+    Возвращает (text, rows): rows = [(tool, count:int, last_days:float|None, bucket)]."""
     now = time.time()
-    rows = []
+    rows: list[tuple[str, int, float | None, str]] = []
     for t, r in data.items():
         if isinstance(r, dict):
             count, last = r.get("count", 0), r.get("last")
         else:
             count, last = r, None
         if not last:
-            rows.append((t, count, None, "?"))
+            rows.append((t, int(count), None, "?"))
             continue
         ago_d = (now - last) / 86400
         buck = "7дн" if ago_d <= 7 else ("30дн" if ago_d <= 30 else ">30дн")
-        rows.append((t, count, ago_d, buck))
+        rows.append((t, int(count), ago_d, buck))
     rows.sort(key=lambda x: -x[1])
     out = [f"вызовов всего: {sum(r[1] for r in rows)} · тулов: {len(rows)}\n"]
     out.append(f"{'вызовы':>7}  {'последний':>9}  {'период':>6}  тул")
