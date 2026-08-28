@@ -24,44 +24,92 @@ USAGE = Path(os.environ.get(
 )) / "tool_usage.json"
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="usage-дашборд (текстовый)")
-    ap.add_argument("--all", action="store_true", help="показать все, не топ-20")
-    args = ap.parse_args()
-    if not USAGE.exists():
-        print(f"нет {USAGE} — ещё не было вызовов")
-        return 0
-    data = json.loads(USAGE.read_text(encoding="utf-8"))
+def _render(data, top_limit=20) -> str:
+    """Текстовый дашборд одной строкой (для крон-лога и --out)."""
     now = time.time()
-
     rows = []
     for t, r in data.items():
         if isinstance(r, dict):
             count, last = r.get("count", 0), r.get("last")
-        else:  # старый формат
+        else:
             count, last = r, None
         if not last:
             rows.append((t, count, None, "?"))
             continue
         ago_d = (now - last) / 86400
-        if ago_d <= 7:
-            buck = "7дн"
-        elif ago_d <= 30:
-            buck = "30дн"
-        else:
-            buck = ">30дн"
+        buck = "7дн" if ago_d <= 7 else ("30дн" if ago_d <= 30 else ">30дн")
         rows.append((t, count, ago_d, buck))
-
     rows.sort(key=lambda x: -x[1])
-    print(f"вызовов всего: {sum(r[1] for r in rows)} · тулов: {len(rows)}\n")
-    print(f"{'вызовы':>7}  {'последний':>9}  {'период':>6}  тул")
-    for t, count, ago, buck in (rows if args.all else rows[:20]):
+    out = [f"вызовов всего: {sum(r[1] for r in rows)} · тулов: {len(rows)}\n"]
+    out.append(f"{'вызовы':>7}  {'последний':>9}  {'период':>6}  тул")
+    for t, count, ago, buck in rows[:top_limit]:
         ago_s = f"{ago:.0f}дн" if ago is not None else "?"
-        bar = "#" * min(30, count // (max(rows[0][1], 1) // 30 + 1))
-        print(f"{count:>7}  {ago_s:>9}  {buck:>6}  {t} {bar}")
+        out.append(f"{count:>7}  {ago_s:>9}  {buck:>6}  {t}")
     stale = [r[0] for r in rows if r[2] and r[2] > 30]
     if stale:
-        print(f"\nкандидаты на резку (>30дн не звались): {', '.join(sorted(stale)[:10])}")
+        out.append(f"\nкандидаты на резку (>30дн): {', '.join(sorted(stale)[:10])}")
+    return "\n".join(out), rows
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="usage-дашборд (текстовый)")
+    ap.add_argument("--all", action="store_true", help="показать все, не топ-20")
+    ap.add_argument("--out", default="",
+                    help="записать отчёт в файл (для крона: metrics/usage-weekly.txt)")
+    ap.add_argument("--candidates", default="",
+                    help="записать JSON кандидатов на резку в файл "
+                         "(следующий цикл берёт из файла, не пересчитывает)")
+    ap.add_argument("--mermaid", default="",
+                    help="сгенерить mermaid-бар (README-вставка) в файл")
+    args = ap.parse_args()
+    if not USAGE.exists():
+        print(f"нет {USAGE} — ещё не было вызовов")
+        return 0
+    data = json.loads(USAGE.read_text(encoding="utf-8"))
+    limit = 0 if args.all else 20
+    report, rows = _render(data, limit)
+    # кандидаты: JSON с пометками (tool, count, last_days, reason)
+    data_raw = json.loads(USAGE.read_text(encoding="utf-8"))
+    now = time.time()
+    cands = []
+    for t, r in data_raw.items():
+        if not isinstance(r, dict):
+            continue
+        last = r.get("last")
+        if last and (now - last) > 30 * 86400:
+            cands.append({
+                "tool": t,
+                "count": r.get("count", 0),
+                "last_days": round((now - last) / 86400, 1),
+                "reason": "no_calls_30d",
+                "reviewed": False,
+            })
+    cands.sort(key=lambda x: -x["last_days"])
+    if args.candidates:
+        Path(args.candidates).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.candidates).write_text(
+            json.dumps({"updated": int(time.time()), "candidates": cands},
+                       ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"кандидаты сохранены: {args.candidates} ({len(cands)})")
+    elif cands:
+        print(f"кандидатов на резку: {len(cands)} (--candidates для архива)")
+    if args.mermaid:
+        # mermaid xychart bar: >>https://mermaid.live<< (реальный график
+        # для README, индустрия: визуальный тренд, не полоски текстом)
+        mm = ["```mermaid", "xychart-beta", '    title "Usage тулов (топ-10)"',
+              '    x-axis "тул"', '    y-axis "вызовы"', "    bar"]
+        for t, count, _ago, _buck in sorted(rows, key=lambda r: -r[1])[:10]:
+            mm.append(f'    "{t[:18]}": {count}')
+        mm.append("```")
+        Path(args.mermaid).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.mermaid).write_text("\n".join(mm) + "\n", encoding="utf-8")
+        print(f"mermaid сохранён: {args.mermaid}")
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(report + "\n", encoding="utf-8")
+        print(f"отчёт сохранён: {args.out}")
+    else:
+        print(report)
     return 0
 
 
