@@ -109,13 +109,15 @@ def main() -> int:
         fh.write(line + "\n")
     if fail:
         ALERT.write_text(line + "\n", encoding="utf-8")
-        _notify(line)
+        _notify(line, "critical")
         return 1
     ALERT.unlink(missing_ok=True)
+    if warn:  # машина спала / нет данных — догон уже в силе, но знать полезно
+        _notify(line + " — догон сработает при загрузке", "normal")
     return 0
 
 
-def _notify(msg: str) -> None:
+def _notify(msg: str, urgency: str) -> None:
     """Уведомление на рабочий стол (best-effort; нет notify-send — молча)."""
     if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         return
@@ -124,7 +126,7 @@ def _notify(msg: str) -> None:
 
     if shutil.which("notify-send"):
         subprocess.run(
-            ["notify-send", "-u", "critical", "Кауфми-пульс", msg],
+            ["notify-send", "-u", urgency, "Кауфми-пульс", msg],
             timeout=10,
             check=False,
         )
