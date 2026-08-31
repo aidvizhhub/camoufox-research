@@ -30,7 +30,7 @@ classifiers = [
 # без пинов pip дрейфует к новым версиям и ломает совместимость.
 dependencies = [
     "mcp==2.1.1",  # v2 (2026-07-28): stateless, ttlMs/cacheScope, OTel по умолчанию
-    "camoufox==0.5.4",
+    "camoufox==0.5.5",
     "trafilatura>=2.0",
     "pypdf>=4.0",
     "python-docx>=1.1",

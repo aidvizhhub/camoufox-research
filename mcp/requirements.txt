@@ -10,7 +10,7 @@
 # отдельный mcp/uv.lock = дублирование (DRY), НЕ создавать —
 # обновление зависимостей только через корневой uv.lock.
 mcp==1.29.0
-camoufox==0.5.4
+camoufox==0.5.5
 # опционально: чистый текст статьи (article_only) — без неё fallback на body
 trafilatura>=2.0
 pypdf>=4.0
