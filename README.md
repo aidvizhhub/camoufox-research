@@ -514,7 +514,7 @@ Cron (идемпотентно, одна строка; путь вентиля �
 
 ```bash
 7 9,21 * * * ~/.venvs/camoufox-research/bin/python \
-  /путь/к/camoufox-reasearch/scripts/watchdog_search.py \
+  /путь/к/camoufox-research/scripts/watchdog_search.py \
   >> ~/.cache/camoufox-research/watchdog.log 2>&1
 ```
 

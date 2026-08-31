@@ -17,9 +17,8 @@
 Ротация: держим свежайшие _KEEP архивов (по умолчанию 7 = неделя
 при ежедневном кроне), старые удаляются.
 
-Cron (ставится одной строкой, идемпотентно):
-20 4 * * * ~/.venvs/camoufox-research/bin/python
-  /run/media/admin1/DATA/camoufox-reasearch/scripts/backup_cache.py
+Cron (ставится одной строкой, идемпотентно — см. scripts/install_cron.sh):
+20 4 * * * <путь-из-config.env>/scripts/backup_cache.py
   >> ~/.cache/camoufox-research/backup.log 2>&1
 
 Запуск вручную:  python scripts/backup_cache.py [--keep 7] [--dry]
@@ -33,18 +32,18 @@ import time
 from pathlib import Path
 
 _KEEP = int(os.environ.get("BACKUP_KEEP", "7"))
-_CACHE = Path(os.environ.get(
-    "CAMOUFOX_CACHE_DIR", str(Path.home() / ".cache/camoufox-research")
-))
+_CACHE = Path(os.environ.get("CAMOUFOX_CACHE_DIR", str(Path.home() / ".cache/camoufox-research")))
 # ПЕРЕНОСИМОСТЬ (закон 28): env > ~/.backups/camoufox-research —
 # НЕ хардкод диска. На машине с вторым диском можно
 # CAMOUFOX_BACKUP_DIR=/run/media/admin1/DATA/cache-backups (env).
-_BACKUP_DIR = Path(os.environ.get(
-    "CAMOUFOX_BACKUP_DIR", str(Path.home() / ".backups" / "camoufox-research")
-))
+_BACKUP_DIR = Path(
+    os.environ.get("CAMOUFOX_BACKUP_DIR", str(Path.home() / ".backups" / "camoufox-research"))
+)
+
 
 def _archive_name() -> str:
     return f"camoufox-research-{time.strftime('%Y%m%d-%H%M%S')}.tar.zst"
+
 
 def _files_to_backup(cache: Path) -> list:
     """Добыча: research/ (с .md и .cit), cache.db, memory.md."""
@@ -58,6 +57,7 @@ def _files_to_backup(cache: Path) -> list:
             items.append(f)
     return items
 
+
 def _rotate(backup_dir: Path, keep: int) -> int:
     """Старые архивы — вон; возвращаем сколько удалили."""
     archives = sorted(backup_dir.glob("camoufox-research-*.tar.zst"))
@@ -69,6 +69,7 @@ def _rotate(backup_dir: Path, keep: int) -> int:
         except OSError:
             continue
     return drops
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="бэкап добычи охоты (zstd, ротация)")
@@ -99,6 +100,7 @@ def main() -> int:
     drops = _rotate(_BACKUP_DIR, args.keep)
     print(f"✅ бэкап: {arc.name} ({size_mb:.1f}М), удалено старых: {drops}")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

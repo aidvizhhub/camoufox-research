@@ -34,7 +34,7 @@ for a in "$@"; do
 done
 
 gen_line() { # $1=расписание $2=имя-лога $3=скрипт
-  echo "$1 CAMOUFOX_REPO=\"\$(sed -n 's/^CAMOUFOX_REPO=\"\\(.*\\)\"/\\1/p' $CFG 2>/dev/null || echo \$HOME/camoufox-reasearch)\" bash -c 'cd \"\$CAMOUFOX_REPO\" && \"\$(sed -n 's/^CAMOUFOX_PYTHON=\"\\(.*\\)\"/\\1/p' $CFG 2>/dev/null || echo python3)\" scripts/$3' >> $CACHE/$2.log 2>&1"
+  echo "$1 CAMOUFOX_REPO=\"\$(sed -n 's/^CAMOUFOX_REPO=\"\\(.*\\)\"/\\1/p' $CFG 2>/dev/null || echo \$HOME/media-projects/camoufox-research)\" bash -c 'cd \"\$CAMOUFOX_REPO\" && \"\$(sed -n 's/^CAMOUFOX_PYTHON=\"\\(.*\\)\"/\\1/p' $CFG 2>/dev/null || echo python3)\" scripts/$3' >> $CACHE/$2.log 2>&1"
 }
 
 # имена <-> дефолтные расписания <-> скрипты (для keep-timings)
@@ -45,11 +45,13 @@ ITEMS=(
   "map_metric|40 4 * * *|map_metric_cron.sh"
   "precommit|0 0 1 * *|pre-commit_autoupdate.sh"
   "budget_review|20 10 * * 1|budget_review.py"
+  "tool_usage|15 10 * * 1|tool_usage_stats.py --out \"\$CAMOUFOX_REPO/metrics/usage-weekly.txt\" --candidates \"\$CAMOUFOX_REPO/metrics/usage-candidates.json\""
+  "health_pulse|0 8 * * *|health_pulse.py"
 )
 
 # --- remove: снять наши строки, оставить чужие ---
 if [ "$MODE" = "remove" ]; then
-  crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit' > /tmp/cron_new 2>/dev/null || true
+  crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats' > /tmp/cron_new 2>/dev/null || true
   crontab /tmp/cron_new
   echo "✅ Сняты все строки кауфми (чужой крон не тронут)."
   echo "   Осталось строк в crontab: $(crontab -l 2>/dev/null | grep -c .)"
@@ -58,7 +60,8 @@ fi
 
 # --- собрать строки: своё расписание или из старого crontab (keep) ---
 read_old_sched() { # $1=имя — найти расписание в текущем crontab
-  crontab -l 2>/dev/null | grep "$1" | head -1 | awk '{print $1, $2, $3, $4, $5}'
+  # || true: set -euo pipefail — grep без совпадений падал бы на новых именах
+  crontab -l 2>/dev/null | grep "$1" | head -1 | awk '{print $1, $2, $3, $4, $5}' || true
 }
 
 TMP_LINES="$(mktemp)"
@@ -81,7 +84,7 @@ if [ "$MODE" = "dry" ]; then
 fi
 
 # --- install/keep: убрать старые наши, добавить новые (идемпотентно) ---
-crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit' > /tmp/cron_new 2>/dev/null || true
+crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats' > /tmp/cron_new 2>/dev/null || true
 cat "$TMP_LINES" >> /tmp/cron_new
 crontab /tmp/cron_new
 echo "✅ Крон обновлён (строк наших: $(grep -cE 'watchdog_search|backup_cache|map_metric_cron' /tmp/cron_new))"

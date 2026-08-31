@@ -11,9 +11,8 @@ ok      → строка в watchdog.log, алерт-файл снимается
 на сутки замаскирует, а кампании станут честными «partial» без причины.
 Сторож ловит это ДО охот, а не после (shift-left).
 
-Cron (idempotent, ставится одной строкой):
-7 9,21 * * * ~/.venvs/camoufox-research/bin/python
-  /run/media/admin1/DATA/camoufox-reasearch/scripts/watchdog_search.py
+Cron (idempotent, ставится одной строкой — см. scripts/install_cron.sh):
+7 9,21 * * * <путь-из-config.env>/scripts/watchdog_search.py
   >> ~/.cache/camoufox-research/watchdog.log 2>&1
 """
 
@@ -32,10 +31,12 @@ _HOME_CACHE = os.environ.get(
 _LOG = os.path.join(_HOME_CACHE, "watchdog.log")
 _ALERT = os.path.join(_HOME_CACHE, "watchdog_ALERT")
 
+
 def _stamp(msg):
     os.makedirs(_HOME_CACHE, exist_ok=True)
     with open(_LOG, "a", encoding="utf-8") as fh:
         fh.write(f"{time.strftime('%d.%m %H:%M')} {msg}\n")
+
 
 def main():
     n, err = 0, ""
@@ -60,6 +61,7 @@ def main():
             "(camoufox_browser.py, разметка DDG?).\n"
         )
     sys.exit(1)
+
 
 if __name__ == "__main__":
     try:

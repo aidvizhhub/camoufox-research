@@ -67,7 +67,7 @@ grep -c "MCPServer" ~/.venvs/camoufox-research/lib/python3.14/site-packages/camo
 # 4. MCP-рукопожатие: initialize → tools/list (probe-скрипт: посчитать тулы, ttlMs)
 # 5. CI: gh run list / gh run watch (главный судья — 3 питона)
 ```
-Большие правки: `cp -r репа /tmp/opencode/backup-camoufox-reasearch` ДО (закон 10).
+Большие правки: `cp -r репа /tmp/opencode/backup-camoufox-research` ДО (закон 10).
 
 ## Грабли-ловушки (выжимка landmines.md #1–26)
 

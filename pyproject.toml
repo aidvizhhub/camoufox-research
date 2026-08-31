@@ -40,6 +40,9 @@ dependencies = [
 [project.optional-dependencies]
 # лёгкая установка без GPL-компонента (trafilatura GPL-3.0)
 light = ["pypdf>=4.0", "python-docx>=1.1", "openpyxl>=3.1"]
+# разработка локально (то же, что гейты CI: ruff/mypy/bandit; pytest —
+# удобство, канон проекта — unittest discover)
+dev = ["ruff", "mypy", "bandit", "pytest>=8"]
 
 [project.scripts]
 camoufox-research = "camoufox_research.camoufox_research:main"
