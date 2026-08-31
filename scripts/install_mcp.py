@@ -245,6 +245,7 @@ def main() -> int:
     ensure_repo()
     ensure_venv(venv)
     install_package(venv, args.reinstall)
+    wrap_console(venv)  # обёртка ПОВЕРХ entry (dsh-урок 31.08) — всегда после pip
     fetch_browser(venv)
     write_mcp_config(venv)
     write_env_config(venv)
