@@ -109,9 +109,25 @@ def main() -> int:
         fh.write(line + "\n")
     if fail:
         ALERT.write_text(line + "\n", encoding="utf-8")
+        _notify(line)
         return 1
     ALERT.unlink(missing_ok=True)
     return 0
+
+
+def _notify(msg: str) -> None:
+    """Уведомление на рабочий стол (best-effort; нет notify-send — молча)."""
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return
+    import shutil
+    import subprocess
+
+    if shutil.which("notify-send"):
+        subprocess.run(
+            ["notify-send", "-u", "critical", "Кауфми-пульс", msg],
+            timeout=10,
+            check=False,
+        )
 
 
 if __name__ == "__main__":

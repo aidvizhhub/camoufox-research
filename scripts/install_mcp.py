@@ -27,6 +27,7 @@ GIT_URL = "https://github.com/aidvizhhub/camoufox-research.git"
 OPENCODE_CFG = Path.home() / ".config" / "opencode" / "opencode.json"
 MCP_NAME = "camoufox"
 
+
 def run(cmd, env=None, check=True):
     """Команда с живым выводом; check=False — не падать на ненулевом rc."""
     print("  $", " ".join(cmd) if isinstance(cmd, list) else cmd)
@@ -34,6 +35,7 @@ def run(cmd, env=None, check=True):
     if check and r.returncode != 0:
         raise RuntimeError(f"команда упала (rc={r.returncode}): {cmd}")
     return r
+
 
 def ensure_repo():
     """Репо локально? Нет — clone. Да — pull (ff-only)."""
@@ -48,16 +50,19 @@ def ensure_repo():
     # сломанное не пройдёт, честный отказ с указанием файла.
     import subprocess as _sp2
     import pathlib as _pl2
+
     _bad = []
     for _f in _pl2.Path(REPO).rglob("*.py"):
         if ".venv" not in str(_f) and "node_modules" not in str(_f):
-            _r = _sp2.run([sys.executable, "-m", "py_compile", str(_f)],
-                          capture_output=True, text=True)
+            _r = _sp2.run(
+                [sys.executable, "-m", "py_compile", str(_f)], capture_output=True, text=True
+            )
             if _r.returncode != 0:
                 _bad.append(str(_f))
     if _bad:
         print(f"⛔ СИНТАКС-ГЕЙТ: сломанные файлы (не пушим дальше): {_bad[:3]}")
         sys.exit(1)
+
 
 def ensure_venv(venv: Path):
     """venv нет — создать."""
@@ -65,6 +70,7 @@ def ensure_venv(venv: Path):
         print(f"[2] venv нет — создаю {venv}")
         venv.mkdir(parents=True, exist_ok=True)
         run([sys.executable, "-m", "venv", str(venv)])
+
 
 def install_package(venv: Path, reinstall: bool):
     """pip install git+…@main (без editable). --reinstall — force."""
@@ -75,13 +81,46 @@ def install_package(venv: Path, reinstall: bool):
     print("[3] pip install из git (схема «с гита» 28.08)")
     run(cmd, check=False)
 
+
+def wrap_console(venv: Path) -> None:
+    """Общая обёртка консольного скрипта (31.08, урок dsh).
+
+    Проблема: сторонние клиенты (dsh web, dsh.service) запускают
+    `camoufox-research` ПОЛНЫМ путём venv/bin — мимо обёртки PATH и
+    мимо opencode-обёртки → сервер без caps (все 61 тул) и без памяти/
+    отчётов. Два сервера с разными профилями = гонки за cache.db.
+    Решение: после pip install кладём ПОВЕРХ консольного скрипта
+    обёртку (дефолт caps = research,browser; оригинал — .real, всегда
+    свежий: копия ТОЛЬКО ЧТО установленного скрипта). Любой запуск
+    через этот скрипт получает единый профиль; opencode-обёртка
+    задаёт CAMOUFOX_CAPS явно — дефолт не трогает (setdefault).
+    """
+    entry = venv / "bin" / "camoufox-research"
+    if not entry.exists():
+        return
+    (entry.parent / "camoufox-research.real").write_bytes(entry.read_bytes())
+    (entry.parent / "camoufox-research.real").chmod(0o755)
+    wrapper = (
+        "#!/usr/bin/env bash\n"
+        "# Авто-обёртка install_mcp.py (общая: caps + отчёты).\n"
+        'export CAMOUFOX_CAPS="${CAMOUFOX_CAPS:-research,browser}"\n'
+        f'export CAMOUFOX_REPORT_DIR="${{CAMOUFOX_REPORT_DIR:-{REPO / "research"}}}"\n'
+        f'exec {venv / "bin" / "python3"} {entry.parent / "camoufox-research.real"} "$@"\n'
+    )
+    entry.write_text(wrapper)
+    entry.chmod(0o755)
+    print(f"  [3a] консоль-обёртка: {entry} (+ .real)")
+
+
 def fetch_browser(venv: Path):
     """Браузер Camoufox — один раз (если нет)."""
     py = str(venv / "bin" / "python")
     print("[4] браузер: python -m camoufox fetch (пропущу, если есть)")
     run([py, "-m", "camoufox", "fetch"], check=False)
 
+
 CAMOUFOX_CACHE = Path.home() / ".cache" / "camoufox-research"
+
 
 def write_env_config(venv: Path):
     """~/.cache/camoufox-research/config.env — ЕДИНСТВЕННОЕ место с
@@ -99,11 +138,13 @@ def write_env_config(venv: Path):
     path.write_text(body, encoding="utf-8")
     print(f"[5+] пути в {path} (читают camo-publish/крон)")
 
+
 def install_gitleaks():
     """gitleaks локально (28.08): секрет-скан ДО коммита (2-й слой
     рядом с CI). Если go нет — предупреждение, не падение (CI догонит).
     Модуль переименован: github.com/zricethezav/gitleaks (грабля 28.08)."""
     import shutil
+
     if shutil.which("gitleaks"):
         print("[6] gitleaks уже установлен — пропускаю")
         return
@@ -112,8 +153,13 @@ def install_gitleaks():
         return
     try:
         import subprocess
-        r = subprocess.run(["go", "install", "github.com/zricethezav/gitleaks/v8@latest"],
-                           capture_output=True, text=True, timeout=300)
+
+        r = subprocess.run(
+            ["go", "install", "github.com/zricethezav/gitleaks/v8@latest"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
         if r.returncode == 0:
             gobin = Path.home() / "go" / "bin" / "gitleaks"
             if gobin.exists():
@@ -149,6 +195,7 @@ def write_mcp_config(venv: Path):
     OPENCODE_CFG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[5] MCP '{MCP_NAME}' прописан в {OPENCODE_CFG}")
 
+
 def verify(venv: Path):
     """Импорт + число тулов."""
     py = str(venv / "bin" / "python")
@@ -168,6 +215,7 @@ def verify(venv: Path):
     print("[✗] проверка: ", r.stdout.strip() or r.stderr[-200:])
     return False
 
+
 def _print_config(venv: Path) -> int:
     """--print: показать РЕАЛЬНЫЕ пути (config.env) одной командой —
     проверка, откуда система берёт repo/python/кэш (диагностика)."""
@@ -184,12 +232,12 @@ def _print_config(venv: Path) -> int:
     print(f"  {'VENV (по умолчанию)':20s}= {venv}")
     return 0
 
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="установка кауфми-MCP из git в opencode")
     ap.add_argument("--venv", default=str(Path.home() / ".venvs" / "camoufox-research"))
     ap.add_argument("--reinstall", action="store_true", help="переустановить (force)")
-    ap.add_argument("--print", action="store_true",
-                    help="показать пути (config.env) и выйти")
+    ap.add_argument("--print", action="store_true", help="показать пути (config.env) и выйти")
     args = ap.parse_args()
     if args.print:
         return _print_config(Path(args.venv))
@@ -214,12 +262,16 @@ def main() -> int:
     # рубеж — «opencode2 service restart». Команды «mcp restart» НЕТ.
     try:
         import subprocess as _sp
+
         for _m in ("disconnect", "connect"):
-            _sp.run(["opencode2", "api", "post", f"/api/mcp/camoufox/{_m}"],
-                    capture_output=True, text=True, timeout=20)
+            _sp.run(
+                ["opencode2", "api", "post", f"/api/mcp/camoufox/{_m}"],
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
         time.sleep(3)  # сервису время пересоздать процесс и список тулов
-        _r = _sp.run(["opencode2", "mcp", "list"], capture_output=True,
-                     text=True, timeout=20)
+        _r = _sp.run(["opencode2", "mcp", "list"], capture_output=True, text=True, timeout=20)
         if "camoufox" in _r.stdout and "connected" in _r.stdout:
             print("[+] MCP переподключён и ПРОВЕРЕН: ✓ camoufox connected")
         else:
@@ -230,6 +282,7 @@ def main() -> int:
         print("    команды: opencode2 api post /api/mcp/camoufox/disconnect;")
         print("              opencode2 api post /api/mcp/camoufox/connect")
     return 0 if ok else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

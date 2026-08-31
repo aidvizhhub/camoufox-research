@@ -1,8 +1,8 @@
 {
  "map10": 0.916,
- "binary": 0.917,
- "campaigns": 26,
- "updated": "2026-08-28",
+ "binary": 0.919,
+ "campaigns": 34,
+ "updated": "2026-08-31",
  "sync": "local-only",
  "note": "в git не обновляется автоматически"
 }
