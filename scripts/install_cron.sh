@@ -17,9 +17,9 @@
 # Что ставит (имена логов — конвенция кэша):
 #   7 9,21  watchdog_search  (DDG жив?)           — 2р/день
 #   3 11 * 1 topic_watch     (дозор тем)          — пн
-#   20 4    backup_cache     (бэкап добычи)       — ежедневно
-#   40 4    map_metric_cron  (MAP-бейдж авто)     — ежедневно
 #   0 0 1   precommit   autoupdate (линтеры)      — 1р/мес
+# НОЧНЫЕ (backup_cache 04:20, map_metric 04:40) — в systemd-таймеры с
+# догоном (install_timers.sh): crond пропускает при спящей машине.
 
 set -euo pipefail
 
@@ -41,8 +41,6 @@ gen_line() { # $1=расписание $2=имя-лога $3=скрипт
 ITEMS=(
   "watchdog_search|7 9,21 * * *|watchdog_search.py"
   "topic_watch|3 11 * * 1|topic_watch.py"
-  "backup_cache|20 4 * * *|backup_cache.py"
-  "map_metric|40 4 * * *|map_metric_cron.sh"
   "precommit|0 0 1 * *|pre-commit_autoupdate.sh"
   "budget_review|20 10 * * 1|budget_review.py"
   "tool_usage|15 10 * * 1|tool_usage_stats.py --out \"\$CAMOUFOX_REPO/metrics/usage-weekly.txt\" --candidates \"\$CAMOUFOX_REPO/metrics/usage-candidates.json\""
@@ -51,7 +49,7 @@ ITEMS=(
 
 # --- remove: снять наши строки, оставить чужие ---
 if [ "$MODE" = "remove" ]; then
-  crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats' > /tmp/cron_new 2>/dev/null || true
+  crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats|health_pulse' > /tmp/cron_new 2>/dev/null || true
   crontab /tmp/cron_new
   echo "✅ Сняты все строки кауфми (чужой крон не тронут)."
   echo "   Осталось строк в crontab: $(crontab -l 2>/dev/null | grep -c .)"
@@ -84,7 +82,7 @@ if [ "$MODE" = "dry" ]; then
 fi
 
 # --- install/keep: убрать старые наши, добавить новые (идемпотентно) ---
-crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats' > /tmp/cron_new 2>/dev/null || true
+crontab -l 2>/dev/null | grep -vE 'watchdog_search|topic_watch|backup_cache|map_metric_cron|precommit|budget_review|tool_usage_stats|health_pulse' > /tmp/cron_new 2>/dev/null || true
 cat "$TMP_LINES" >> /tmp/cron_new
 crontab /tmp/cron_new
 echo "✅ Крон обновлён (строк наших: $(grep -cE 'watchdog_search|backup_cache|map_metric_cron' /tmp/cron_new))"

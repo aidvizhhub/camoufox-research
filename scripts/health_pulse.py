@@ -27,6 +27,7 @@ from pathlib import Path
 
 CACHE = Path(os.environ.get("CAMOUFOX_CACHE_DIR", Path.home() / ".cache" / "camoufox-research"))
 ALERT = CACHE / "health-pulse_ALERT"
+PIDFILE = Path(os.environ.get("CAMOUFOX_PIDFILE", f"/run/user/{os.getuid()}/camoufox-mcp.pid"))
 STALE_H = int(os.environ.get("HEALTH_PULSE_STALE_H", "48"))
 BOOT_GRACE_H = int(os.environ.get("HEALTH_PULSE_BOOT_GRACE_H", "20"))
 
@@ -65,10 +66,9 @@ def main() -> int:
     warn = False
 
     # 1. MCP-сервер жив
-    pidfile = Path(f"/run/user/{os.getuid()}/camoufox-mcp.pid")
     mcp = "MISSING"
-    if pidfile.exists():
-        pid = int(pidfile.read_text().strip() or 0)
+    if PIDFILE.exists():
+        pid = int(PIDFILE.read_text().strip() or 0)
         if pid > 0:
             try:
                 os.kill(pid, 0)
@@ -109,9 +109,27 @@ def main() -> int:
         fh.write(line + "\n")
     if fail:
         ALERT.write_text(line + "\n", encoding="utf-8")
+        _notify(line, "critical")
         return 1
     ALERT.unlink(missing_ok=True)
+    if warn:  # машина спала / нет данных — догон уже в силе, но знать полезно
+        _notify(line + " — догон сработает при загрузке", "normal")
     return 0
+
+
+def _notify(msg: str, urgency: str) -> None:
+    """Уведомление на рабочий стол (best-effort; нет notify-send — молча)."""
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return
+    import shutil
+    import subprocess
+
+    if shutil.which("notify-send"):
+        subprocess.run(
+            ["notify-send", "-u", urgency, "Кауфми-пульс", msg],
+            timeout=10,
+            check=False,
+        )
 
 
 if __name__ == "__main__":
