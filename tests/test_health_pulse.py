@@ -29,6 +29,11 @@ class HealthPulseTest(unittest.TestCase):
         health_pulse.PIDFILE = self.cache / "camoufox-mcp.pid"
         health_pulse.PIDFILE.write_text(str(os.getpid()))  # мы сами — живой сервер
         (self.cache / "cache.db").write_bytes(b"x" * 10)
+        (self.cache / "backup_cache.log").write_text("✅ бэкап: свежий\n")
+        # живой сервер ищем в /proc — на CI его нет, изолируем моком
+        patcher = mock.patch("health_pulse._server_alive", return_value=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -81,6 +86,26 @@ class HealthPulseTest(unittest.TestCase):
             "cache=MISSING",
             (self.cache / "health-pulse.log").read_text(encoding="utf-8"),
         )
+
+    def test_stale_backup_warn(self):
+        """Бэкап старше 36ч → WARN (догон молчит), не FAIL."""
+        import os as _os
+
+        self._write_watchdog(time.strftime("%d.%m %H:%M"))
+        old = time.time() - 48 * 3600
+        _os.utime(self.cache / "backup_cache.log", (old, old))
+        rc = health_pulse.main()
+        self.assertEqual(rc, 0)
+        self.assertIn(
+            "backup=stale",
+            (self.cache / "health-pulse.log").read_text(encoding="utf-8"),
+        )
+
+    def test_proc_alive_negative(self):
+        """Мёртвый/чужой PID в пидфайле не считается живым сервером."""
+        self.assertFalse(health_pulse._proc_alive(999999999))
+        # наш тестовый PID жив, но это не camaufox — тоже False
+        self.assertFalse(health_pulse._proc_alive(os.getpid()))
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ ALERT = CACHE / "health-pulse_ALERT"
 PIDFILE = Path(os.environ.get("CAMOUFOX_PIDFILE", f"/run/user/{os.getuid()}/camoufox-mcp.pid"))
 STALE_H = int(os.environ.get("HEALTH_PULSE_STALE_H", "48"))
 BOOT_GRACE_H = int(os.environ.get("HEALTH_PULSE_BOOT_GRACE_H", "20"))
+BACKUP_STALE_H = int(os.environ.get("HEALTH_PULSE_BACKUP_STALE_H", "36"))
 
 
 def _boot_time() -> float:
@@ -65,16 +66,10 @@ def main() -> int:
     fail = False
     warn = False
 
-    # 1. MCP-сервер жив
-    mcp = "MISSING"
-    if PIDFILE.exists():
-        pid = int(PIDFILE.read_text().strip() or 0)
-        if pid > 0:
-            try:
-                os.kill(pid, 0)
-                mcp = "alive"
-            except OSError:
-                mcp = "dead"
+    # 1. MCP-сервер жив: пидфайл (закон 35) + /proc-страховка
+    # (урок 19:46: пидфайл мог остаться от умершего connect-процесса,
+    # сервер жив — пульс не должен лгать «dead»)
+    mcp = "alive" if _server_alive() else "MISSING"
     checks.append(f"mcp={mcp}")
     fail |= mcp != "alive"
 
@@ -102,6 +97,15 @@ def main() -> int:
         fail = True
         checks.append("cache=MISSING")
 
+    # 4. последний бэкап (третий глаз на догон: машина спала → таймер
+    # догнал при загрузке; если и догон молчит — WARN)
+    bl = CACHE / "backup_cache.log"
+    if bl.exists() and time.time() - bl.stat().st_mtime <= BACKUP_STALE_H * 3600:
+        checks.append("backup=ok")
+    else:
+        warn = True
+        checks.append("backup=stale" if bl.exists() else "backup=no-data")
+
     stamp = time.strftime("%d.%m %H:%M")
     verdict = "PASS" if not fail and not warn else ("FAIL" if fail else "WARN")
     line = f"{stamp} PULSE {verdict} " + " ".join(checks)
@@ -115,6 +119,35 @@ def main() -> int:
     if warn:  # машина спала / нет данных — догон уже в силе, но знать полезно
         _notify(line + " — догон сработает при загрузке", "normal")
     return 0
+
+
+def _proc_alive(pid: int) -> bool:
+    """PID жив И это кауфми-сервер (cmdline, а не просто кто-то)."""
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    cmd = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "ignore")
+    return "bin/camoufox-research" in cmd
+
+
+def _server_alive() -> bool:
+    """Жив ли сервер кауфми: пидфайл (главное), либо /proc-страховка —
+    пидфайл мог застыть от connect-процесса (урок 31.08 19:46)."""
+    if PIDFILE.exists():
+        try:
+            pid = int(PIDFILE.read_text().strip() or 0)
+        except ValueError:
+            pid = 0
+        if pid > 0 and _proc_alive(pid):
+            return True
+    for p in Path("/proc").glob("[0-9]*/cmdline"):
+        try:
+            if "bin/camoufox-research" in Path(p).read_bytes().decode("utf-8", "ignore"):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def _notify(msg: str, urgency: str) -> None:
