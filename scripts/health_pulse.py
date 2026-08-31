@@ -27,6 +27,7 @@ from pathlib import Path
 
 CACHE = Path(os.environ.get("CAMOUFOX_CACHE_DIR", Path.home() / ".cache" / "camoufox-research"))
 ALERT = CACHE / "health-pulse_ALERT"
+PIDFILE = Path(os.environ.get("CAMOUFOX_PIDFILE", f"/run/user/{os.getuid()}/camoufox-mcp.pid"))
 STALE_H = int(os.environ.get("HEALTH_PULSE_STALE_H", "48"))
 BOOT_GRACE_H = int(os.environ.get("HEALTH_PULSE_BOOT_GRACE_H", "20"))
 
@@ -65,10 +66,9 @@ def main() -> int:
     warn = False
 
     # 1. MCP-сервер жив
-    pidfile = Path(f"/run/user/{os.getuid()}/camoufox-mcp.pid")
     mcp = "MISSING"
-    if pidfile.exists():
-        pid = int(pidfile.read_text().strip() or 0)
+    if PIDFILE.exists():
+        pid = int(PIDFILE.read_text().strip() or 0)
         if pid > 0:
             try:
                 os.kill(pid, 0)
